@@ -5,8 +5,8 @@ Vault and use the Secret Store CSI driver interface to mount them into Kubernete
 
 **This is an experimental project. This project isn't production ready.**
 
-## Attribution
-This project is forked from and initially developed by our awesome partners at Microsoft (https://github.com/deislabs/secrets-store-csi-driver). Thank you to [Rita](https://github.com/deislabs/secrets-store-csi-driver/commits?author=ritazh) and [Mishra](https://github.com/deislabs/secrets-store-csi-driver/commits?author=anubhavmishra) for pushing this great project forward.
+## Attribution	
+This project is forked from and initially developed by our awesome partners at Microsoft (https://github.com/deislabs/secrets-store-csi-driver). Thank you to [Rita](https://github.com/deislabs/secrets-store-csi-driver/commits?author=ritazh) and [Mishra](https://github.com/deislabs/secrets-store-csi-driver/commits?author=anubhavmishra) for pushing this great project forward.	
 
 ## Demo
 
