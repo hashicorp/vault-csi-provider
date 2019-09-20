@@ -34,15 +34,18 @@ const (
 // Provider implements the secrets-store-csi-driver provider interface
 // and communicates with the Vault API.
 type Provider struct {
-	VaultAddress                 string
-	VaultCAPem                   string
-	VaultCACert                  string
-	VaultCAPath                  string
-	VaultRole                    string
-	VaultSkipVerify              bool
-	VaultServerName              string
-	VaultK8SMountPath            string
-	KubernetesServiceAccountPath string
+	VaultAddress                  string
+	VaultCAPem                    string
+	VaultCACert                   string
+	VaultCAPath                   string
+	VaultRole                     string
+	VaultSkipVerify               bool
+	VaultServerName               string
+	VaultK8SMountPath             string
+	KubernetesServiceAccountPath  string
+	KubernetesServiceAccountToken string
+	RequestingPodNamespace        string
+	RequestingPodName             string
 }
 
 // KeyValueObject is the object stored in Vault's Key-Value store.
@@ -372,4 +375,15 @@ func (p *Provider) GetKeyValueObjectContent(ctx context.Context, objectPath stri
 	}
 
 	return value, nil
+}
+
+// GetPodServiceAccountToken reads the driver service account token from a path inside the pod and uses that
+// to request a token from the token request API for the pod that is requesting secrets from Vault
+func (p *Provider) GetPodServiceAccountToken(ctx context.Context) error {
+	//curl -X "POST" "https://kubernetes.default.svc/api/v1/namespaces/{namespace}/serviceaccounts/{name}/token" \
+	//-H 'Authorization: Bearer {your bearer token}' \
+	//-H 'Content-Type: application/json; charset=utf-8' \
+	//-d $'{}'
+
+	return nil
 }
