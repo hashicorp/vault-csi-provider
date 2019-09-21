@@ -34,18 +34,18 @@ const (
 // Provider implements the secrets-store-csi-driver provider interface
 // and communicates with the Vault API.
 type Provider struct {
-	VaultAddress                  string
-	VaultCAPem                    string
-	VaultCACert                   string
-	VaultCAPath                   string
-	VaultRole                     string
-	VaultSkipVerify               bool
-	VaultServerName               string
-	VaultK8SMountPath             string
-	KubernetesServiceAccountPath  string
-	KubernetesServiceAccountToken string
-	RequestingPodNamespace        string
-	RequestingPodName             string
+	VaultAddress                     string
+	VaultCAPem                       string
+	VaultCACert                      string
+	VaultCAPath                      string
+	VaultRole                        string
+	VaultSkipVerify                  bool
+	VaultServerName                  string
+	VaultK8SMountPath                string
+	KubernetesServiceAccountPath     string
+	RequestingPodServiceAccountToken string
+	RequestingPodNamespace           string
+	RequestingPodName                string
 }
 
 // KeyValueObject is the object stored in Vault's Key-Value store.
@@ -356,14 +356,12 @@ func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib ma
 
 // GetKeyValueObjectContent get content of the vault object
 func (p *Provider) GetKeyValueObjectContent(ctx context.Context, objectPath string, objectName string, objectVersion string) (content string, err error) {
-	// Read the jwt token from disk
-	jwt, err := readJWTToken(p.KubernetesServiceAccountPath)
-	if err != nil {
+	if err := p.GetPodServiceAccountToken(ctx); err != nil {
 		return "", err
 	}
 
 	// Authenticate to vault using the jwt token
-	token, err := p.login(jwt, p.VaultRole)
+	token, err := p.login(p.RequestingPodServiceAccountToken, p.VaultRole)
 	if err != nil {
 		return "", err
 	}
@@ -384,6 +382,35 @@ func (p *Provider) GetPodServiceAccountToken(ctx context.Context) error {
 	//-H 'Authorization: Bearer {your bearer token}' \
 	//-H 'Content-Type: application/json; charset=utf-8' \
 	//-d $'{}'
+
+	tokenRequestURL := path.Join("https://kubernetes.default.svc/api/v1/namespaces", p.RequestingPodNamespace, "serviceaccounts", p.RequestingPodName, "token")
+
+	// get the driver SA token from disk
+	driverToken, err := readJWTToken(p.KubernetesServiceAccountPath)
+	if err != nil {
+		return err
+	}
+
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", tokenRequestURL, bytes.NewBuffer([]byte("{}")))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+driverToken)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("got bad status code: %s, %s", resp.StatusCode, resp.Status)
+	}
+
+	fmt.Printf("resp: %s", resp.Body)
 
 	return nil
 }
