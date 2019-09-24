@@ -360,7 +360,9 @@ func (p *Provider) GetKeyValueObjectContent(ctx context.Context, objectPath stri
 		return "", err
 	}
 
-	// Authenticate to vault using the jwt token
+	// Authenticate to vault using the requesting pod jwt token
+	// the k8s auth method in vault will take care of presenting this token
+	// to the token review API for validation
 	token, err := p.login(p.RequestingPodServiceAccountToken, p.VaultRole)
 	if err != nil {
 		return "", err
@@ -407,7 +409,8 @@ func (p *Provider) GetPodServiceAccountToken(ctx context.Context) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("got bad status code: %s, %s", resp.StatusCode, resp.Status)
+		fmt.Printf("resp: %s", resp.Body)
+		return fmt.Errorf("invalid status from token request API: %s, %s", resp.StatusCode, resp.Status)
 	}
 
 	fmt.Printf("resp: %s", resp.Body)
