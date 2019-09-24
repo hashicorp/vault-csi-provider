@@ -1,25 +1,47 @@
+REGISTRY_NAME?=docker.io/hashicorp
 IMAGE_NAME=secrets-store-csi-driver-provider-vault
-REGISTRY_NAME=aramase
-IMAGE_VERSION=v0.0.5
+IMAGE_VERSION?=$(shell git tag | tail -1)
 IMAGE_TAG=$(REGISTRY_NAME)/$(IMAGE_NAME):$(IMAGE_VERSION)
 IMAGE_TAG_LATEST=$(REGISTRY_NAME)/$(IMAGE_NAME):latest
+LDFLAGS?='-X github.com/hashicorp/secrets-store-csi-driver-provider-vault/main.version=$(IMAGE_VERSION) -extldflags "-static"'
+GOOS=linux
+GOARCH=amd64
+
+.PHONY: all build image clean test-style
 
 GO111MODULE ?= on
 export GO111MODULE
 
-.PHONY: build
+HAS_GOLANGCI := $(shell command -v golangci-lint;)
+
+all: build
+
+test: test-style
+	go test github.com/deislabs/secrets-store-csi-driver/pkg/... -cover
+	go vet github.com/deislabs/secrets-store-csi-driver/pkg/...
+
+test-style: setup
+	@echo "==> Running static validations and linters <=="
+	golangci-lint run
+
+sanity-test:
+	go test -v ./test/sanity
+
 build: setup
-	@echo "Building..."
-	$Q GOOS=linux CGO_ENABLED=0 go build . 
+	CGO_ENABLED=0 go build -tags 'no_mock_provider' -a -ldflags ${LDFLAGS} -o _output/secrets-store-csi-driver-provider-vault_$(GOOS)_$(GOARCH)_$(IMAGE_VERSION) main.go provider.go 
 
-image: build
-	@echo "Building docker image..."
-	$Q docker build --no-cache -t $(IMAGE_TAG) .
+image: build 
+	docker build --build-arg VERSION=$(IMAGE_VERSION) --no-cache -t $(IMAGE_TAG) .
 
-push: image
+docker-push: image
 	docker push $(IMAGE_TAG)
+	docker tag $(IMAGE_TAG) $(IMAGE_TAG_LATEST)
+	docker push $(IMAGE_TAG_LATEST)
 
-setup:
+clean:
+	-rm -rf _output
+
+setup: clean
 	@echo "Setup..."
 	$Q go env
 
