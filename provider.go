@@ -1,4 +1,4 @@
-package vault
+package main
 
 import (
 	"bytes"

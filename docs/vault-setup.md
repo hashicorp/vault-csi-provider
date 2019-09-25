@@ -7,7 +7,7 @@ service account tokens. As part of the guide we will also store a secret as an e
 ## Deploy Vault Pod
 
 ```bash
-kubectl apply -f pkg/providers/vault/examples/vault.yaml
+kubectl apply -f examples/vault.yaml
 ```
 
 This will create a Kubernetes pod running Vault in ["dev" mode](https://www.vaultproject.io/docs/concepts/dev-server.html).
