@@ -18,9 +18,9 @@ import (
 	"golang.org/x/net/context"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/golang/glog"
 	"github.com/pkg/errors"
 	"golang.org/x/net/http2"
+	"k8s.io/klog"
 )
 
 const (
@@ -61,13 +61,13 @@ type StringArray struct {
 
 // NewProvider creates a new provider HashiCorp Vault.
 func NewProvider() (*Provider, error) {
-	glog.V(2).Infof("NewVaultProvider")
+	klog.V(2).Infof("NewVaultProvider")
 	var p Provider
 	return &p, nil
 }
 
 func readJWTToken(path string) (string, error) {
-	glog.V(2).Infof("vault: reading jwt token.....")
+	klog.V(2).Infof("vault: reading jwt token.....")
 
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -110,7 +110,7 @@ func (p *Provider) createHTTPClient() (*http.Client, error) {
 }
 
 func (p *Provider) login(jwt string, roleName string) (string, error) {
-	glog.V(2).Infof("vault: performing vault login.....")
+	klog.V(2).Infof("vault: performing vault login.....")
 
 	client, err := p.createHTTPClient()
 	if err != nil {
@@ -120,7 +120,7 @@ func (p *Provider) login(jwt string, roleName string) (string, error) {
 	addr := p.VaultAddress + "/v1/auth/" + p.VaultK8SMountPath + "/login"
 	body := fmt.Sprintf(`{"role": "%s", "jwt": "%s"}`, roleName, jwt)
 
-	glog.V(2).Infof("vault: vault address: %s\n", addr)
+	klog.V(2).Infof("vault: vault address: %s\n", addr)
 
 	req, err := http.NewRequest(http.MethodPost, addr, strings.NewReader(body))
 	if err != nil {
@@ -154,7 +154,7 @@ func (p *Provider) login(jwt string, roleName string) (string, error) {
 }
 
 func (p *Provider) getSecret(token string, secretPath string, secretName string, secretVersion string) (string, error) {
-	glog.V(2).Infof("vault: getting secrets from vault.....")
+	klog.V(2).Infof("vault: getting secrets from vault.....")
 
 	client, err := p.createHTTPClient()
 	if err != nil {
@@ -279,13 +279,13 @@ func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib ma
 	}
 	p.VaultRole = roleName
 
-	glog.V(2).Infof("vault: roleName %s", p.VaultRole)
+	klog.V(2).Infof("vault: roleName %s", p.VaultRole)
 
 	p.VaultAddress = attrib["vaultAddress"]
 	if p.VaultAddress == "" {
 		p.VaultAddress = defaultVaultAddress
 	}
-	glog.V(2).Infof("vault: vault address %s", p.VaultAddress)
+	klog.V(2).Infof("vault: vault address %s", p.VaultAddress)
 
 	// One of the following variables should be set when vaultSkipTLSVerify is false.
 	// Otherwise, system certificates are used to make requests to vault.
@@ -345,7 +345,7 @@ func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib ma
 		if err := ioutil.WriteFile(path.Join(targetPath, keyValueObject.ObjectPath), objectContent, permission); err != nil {
 			return errors.Wrapf(err, "secrets-store csi driver failed to write %s at %s", keyValueObject.ObjectPath, targetPath)
 		}
-		glog.V(0).Infof("secrets-store csi driver wrote %s at %s", keyValueObject.ObjectPath, targetPath)
+		klog.V(0).Infof("secrets-store csi driver wrote %s at %s", keyValueObject.ObjectPath, targetPath)
 	}
 
 	return nil
