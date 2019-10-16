@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
@@ -75,6 +76,13 @@ func readJWTToken(path string) (string, error) {
 	}
 
 	return string(bytes.TrimSpace(data)), nil
+}
+
+func generateSecretEndpoint(vaultAddress string, secretPath string, secretVersion string, apiAction string) (string) {
+	vaultPathRegex := regexp.MustCompile("^/([^/]+)/(.*)")
+	replaceString := vaultAddress + "/v1/${1}/" + apiAction + "/${2}?version=" + secretVersion
+	vaultApiPath := vaultPathRegex.ReplaceAllString(secretPath, replaceString)
+	return vaultApiPath
 }
 
 func (p *Provider) createHTTPClient() (*http.Client, error) {
@@ -165,7 +173,7 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 		secretVersion = "0"
 	}
 
-	addr := p.VaultAddress + "/v1/secret/data" + secretPath + "?version=" + secretVersion
+	addr := generateSecretEndpoint(p.VaultAddress, secretPath, secretVersion, "data")
 
 	req, err := http.NewRequest(http.MethodGet, addr, nil)
 	// Set vault token.
