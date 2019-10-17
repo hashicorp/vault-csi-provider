@@ -350,10 +350,10 @@ func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib ma
 			return err
 		}
 		objectContent := []byte(content)
-		if err := ioutil.WriteFile(path.Join(targetPath, keyValueObject.ObjectPath), objectContent, permission); err != nil {
-			return errors.Wrapf(err, "secrets-store csi driver failed to write %s at %s", keyValueObject.ObjectPath, targetPath)
+		if err := ioutil.WriteFile(path.Join(targetPath, keyValueObject.ObjectName), objectContent, permission); err != nil {
+			return errors.Wrapf(err, "secrets-store csi driver failed to write %s at %s", keyValueObject.ObjectName, targetPath)
 		}
-		klog.V(0).Infof("secrets-store csi driver wrote %s at %s", keyValueObject.ObjectPath, targetPath)
+		klog.V(0).Infof("secrets-store csi driver wrote %s at %s", keyValueObject.ObjectName, targetPath)
 	}
 
 	return nil
