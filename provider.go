@@ -264,7 +264,7 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 		case "1":
 			var d struct {
 				Data map[string]string `json:"data"`
-			} 
+			}
 			if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
 				return "", errors.Wrapf(err, "failed to read body")
 			}
