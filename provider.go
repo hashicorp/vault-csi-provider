@@ -60,6 +60,11 @@ type StringArray struct {
 	Array []string `json:"array" yaml:"array"`
 }
 
+type Mount struct {
+	Type string `json:"type"`
+	Options map[string]string `json:"options"`
+}
+
 // NewProvider creates a new provider HashiCorp Vault.
 func NewProvider() (*Provider, error) {
 	klog.V(2).Infof("NewVaultProvider")
@@ -78,11 +83,61 @@ func readJWTToken(path string) (string, error) {
 	return string(bytes.TrimSpace(data)), nil
 }
 
-func generateSecretEndpoint(vaultAddress string, secretPath string, secretVersion string, apiAction string) (string) {
-	vaultPathRegex := regexp.MustCompile("^/([^/]+)/(.*)")
-	replaceString := vaultAddress + "/v1/${1}/" + apiAction + "/${2}?version=" + secretVersion
-	vaultApiPath := vaultPathRegex.ReplaceAllString(secretPath, replaceString)
-	return vaultApiPath
+func splitSecretPath(secretPath string) (string, string) {
+	s := regexp.MustCompile("/+").Split(secretPath, 3)
+	return s[1], s[2]
+}
+
+func (p *Provider) getMountInfo(mountName string, token string) (string, string, error) {
+	client, err := p.createHTTPClient()
+	if err != nil {
+		return "", "", err
+	}
+
+	addr := p.VaultAddress + "/v1/sys/mounts"
+	req, err := http.NewRequest(http.MethodGet, addr, nil)
+	// Set vault token.
+	req.Header.Set("X-Vault-Token", token)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "couldn't generate request")
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "couldn't get sys mounts")
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		var b bytes.Buffer
+		io.Copy(&b, resp.Body)
+		return "", "", fmt.Errorf("failed to get successful response: %#v, %s",
+			resp, b.String())
+	}
+
+	var mount struct {
+		Data map[string]Mount `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&mount); err != nil {
+		fmt.Printf("error: %s", err)
+	}
+
+	return mount.Data[mountName+"/"].Type, mount.Data[mountName+"/"].Options["version"], nil
+}
+
+func generateSecretEndpoint(vaultAddress string, secretMountType string, secretMountVersion string, secretPrefix string, secretSuffix string, secretVersion string) (string) {
+	addr := ""
+	switch secretMountType {
+		case "kv":
+			switch secretMountVersion {
+				case "1":
+					addr = vaultAddress + "/v1/" + secretPrefix + "/" + secretSuffix
+				case "2":
+					addr = vaultAddress + "/v1/" + secretPrefix + "/data/" + secretSuffix + "?version=" + secretVersion
+			}
+	}
+	return addr
 }
 
 func (p *Provider) createHTTPClient() (*http.Client, error) {
@@ -173,7 +228,14 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 		secretVersion = "0"
 	}
 
-	addr := generateSecretEndpoint(p.VaultAddress, secretPath, secretVersion, "data")
+	secretPrefix, secretSuffix := splitSecretPath(secretPath)
+
+	secretMountType, secretMountVersion, err := p.getMountInfo(secretPrefix, token)
+	if err != nil {
+		return "", err
+	}
+
+	addr := generateSecretEndpoint(p.VaultAddress, secretMountType, secretMountVersion, secretPrefix, secretSuffix, secretVersion)
 
 	req, err := http.NewRequest(http.MethodGet, addr, nil)
 	// Set vault token.
@@ -196,17 +258,32 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 			resp, b.String())
 	}
 
-	var d struct {
-		Data struct {
-			Data map[string]string `json:"data"`
-		} `json:"data"`
+	switch secretMountType {
+	case "kv":
+		switch secretMountVersion {
+		case "1":
+			var d struct {
+				Data map[string]string `json:"data"`
+			} 
+			if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
+				return "", errors.Wrapf(err, "failed to read body")
+			}
+			return d.Data[secretName], nil
+
+		case "2":
+			var d struct {
+				Data struct {
+					Data map[string]string `json:"data"`
+				} `json:"data"`
+			}
+			if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
+				return "", errors.Wrapf(err, "failed to read body")
+			}
+			return d.Data.Data[secretName], nil
+		}
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
-		return "", errors.Wrapf(err, "failed to read body")
-	}
-
-	return d.Data.Data[secretName], nil
+	return "", fmt.Errorf("failed to get secret value")
 }
 
 func (p *Provider) getRootCAsPools() (*x509.CertPool, error) {
