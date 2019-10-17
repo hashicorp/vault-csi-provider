@@ -1,7 +1,6 @@
 package main
 
 import (
-	"regexp"
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
@@ -13,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -61,7 +61,7 @@ type StringArray struct {
 }
 
 type Mount struct {
-	Type string `json:"type"`
+	Type    string            `json:"type"`
 	Options map[string]string `json:"options"`
 }
 
@@ -126,16 +126,16 @@ func (p *Provider) getMountInfo(mountName string, token string) (string, string,
 	return mount.Data[mountName+"/"].Type, mount.Data[mountName+"/"].Options["version"], nil
 }
 
-func generateSecretEndpoint(vaultAddress string, secretMountType string, secretMountVersion string, secretPrefix string, secretSuffix string, secretVersion string) (string) {
+func generateSecretEndpoint(vaultAddress string, secretMountType string, secretMountVersion string, secretPrefix string, secretSuffix string, secretVersion string) string {
 	addr := ""
 	switch secretMountType {
-		case "kv":
-			switch secretMountVersion {
-				case "1":
-					addr = vaultAddress + "/v1/" + secretPrefix + "/" + secretSuffix
-				case "2":
-					addr = vaultAddress + "/v1/" + secretPrefix + "/data/" + secretSuffix + "?version=" + secretVersion
-			}
+	case "kv":
+		switch secretMountVersion {
+		case "1":
+			addr = vaultAddress + "/v1/" + secretPrefix + "/" + secretSuffix
+		case "2":
+			addr = vaultAddress + "/v1/" + secretPrefix + "/data/" + secretSuffix + "?version=" + secretVersion
+		}
 	}
 	return addr
 }
