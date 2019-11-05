@@ -117,6 +117,7 @@ func (p *Provider) getMountInfo(mountName, token string) (string, string, error)
 
 	if err := json.NewDecoder(resp.Body).Decode(&mount); err != nil {
 		fmt.Printf("error: %s", err)
+		return nil, nil, err
 	}
 
 	return mount.Data[mountName+"/"].Type, mount.Data[mountName+"/"].Options["version"], nil
@@ -124,7 +125,7 @@ func (p *Provider) getMountInfo(mountName, token string) (string, string, error)
 
 func generateSecretEndpoint(vaultAddress string, secretMountType string, secretMountVersion string, secretPrefix string, secretSuffix string, secretVersion string) (string, error) {
 	addr := ""
-	errMessage := fmt.Errorf("Only KV/1 and KV/2 were implemented so far")
+	errMessage := fmt.Errorf("Only mount types KV/1 and KV/2 are supported")
 	switch secretMountType {
 	case "kv":
 		switch secretMountVersion {
@@ -229,12 +230,12 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 		secretVersion = "0"
 	}
 
-	secretPrefix, secretSuffix := "", ""
 	s := regexp.MustCompile("/+").Split(secretPath, 3)
-	secretPrefix = s[1]
-	if (len(s)) >= 3 {
-		secretSuffix = s[2]
+	if len(s) < 3 {
+		return "", fmt.Errorf("unable to parse secret path %q", secretPath)
 	}
+	secretPrefix := s[1]
+	secretSuffix := s[2]
 
 	secretMountType, secretMountVersion, err := p.getMountInfo(secretPrefix, token)
 	if err != nil {
