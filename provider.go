@@ -83,12 +83,7 @@ func readJWTToken(path string) (string, error) {
 	return string(bytes.TrimSpace(data)), nil
 }
 
-func splitSecretPath(secretPath string) (string, string) {
-	s := regexp.MustCompile("/+").Split(secretPath, 3)
-	return s[1], s[2]
-}
-
-func (p *Provider) getMountInfo(mountName string, token string) (string, string, error) {
+func (p *Provider) getMountInfo(mountName, token string) (string, string, error) {
 	client, err := p.createHTTPClient()
 	if err != nil {
 		return "", "", err
@@ -96,11 +91,12 @@ func (p *Provider) getMountInfo(mountName string, token string) (string, string,
 
 	addr := p.VaultAddress + "/v1/sys/mounts"
 	req, err := http.NewRequest(http.MethodGet, addr, nil)
-	// Set vault token.
-	req.Header.Set("X-Vault-Token", token)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "couldn't generate request")
 	}
+	// Set vault token.
+	req.Header.Set("X-Vault-Token", token)
+	req.Header.Set("X-Vault-Request", "true")
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "couldn't get sys mounts")
@@ -126,8 +122,9 @@ func (p *Provider) getMountInfo(mountName string, token string) (string, string,
 	return mount.Data[mountName+"/"].Type, mount.Data[mountName+"/"].Options["version"], nil
 }
 
-func generateSecretEndpoint(vaultAddress string, secretMountType string, secretMountVersion string, secretPrefix string, secretSuffix string, secretVersion string) string {
+func generateSecretEndpoint(vaultAddress string, secretMountType string, secretMountVersion string, secretPrefix string, secretSuffix string, secretVersion string) (string, error) {
 	addr := ""
+	errMessage := fmt.Errorf("Only KV/1 and KV/2 were implemented so far")
 	switch secretMountType {
 	case "kv":
 		switch secretMountVersion {
@@ -135,9 +132,13 @@ func generateSecretEndpoint(vaultAddress string, secretMountType string, secretM
 			addr = vaultAddress + "/v1/" + secretPrefix + "/" + secretSuffix
 		case "2":
 			addr = vaultAddress + "/v1/" + secretPrefix + "/data/" + secretSuffix + "?version=" + secretVersion
+		default:
+			return "", errMessage
 		}
+	default:
+		return "", errMessage
 	}
-	return addr
+	return addr, nil
 }
 
 func (p *Provider) createHTTPClient() (*http.Client, error) {
@@ -228,14 +229,22 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 		secretVersion = "0"
 	}
 
-	secretPrefix, secretSuffix := splitSecretPath(secretPath)
+	secretPrefix, secretSuffix := "", ""
+	s := regexp.MustCompile("/+").Split(secretPath, 3)
+	secretPrefix = s[1]
+	if (len(s)) >= 3 {
+		secretSuffix = s[2]
+	}
 
 	secretMountType, secretMountVersion, err := p.getMountInfo(secretPrefix, token)
 	if err != nil {
 		return "", err
 	}
 
-	addr := generateSecretEndpoint(p.VaultAddress, secretMountType, secretMountVersion, secretPrefix, secretSuffix, secretVersion)
+	addr, err := generateSecretEndpoint(p.VaultAddress, secretMountType, secretMountVersion, secretPrefix, secretSuffix, secretVersion)
+	if err != nil {
+		return "", err
+	}
 
 	req, err := http.NewRequest(http.MethodGet, addr, nil)
 	// Set vault token.
