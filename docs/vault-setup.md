@@ -121,13 +121,13 @@ Create an example Vault role
 
 ```bash
 vault write auth/kubernetes/role/example-role \
-  bound_service_account_names=csi-driver-registrar \
+  bound_service_account_names=secrets-store-csi-driver \
   bound_service_account_namespaces=<SECRETS-STORE-CSI-DRIVER NAMESPACE> \
   policies=default,example-readonly \
   ttl=20m
 ```
 
-The above role has the `csi-driver-registrar` Kubernetes service account bound to it. This means
+The above role has the `secrets-store-csi-driver` Kubernetes service account bound to it. This means
 that any Kubernetes pod that has the service account token can use it to login to Vault.
 
 Write an example secret in the Vault Key-Value store
