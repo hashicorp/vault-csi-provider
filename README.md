@@ -39,7 +39,7 @@ Make sure you have followed the [Installation guide for the Secrets Store CSI Dr
 Update [this sample deployment](examples/v1alpha1_secretproviderclass.yaml) to create a `secretproviderclasses` resource to provide Vault-specific parameters for the Secrets Store CSI driver.
 
 ```yaml
-apiVersion: secrets-store.csi.k8s.com/v1alpha1
+apiVersion: secrets-store.csi.x-k8s.io/v1alpha1
 kind: SecretProviderClass
 metadata:
   name: vault-foo
