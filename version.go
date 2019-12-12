@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 var (
@@ -20,18 +19,17 @@ type providerVersion struct {
 	MinDriverVersion string `json:"minDriverVersion"`
 }
 
-func printVersion() (err error) {
+func getVersion() (string, error) {
 	pv := providerVersion{
 		Version:          BuildVersion,
 		BuildDate:        BuildDate,
 		MinDriverVersion: minDriverVersion,
 	}
 
-	var res []byte
-	if res, err = json.Marshal(pv); err != nil {
-		return
+	res, err := json.Marshal(pv)
+	if err != nil {
+		return "", err
 	}
 
-	fmt.Printf(string(res) + "\n")
-	return
+	return string(res), nil
 }
