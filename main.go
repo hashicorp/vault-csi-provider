@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,7 +18,10 @@ var (
 	targetPath = pflag.String("targetPath", "", "Target path to write data.")
 	permission = pflag.String("permission", "", "File permission")
 	debug      = pflag.Bool("debug", false, "sets log to debug level")
+	version    = pflag.Bool("version", false, "prints the version information")
 )
+
+const minDriverVersion = "v0.0.8"
 
 // LogHook is used to setup custom hooks
 type LogHook struct {
@@ -30,11 +34,20 @@ func main() {
 
 	var attrib, secret map[string]string
 	var filePermission os.FileMode
-	var err error
 
 	setupLogger()
 
-	err = json.Unmarshal([]byte(*attributes), &attrib)
+	if *version {
+		v, err := getVersion()
+		if err != nil {
+			log.Fatalf("failed to print version, err: %+v", err)
+		}
+		// print the version and exit
+		fmt.Printf("%s\n", v)
+		os.Exit(0)
+	}
+
+	err := json.Unmarshal([]byte(*attributes), &attrib)
 	if err != nil {
 		log.Fatalf("failed to unmarshal attributes, err: %v", err)
 	}

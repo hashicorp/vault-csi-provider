@@ -3,7 +3,8 @@ IMAGE_NAME=secrets-store-csi-driver-provider-vault
 IMAGE_VERSION?=$(shell git tag | tail -1)
 IMAGE_TAG=$(REGISTRY_NAME)/$(IMAGE_NAME):$(IMAGE_VERSION)
 IMAGE_TAG_LATEST=$(REGISTRY_NAME)/$(IMAGE_NAME):latest
-LDFLAGS?='-X github.com/hashicorp/secrets-store-csi-driver-provider-vault/main.version=$(IMAGE_VERSION) -extldflags "-static"'
+BUILD_DATE=$$(date +%Y-%m-%d-%H:%M)
+LDFLAGS?="-X main.BuildVersion=$(IMAGE_VERSION) -X main.BuildDate=$(BUILD_DATE) -extldflags "-static""
 GOOS=linux
 GOARCH=amd64
 
@@ -28,7 +29,7 @@ sanity-test:
 	go test -v ./test/sanity
 
 build: setup
-	CGO_ENABLED=0 go build -tags 'no_mock_provider' -a -ldflags ${LDFLAGS} -o _output/secrets-store-csi-driver-provider-vault_$(GOOS)_$(GOARCH)_$(IMAGE_VERSION) main.go provider.go 
+	CGO_ENABLED=0 go build -a -ldflags $(LDFLAGS) -o _output/secrets-store-csi-driver-provider-vault_$(GOOS)_$(GOARCH)_$(IMAGE_VERSION) .
 
 image: build 
 	docker build --build-arg VERSION=$(IMAGE_VERSION) --no-cache -t $(IMAGE_TAG) .
