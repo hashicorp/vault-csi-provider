@@ -117,7 +117,6 @@ func (p *Provider) getMountInfo(mountName, token string) (string, string, error)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&mount); err != nil {
-		fmt.Printf("error: %s", err)
 		return "", "", err
 	}
 
