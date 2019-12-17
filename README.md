@@ -98,6 +98,8 @@ kubectl apply -f examples/nginx-pod-vault-inline-volume-secretproviderclass.yaml
 Validate Secret in Pod
 
 ```bash
-kubectl exec -it nginx-secrets-store-inline cat /mnt/secrets-store/foo
+kubectl exec -it nginx-secrets-store-inline cat /mnt/secrets-store/bar
 hello
 ```
+
+> **Breaking change** NOTE: The name of the secret file is now equals to `objectName` (e.g `bar`), it used to be the `objectPath` (e.g `foo`). This breaking change enables to access multiple values within a single key (e.g both `bar` and `baz` within the `/foo` key).

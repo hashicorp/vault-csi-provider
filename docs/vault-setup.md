@@ -114,6 +114,10 @@ echo 'path "secret/data/foo" {
 
 path "sys/renew/*" {
   capabilities = ["update"]
+}
+
+path "sys/mounts" {
+  capabilities = ["read"]
 }' | vault policy write example-readonly -
 ```
 
