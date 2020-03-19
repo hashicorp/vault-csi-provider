@@ -25,9 +25,6 @@ test-style: setup
 	@echo "==> Running static validations and linters <=="
 	golangci-lint run
 
-sanity-test:
-	go test -v ./test/sanity
-
 build: setup
 	CGO_ENABLED=0 go build -a -ldflags $(LDFLAGS) -o _output/secrets-store-csi-driver-provider-vault_$(GOOS)_$(GOARCH)_$(IMAGE_VERSION) .
 
