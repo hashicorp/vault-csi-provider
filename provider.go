@@ -27,7 +27,6 @@ import (
 
 const (
 	// VaultObjectTypeSecret secret vault object type for HashiCorp vault
-	// VaultObjectTypeSecret               string = "secret"
 	defaultVaultAddress                 string = "https://127.0.0.1:8200"
 	defaultKubernetesServiceAccountPath string = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 	defaultVaultKubernetesMountPath     string = "kubernetes"
