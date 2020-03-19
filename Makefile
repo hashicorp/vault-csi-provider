@@ -18,8 +18,8 @@ HAS_GOLANGCI := $(shell command -v golangci-lint;)
 all: build
 
 test: test-style
-	go test github.com/deislabs/secrets-store-csi-driver/pkg/... -cover
-	go vet github.com/deislabs/secrets-store-csi-driver/pkg/...
+	go test sigs.k8s.io/secrets-store-csi-driver/pkg/... -cover
+	go vet sigs.k8s.io/secrets-store-csi-driver/pkg/...
 
 test-style: setup
 	@echo "==> Running static validations and linters <=="
