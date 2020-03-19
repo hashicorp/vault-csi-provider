@@ -27,7 +27,7 @@ import (
 
 const (
 	// VaultObjectTypeSecret secret vault object type for HashiCorp vault
-	VaultObjectTypeSecret               string = "secret"
+	// VaultObjectTypeSecret               string = "secret"
 	defaultVaultAddress                 string = "https://127.0.0.1:8200"
 	defaultKubernetesServiceAccountPath string = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 	defaultVaultKubernetesMountPath     string = "kubernetes"
@@ -85,6 +85,8 @@ func readJWTToken(path string) (string, error) {
 }
 
 func (p *Provider) getMountInfo(mountName, token string) (string, string, error) {
+	log.Debugf("vault: checking mount info for %q", mountName)
+
 	client, err := p.createHTTPClient()
 	if err != nil {
 		return "", "", err
@@ -107,7 +109,10 @@ func (p *Provider) getMountInfo(mountName, token string) (string, string, error)
 
 	if resp.StatusCode != 200 {
 		var b bytes.Buffer
-		io.Copy(&b, resp.Body)
+		_, err := io.Copy(&b, resp.Body)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to copy reponse body to byte buffer")
+		}
 		return "", "", fmt.Errorf("failed to get successful response: %#v, %s",
 			resp, b.String())
 	}
@@ -200,7 +205,10 @@ func (p *Provider) login(jwt string, roleName string) (string, error) {
 
 	if resp.StatusCode != 200 {
 		var b bytes.Buffer
-		io.Copy(&b, resp.Body)
+		_, err := io.Copy(&b, resp.Body)
+		if err != nil {
+			return "", fmt.Errorf("failed to copy reponse body to byte buffer")
+		}
 		return "", fmt.Errorf("failed to get successful response: %#v, %s",
 			resp, b.String())
 	}
@@ -247,6 +255,8 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 		return "", err
 	}
 
+	log.Debugf("vault: Requesting valid secret mounted at %q", addr)
+
 	req, err := http.NewRequest(http.MethodGet, addr, nil)
 	// Set vault token.
 	req.Header.Set("X-Vault-Token", token)
@@ -263,7 +273,10 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 
 	if resp.StatusCode != 200 {
 		var b bytes.Buffer
-		io.Copy(&b, resp.Body)
+		_, err := io.Copy(&b, resp.Body)
+		if err != nil {
+			return "", fmt.Errorf("failed to copy reponse body to byte buffer")
+		}
 		return "", fmt.Errorf("failed to get successful response: %#v, %s",
 			resp, b.String())
 	}
