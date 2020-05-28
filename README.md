@@ -1,7 +1,7 @@
-# HashiCorp Vault Provider for Secret Store CSI Driver
+# HashiCorp Vault Provider for Secrets Store CSI Driver
 
-HashiCorp [Vault](https://vaultproject.io) provider for Secret Store CSI driver allows you to get secrets stored in
-Vault and use the Secret Store CSI driver interface to mount them into Kubernetes pods.
+HashiCorp [Vault](https://vaultproject.io) provider for the [Secrets Store CSI driver](https://github.com/kubernetes-sigs/secrets-store-csi-driver) allows you to get secrets stored in
+Vault and use the Secrets Store CSI driver interface to mount them into Kubernetes pods.
 
 **This is an experimental project. This project isn't production ready.**
 
@@ -16,7 +16,7 @@ This project is forked from and initially developed by our awesome partners at M
 
 The guide assumes the following:
 
-* A Kubernetes cluster up and running.
+* A Kubernetes v1.16.0+ cluster up and running.
 * A Vault cluster up and running. Instructions for spinning up a *development* Vault cluster in Kubernetes can be
 found [here](./docs/vault-setup.md).
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl) installed.
@@ -30,13 +30,48 @@ Make sure you have followed the [prerequisites](#prerequisites) specified above 
 You should have a development Vault cluster up and running using the [guide](./docs/vault-setup.md) specified above.
 
 
-### Install the Secrets Store CSI Driver (Kubernetes Version 1.15.x+)
+### Install the Secrets Store CSI Driver (Kubernetes Version 1.16.0+)
 
 Make sure you have followed the [Installation guide for the Secrets Store CSI Driver](https://github.com/deislabs/secrets-store-csi-driver#usage)
 
-### Create a SecretProviderClass Resource and a Deployment
+To validate the driver is running as expected, run the following commands:
 
-Update [this sample deployment](examples/v1alpha1_secretproviderclass.yaml) to create a `secretproviderclasses` resource to provide Vault-specific parameters for the Secrets Store CSI driver.
+```bash
+kubectl get pods -l app=csi-secrets-store
+```
+
+You should see the driver pods running on each agent node:
+
+```bash
+NAME                                     READY   STATUS    RESTARTS   AGE
+csi-secrets-store-jlls6                  3/3     Running   0          10s
+csi-secrets-store-qt2l7                  3/3     Running   0          10s
+```
+
+### Install the HashiCorp Vault Provider
+
+For linux nodes
+```bash
+kubectl apply -f https://raw.githubusercontent.com/hashicorp/secrets-store-csi-driver-provider-vault/master/deployment/provider-vault-installer.yaml
+```
+
+To validate the provider's installer is running as expected, run the following commands:
+
+```bash
+kubectl get pods -l app=csi-secrets-store-provider-vault
+```
+
+You should see the provider pods running on each agent node:
+
+```bash
+NAME                                     READY   STATUS    RESTARTS   AGE
+csi-secrets-store-provider-vault-4ngf4   1/1     Running   0          8s
+csi-secrets-store-provider-vault-bxr5k   1/1     Running   0          8s
+```
+
+### Create a SecretProviderClass Resource
+
+Update [this sample deployment](examples/v1alpha1_secretproviderclass.yaml) to create a `SecretProviderClass` resource to provide Vault-specific parameters for the Secrets Store CSI driver.
 
 ```yaml
 apiVersion: secrets-store.csi.x-k8s.io/v1alpha1
@@ -57,15 +92,25 @@ spec:
           objectVersion: ""
 ```
 
-> NOTE: Make sure the `vaultAddress` is pointing to the Kubernetes `vault` service that is created in the prerequisite steps.
+> NOTE: Make sure the `vaultAddress` is pointing to the Kubernetes `vault` service that is running in your cluster from the previous [Prerequisites](#Prerequisites) section.
 You can get the `vault` service address using the following command.
 
 ```bash
 kubectl get service vault
 ```
 
-We will use an NGINX deployment to showcase accessing the secret mounted by the Secret Store CSI Driver.
-The mount point and the `secretProviderClass` configuration for the secret will be in the [pod deployment specification](./examples/nginx-pod-vault-inline-volume-secretproviderclass.yaml) file.
+Deploy the SecretProviderClass yaml created previously. For example:
+
+```bash
+kubectl apply -f ./examples/v1alpha1_secretproviderclass.yaml
+```
+
+### Update your Application Deployment Yaml
+
+To ensure your application is using the Secrets Store CSI driver, update your deployment yaml to use the `secrets-store.csi.k8s.io` driver and reference the `SecretProviderClass` resource created in the previous step.
+
+We will use an NGINX deployment to showcase accessing the secret mounted by the Secrets Store CSI Driver.
+The mount point and the `SecretProviderClass` configuration for the secret will be in the [pod deployment specification](./examples/nginx-pod-vault-inline-volume-secretproviderclass.yaml) file.
 
 ```yaml
 kind: Pod
@@ -95,11 +140,23 @@ Deploy the application
 kubectl apply -f examples/nginx-pod-vault-inline-volume-secretproviderclass.yaml
 ```
 
-Validate Secret in Pod
+### Validate the secret
+
+To validate, once the pod is started, you should see the new mounted content at the volume path specified in your deployment yaml.
 
 ```bash
 kubectl exec -it nginx-secrets-store-inline cat /mnt/secrets-store/bar
 hello
 ```
+> **Breaking change in Vault provider v0.0.5** NOTE: The name of the secret file is now equal to `objectName` (e.g `bar`), it used to be the `objectPath` (e.g `foo`). This breaking change enables to access multiple values within a single key (e.g both `bar` and `baz` within the `/foo` key).
 
-> **Breaking change** NOTE: The name of the secret file is now equals to `objectName` (e.g `bar`), it used to be the `objectPath` (e.g `foo`). This breaking change enables to access multiple values within a single key (e.g both `bar` and `baz` within the `/foo` key).
+## Troubleshooting
+
+To troubleshoot issues with the csi driver and the provider, you can look at logs from the `secrets-store` container of the csi driver pod running on the same node as your application pod:
+
+  ```bash
+  kubectl get pod -o wide
+  # find the secrets store csi driver pod running on the same node as your application pod
+
+  kubectl logs csi-secrets-store-secrets-store-csi-driver-7x44t secrets-store
+  ```
