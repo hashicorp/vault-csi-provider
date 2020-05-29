@@ -17,6 +17,7 @@ This project is forked from and initially developed by our awesome partners at M
 The guide assumes the following:
 
 * A Kubernetes v1.16.0+ cluster up and running.
+* [Vault CLI](https://www.vaultproject.io/docs/install) 
 * A Vault cluster up and running. Instructions for spinning up a *development* Vault cluster in Kubernetes can be
 found [here](./docs/vault-setup.md).
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl) installed.
