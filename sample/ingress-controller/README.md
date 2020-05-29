@@ -78,6 +78,8 @@ vault write auth/kubernetes/role/ingress-role \
 ## Deploy a SecretsProviderClass Resource
 
 ```bash
+$ VAULT_SERVICE_ADDR=$(kubectl get svc vault -o jsonpath="{.spec.clusterIP}")
+
 $ cat <<EOF | kubectl apply -f -
 apiVersion: secrets-store.csi.x-k8s.io/v1alpha1
 kind: SecretProviderClass
@@ -94,8 +96,8 @@ spec:
       key: tls.crt
   provider: vault
   parameters:
-    vaultAddress: "http://10.96.134.250:8200"  # Kubernetes Vault service endpoint
-    roleName: "ingress-role"                   # Vault role created in prerequisite steps
+    vaultAddress: "http://$VAULT_SERVICE_ADDR:8200"  # Kubernetes Vault service endpoint
+    roleName: "ingress-role"                        # Vault role created in prerequisite steps
     vaultSkipTLSVerify: "true"
     objects:  |
       array:
