@@ -86,7 +86,7 @@ kind: SecretProviderClass
 metadata:
   name: vault-tls
 spec:
-  secretObjects:
+  secretObjects:                                    # secretObjects defines the desired state of synced K8s secret objects
   - secretName: ingress-tls-csi
     type: kubernetes.io/tls
     data: 
@@ -97,7 +97,7 @@ spec:
   provider: vault
   parameters:
     vaultAddress: "http://$VAULT_SERVICE_ADDR:8200"  # Kubernetes Vault service endpoint
-    roleName: "ingress-role"                        # Vault role created in prerequisite steps
+    roleName: "ingress-role"                         # Vault role created in prerequisite steps
     vaultSkipTLSVerify: "true"
     objects:  |
       array:
@@ -127,8 +127,8 @@ EOF
 ```
 
 ```bash
-kubectl apply -f sample/ingress-controller-tls/vault/deployment-app-one.yaml -n ingress-test
-kubectl apply -f sample/ingress-controller-tls/vault/deployment-app-two.yaml -n ingress-test
+kubectl apply -f sample/ingress-controller-tls/deployment-app-one.yaml -n ingress-test
+kubectl apply -f sample/ingress-controller-tls/deployment-app-two.yaml -n ingress-test
 ```
 
 ## Check for the Kubernetes Secret created by the CSI driver
@@ -151,7 +151,7 @@ tls:
 ```
 
 ```bash
-kubectl apply -f sample/ingress-controller-tls/vault/ingress.yaml -n ingress-test
+kubectl apply -f sample/ingress-controller-tls/ingress.yaml -n ingress-test
 ```
 
 ## Get the External IP of the Ingress Controller

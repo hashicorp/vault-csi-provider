@@ -28,8 +28,6 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "vault-tls"
-            nodePublishSecretRef:
-              name: secrets-store-creds
 ---
 apiVersion: v1
 kind: Service
