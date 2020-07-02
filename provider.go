@@ -455,10 +455,19 @@ func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib ma
 		if keyValueObject.ObjectAlias != "" {
 			filename = keyValueObject.ObjectAlias
 		}
-		if err := ioutil.WriteFile(path.Join(targetPath, filename), objectContent, permission); err != nil {
-			return errors.Wrapf(err, "secrets-store csi driver failed to write %s at %s", filename, targetPath)
+		fullPath := path.Join(targetPath, filename)
+		_, err = os.Stat(fullPath)
+		switch {
+		case err == nil:
+			return fmt.Errorf("%s already exists", fullPath)
+		case os.IsNotExist(err):
+			if err := ioutil.WriteFile(fullPath, objectContent, permission); err != nil {
+				return errors.Wrapf(err, "secrets-store csi driver failed to write %s", fullPath)
+			}
+			log.Infof("secrets-store csi driver wrote %s", fullPath)
+		default:
+			return err
 		}
-		log.Infof("secrets-store csi driver wrote %s at %s", filename, targetPath)
 	}
 
 	return nil
