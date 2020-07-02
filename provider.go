@@ -52,6 +52,8 @@ type KeyValueObject struct {
 	ObjectPath string `json:"objectPath" yaml:"objectPath"`
 	// the name of the Key-Value Vault objects
 	ObjectName string `json:"objectName" yaml:"objectName"`
+	// the filename the object will be written to
+	ObjectAlias string `json:"objectAlias" yaml:"objectAlias"`
 	// the version of the Key-Value Vault objects
 	ObjectVersion string `json:"objectVersion" yaml:"objectVersion"`
 }
@@ -449,10 +451,14 @@ func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib ma
 			return err
 		}
 		objectContent := []byte(content)
-		if err := ioutil.WriteFile(path.Join(targetPath, keyValueObject.ObjectName), objectContent, permission); err != nil {
-			return errors.Wrapf(err, "secrets-store csi driver failed to write %s at %s", keyValueObject.ObjectName, targetPath)
+		filename := keyValueObject.ObjectName
+		if keyValueObject.ObjectAlias != "" {
+			filename = keyValueObject.ObjectAlias
 		}
-		log.Infof("secrets-store csi driver wrote %s at %s", keyValueObject.ObjectName, targetPath)
+		if err := ioutil.WriteFile(path.Join(targetPath, filename), objectContent, permission); err != nil {
+			return errors.Wrapf(err, "secrets-store csi driver failed to write %s at %s", filename, targetPath)
+		}
+		log.Infof("secrets-store csi driver wrote %s at %s", filename, targetPath)
 	}
 
 	return nil

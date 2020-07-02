@@ -5,8 +5,8 @@ Vault and use the Secrets Store CSI driver interface to mount them into Kubernet
 
 **This is an experimental project. This project isn't production ready.**
 
-## Attribution	
-This project is forked from and initially developed by our awesome partners at Microsoft (https://github.com/deislabs/secrets-store-csi-driver). Thank you to [Rita](https://github.com/deislabs/secrets-store-csi-driver/commits?author=ritazh) and [Mishra](https://github.com/deislabs/secrets-store-csi-driver/commits?author=anubhavmishra) for pushing this great project forward.	
+## Attribution
+This project is forked from and initially developed by our awesome partners at Microsoft (https://github.com/deislabs/secrets-store-csi-driver). Thank you to [Rita](https://github.com/deislabs/secrets-store-csi-driver/commits?author=ritazh) and [Mishra](https://github.com/deislabs/secrets-store-csi-driver/commits?author=anubhavmishra) for pushing this great project forward.
 
 ## Demo
 
@@ -17,7 +17,7 @@ This project is forked from and initially developed by our awesome partners at M
 The guide assumes the following:
 
 * A Kubernetes v1.16.0+ cluster up and running.
-* [Vault CLI](https://www.vaultproject.io/docs/install) 
+* [Vault CLI](https://www.vaultproject.io/docs/install)
 * A Vault cluster up and running. Instructions for spinning up a *development* Vault cluster in Kubernetes can be
 found [here](./docs/vault-setup.md).
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl) installed.
@@ -90,6 +90,7 @@ spec:
         - |
           objectPath: "/foo"                    # secret path in the Vault Key-Value store e.g. vault kv put secret/foo bar=hello
           objectName: "bar"
+          objectAlias: "BAR"                    # the filename of the object when written to disk - defaults to objectName if not provided
           objectVersion: ""
 ```
 
