@@ -1,6 +1,7 @@
 REGISTRY_NAME?=docker.io/hashicorp
 IMAGE_NAME=secrets-store-csi-driver-provider-vault
 IMAGE_VERSION?=$(shell git tag | tail -1)
+
 IMAGE_TAG=$(REGISTRY_NAME)/$(IMAGE_NAME):$(IMAGE_VERSION)
 IMAGE_TAG_LATEST=$(REGISTRY_NAME)/$(IMAGE_NAME):latest
 BUILD_DATE=$$(date +%Y-%m-%d-%H:%M)
@@ -28,7 +29,7 @@ test-style: setup
 build: setup
 	CGO_ENABLED=0 go build -a -ldflags $(LDFLAGS) -o _output/secrets-store-csi-driver-provider-vault_$(GOOS)_$(GOARCH)_$(IMAGE_VERSION) .
 
-image: build 
+image: build
 	docker build --build-arg VERSION=$(IMAGE_VERSION) --no-cache -t $(IMAGE_TAG) .
 
 docker-push: image

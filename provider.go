@@ -30,12 +30,14 @@ const (
 	defaultVaultAddress                 string = "https://127.0.0.1:8200"
 	defaultKubernetesServiceAccountPath string = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 	defaultVaultKubernetesMountPath     string = "kubernetes"
+	defaultVaultNamespace               string = "/"
 )
 
 // Provider implements the secrets-store-csi-driver provider interface
 // and communicates with the Vault API.
 type Provider struct {
 	VaultAddress                 string
+	VaultNamespace               string
 	VaultCAPem                   string
 	VaultCACert                  string
 	VaultCAPath                  string
@@ -91,14 +93,16 @@ func (p *Provider) getMountInfo(mountName, token string) (string, string, error)
 		return "", "", err
 	}
 
-	addr := p.VaultAddress + "/v1/sys/mounts"
+	addr := p.VaultAddress + "/v1" + p.VaultNamespace + "/sys/mounts"
 	req, err := http.NewRequest(http.MethodGet, addr, nil)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "couldn't generate request")
 	}
+
 	// Set vault token.
 	req.Header.Set("X-Vault-Token", token)
 	req.Header.Set("X-Vault-Request", "true")
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "couldn't get sys mounts")
@@ -127,16 +131,16 @@ func (p *Provider) getMountInfo(mountName, token string) (string, string, error)
 	return mount.Data[mountName+"/"].Type, mount.Data[mountName+"/"].Options["version"], nil
 }
 
-func generateSecretEndpoint(vaultAddress string, secretMountType string, secretMountVersion string, secretPrefix string, secretSuffix string, secretVersion string) (string, error) {
+func generateSecretEndpoint(vaultAddress string, vaultNamespace string, secretMountType string, secretMountVersion string, secretPrefix string, secretSuffix string, secretVersion string) (string, error) {
 	addr := ""
 	errMessage := fmt.Errorf("Only mount types KV/1 and KV/2 are supported")
 	switch secretMountType {
 	case "kv":
 		switch secretMountVersion {
 		case "1":
-			addr = vaultAddress + "/v1/" + secretPrefix + "/" + secretSuffix
+			addr = vaultAddress + "/v1" + vaultNamespace + "/" + secretPrefix + "/" + secretSuffix
 		case "2":
-			addr = vaultAddress + "/v1/" + secretPrefix + "/data/" + secretSuffix + "?version=" + secretVersion
+			addr = vaultAddress + "/v1" + vaultNamespace + "/" + secretPrefix + "/data/" + secretSuffix + "?version=" + secretVersion
 		default:
 			return "", errMessage
 		}
@@ -186,7 +190,7 @@ func (p *Provider) login(jwt string, roleName string) (string, error) {
 		return "", err
 	}
 
-	addr := p.VaultAddress + "/v1/auth/" + p.VaultK8SMountPath + "/login"
+	addr := p.VaultAddress + "/v1" + p.VaultNamespace + "/auth/" + p.VaultK8SMountPath + "/login"
 	body := fmt.Sprintf(`{"role": "%s", "jwt": "%s"}`, roleName, jwt)
 
 	log.Debugf("vault: vault address: %s\n", addr)
@@ -249,7 +253,7 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 		return "", err
 	}
 
-	addr, err := generateSecretEndpoint(p.VaultAddress, secretMountType, secretMountVersion, secretPrefix, secretSuffix, secretVersion)
+	addr, err := generateSecretEndpoint(p.VaultAddress, p.VaultNamespace, secretMountType, secretMountVersion, secretPrefix, secretSuffix, secretVersion)
 	if err != nil {
 		return "", err
 	}
@@ -258,12 +262,14 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 
 	req, err := http.NewRequest(http.MethodGet, addr, nil)
 	// Set vault token.
+
 	req.Header.Set("X-Vault-Token", token)
 	if err != nil {
 		return "", errors.Wrapf(err, "couldn't generate request")
 	}
 
 	resp, err := client.Do(req)
+
 	if err != nil {
 		return "", errors.Wrapf(err, "couldn't get secret")
 	}
@@ -393,6 +399,15 @@ func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib ma
 		p.VaultAddress = defaultVaultAddress
 	}
 	log.Debugf("vault: vault address %s", p.VaultAddress)
+
+	p.VaultNamespace = attrib["vaultNamespace"]
+	if p.VaultNamespace == "" {
+		p.VaultNamespace = defaultVaultNamespace
+	} else {
+		p.VaultNamespace = "/" + p.VaultNamespace
+	}
+
+	log.Debugf("vault: vault namespace %s", p.VaultNamespace)
 
 	// One of the following variables should be set when vaultSkipTLSVerify is false.
 	// Otherwise, system certificates are used to make requests to vault.
