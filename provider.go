@@ -449,10 +449,24 @@ func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib ma
 			return err
 		}
 		objectContent := []byte(content)
+		if err := validateFilePath(keyValueObject.ObjectName); err != nil {
+			return err
+		}
 		if err := ioutil.WriteFile(path.Join(targetPath, keyValueObject.ObjectName), objectContent, permission); err != nil {
 			return errors.Wrapf(err, "secrets-store csi driver failed to write %s at %s", keyValueObject.ObjectName, targetPath)
 		}
 		log.Infof("secrets-store csi driver wrote %s at %s", keyValueObject.ObjectName, targetPath)
+	}
+
+	return nil
+}
+
+func validateFilePath(path string) error {
+	segments := strings.Split(strings.ReplaceAll(path, `\`, "/"), "/")
+	for _, segment := range segments {
+		if segment == ".." {
+			return fmt.Errorf("ObjectName %q invalid, must not contain any .. segments", path)
+		}
 	}
 
 	return nil
