@@ -8,7 +8,7 @@ import (
 func TestValidateFilePath(t *testing.T) {
 	// Don't use filepath.Join to generate the test cases because it calls filepath.Clean
 	// which simplifies some of the test cases into less interesting paths.
-	for _, tc := range []string {
+	for _, tc := range []string{
 		"",
 		".",
 		"/",
