@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -449,10 +448,31 @@ func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib ma
 			return err
 		}
 		objectContent := []byte(content)
-		if err := ioutil.WriteFile(path.Join(targetPath, keyValueObject.ObjectName), objectContent, permission); err != nil {
-			return errors.Wrapf(err, "secrets-store csi driver failed to write %s at %s", keyValueObject.ObjectName, targetPath)
+		path := keyValueObject.ObjectName
+		if err := validateFilePath(path); err != nil {
+			return err
 		}
-		log.Infof("secrets-store csi driver wrote %s at %s", keyValueObject.ObjectName, targetPath)
+		if filepath.Base(path) != path {
+			err = os.MkdirAll(filepath.Join(targetPath, filepath.Dir(path)), 0755)
+			if err != nil {
+				return err
+			}
+		}
+		if err := ioutil.WriteFile(filepath.Join(targetPath, path), objectContent, permission); err != nil {
+			return errors.Wrapf(err, "secrets-store csi driver failed to write %s at %s", path, targetPath)
+		}
+		log.Infof("secrets-store csi driver wrote %s at %s", path, targetPath)
+	}
+
+	return nil
+}
+
+func validateFilePath(path string) error {
+	segments := strings.Split(strings.ReplaceAll(path, `\`, "/"), "/")
+	for _, segment := range segments {
+		if segment == ".." {
+			return fmt.Errorf("ObjectName %q invalid, must not contain any .. segments", path)
+		}
 	}
 
 	return nil
