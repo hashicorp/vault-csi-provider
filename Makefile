@@ -26,7 +26,7 @@ test-style: setup
 	golangci-lint run
 
 build: setup
-	CGO_ENABLED=0 go build -a -ldflags $(LDFLAGS) -o _output/secrets-store-csi-driver-provider-vault_$(GOOS)_$(GOARCH)_$(IMAGE_VERSION) .
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -a -ldflags $(LDFLAGS) -o _output/secrets-store-csi-driver-provider-vault_$(GOOS)_$(GOARCH)_$(IMAGE_VERSION) .
 
 image: build 
 	docker build --build-arg VERSION=$(IMAGE_VERSION) --no-cache -t $(IMAGE_TAG) .
