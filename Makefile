@@ -1,6 +1,12 @@
 REGISTRY_NAME?=docker.io/hashicorp
 IMAGE_NAME=secrets-store-csi-driver-provider-vault
 IMAGE_VERSION?=$(shell git tag | tail -1)
+GIT_COMMIT ?= $(shell git rev-parse HEAD)
+E2E_IMAGE_VERSION = v0.1.0-e2e-$(GIT_COMMIT)
+# Use a custom version for E2E tests if we are testing in CI
+ifdef CI
+override IMAGE_VERSION := $(E2E_IMAGE_VERSION)
+endif
 IMAGE_TAG=$(REGISTRY_NAME)/$(IMAGE_NAME):$(IMAGE_VERSION)
 IMAGE_TAG_LATEST=$(REGISTRY_NAME)/$(IMAGE_NAME):latest
 BUILD_DATE=$$(date +%Y-%m-%d-%H:%M)
@@ -30,6 +36,17 @@ build: setup
 
 image: build 
 	docker build --build-arg VERSION=$(IMAGE_VERSION) --no-cache -t $(IMAGE_TAG) .
+
+e2e-container:
+	REGISTRY_NAME="e2e" make image
+	kind load docker-image --name kind e2e/secrets-store-csi-driver-provider-vault:$(IMAGE_VERSION)
+
+install-e2e-container: e2e-container
+	# helm install csi-secrets-store-provider-vault deployment/csi-secrets-store-provider-vault --namespace default --wait --timeout=15m -v=5 --debug \
+	# 	--set linux.image.pullPolicy="IfNotPresent" \
+	# 	--set linux.image.repository="e2e/secrets-store-csi-driver-provider-vault" \
+	# 	--set linux.image.tag=$(IMAGE_VERSION)
+	kubectl apply -f deployment/provider-vault-installer.yaml
 
 docker-push: image
 	docker push $(IMAGE_TAG)

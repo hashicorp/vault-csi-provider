@@ -22,6 +22,7 @@ import (
 	"golang.org/x/net/http2"
 
 	log "github.com/sirupsen/logrus"
+	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
 const (
@@ -29,6 +30,10 @@ const (
 	defaultVaultAddress                 string = "https://127.0.0.1:8200"
 	defaultKubernetesServiceAccountPath string = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 	defaultVaultKubernetesMountPath     string = "kubernetes"
+)
+
+var (
+	_ pb.CSIDriverProviderServer = &ProviderServer{}
 )
 
 // Provider implements the secrets-store-csi-driver provider interface
@@ -45,6 +50,43 @@ type Provider struct {
 	KubernetesServiceAccountPath string
 }
 
+// ProviderServer implements the secrets-store-csi-driver provider gRPC service interface.
+type ProviderServer struct {
+}
+
+func (p *ProviderServer) Version(context.Context, *pb.VersionRequest) (*pb.VersionResponse, error) {
+	log.Info("Processing version method call")
+	return &pb.VersionResponse{
+		Version:        "v1alpha1",
+		RuntimeName:    "vault",
+		RuntimeVersion: BuildVersion,
+	}, nil
+}
+
+func (p *ProviderServer) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResponse, error) {
+	log.Infof("Processing mount method call: %+v", req)
+	if len(req.Attributes) == 0 {
+		return nil, errors.New("missing attributes field")
+	}
+	if len(req.Secrets) == 0 {
+		return nil, errors.New("missing secrets field")
+	}
+	if len(req.TargetPath) == 0 {
+		return nil, errors.New("missing target path field")
+	}
+	if len(req.Permission) == 0 {
+		return nil, errors.New("missing permission field")
+	}
+
+	versions, err := HandleRequest(ctx, req.Attributes, req.Secrets, req.Permission, req.TargetPath)
+	var ov []*pb.ObjectVersion
+	for k, v := range versions {
+		ov = append(ov, &pb.ObjectVersion{Id: k, Version: fmt.Sprintf("%d", v)})
+	}
+	log.Debugf("Finished mount request with err %s", err)
+	return &pb.MountResponse{ObjectVersion: ov}, err
+}
+
 // KeyValueObject is the object stored in Vault's Key-Value store.
 type KeyValueObject struct {
 	// the path of the Key-Value Vault objects
@@ -53,6 +95,10 @@ type KeyValueObject struct {
 	ObjectName string `json:"objectName" yaml:"objectName"`
 	// the version of the Key-Value Vault objects
 	ObjectVersion string `json:"objectVersion" yaml:"objectVersion"`
+}
+
+func (o KeyValueObject) ID() string {
+	return fmt.Sprintf("%s:%s:%s", o.ObjectPath, o.ObjectName, o.ObjectVersion)
 }
 
 type StringArray struct {
@@ -224,12 +270,12 @@ func (p *Provider) login(jwt string, roleName string) (string, error) {
 	return s.Auth.ClientToken, nil
 }
 
-func (p *Provider) getSecret(token string, secretPath string, secretName string, secretVersion string) (string, error) {
+func (p *Provider) getSecret(token string, secretPath string, secretName string, secretVersion string) (string, int, error) {
 	log.Debugf("vault: getting secrets from vault.....")
 
 	client, err := p.createHTTPClient()
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	if secretVersion == "" {
@@ -238,19 +284,19 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 
 	s := regexp.MustCompile("/+").Split(secretPath, 3)
 	if len(s) < 3 {
-		return "", fmt.Errorf("unable to parse secret path %q", secretPath)
+		return "", 0, fmt.Errorf("unable to parse secret path %q", secretPath)
 	}
 	secretPrefix := s[1]
 	secretSuffix := s[2]
 
 	secretMountType, secretMountVersion, err := p.getMountInfo(secretPrefix, token)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	addr, err := generateSecretEndpoint(p.VaultAddress, secretMountType, secretMountVersion, secretPrefix, secretSuffix, secretVersion)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	log.Debugf("vault: Requesting valid secret mounted at %q", addr)
@@ -259,12 +305,12 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 	// Set vault token.
 	req.Header.Set("X-Vault-Token", token)
 	if err != nil {
-		return "", errors.Wrapf(err, "couldn't generate request")
+		return "", 0, errors.Wrapf(err, "couldn't generate request")
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", errors.Wrapf(err, "couldn't get secret")
+		return "", 0, errors.Wrapf(err, "couldn't get secret")
 	}
 
 	defer resp.Body.Close()
@@ -273,9 +319,9 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 		var b bytes.Buffer
 		_, err := io.Copy(&b, resp.Body)
 		if err != nil {
-			return "", fmt.Errorf("failed to copy reponse body to byte buffer")
+			return "", 0, fmt.Errorf("failed to copy reponse body to byte buffer")
 		}
-		return "", fmt.Errorf("failed to get successful response: %#v, %s",
+		return "", 0, fmt.Errorf("failed to get successful response: %#v, %s",
 			resp, b.String())
 	}
 
@@ -287,24 +333,27 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 				Data map[string]string `json:"data"`
 			}
 			if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
-				return "", errors.Wrapf(err, "failed to read body")
+				return "", 0, errors.Wrapf(err, "failed to read body")
 			}
-			return d.Data[secretName], nil
+			return d.Data[secretName], 0, nil
 
 		case "2":
 			var d struct {
 				Data struct {
 					Data map[string]string `json:"data"`
+					Metadata struct {
+						Version int `json:version`
+					} `json:metadata`
 				} `json:"data"`
 			}
 			if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
-				return "", errors.Wrapf(err, "failed to read body")
+				return "", 0, errors.Wrapf(err, "failed to read body")
 			}
-			return d.Data.Data[secretName], nil
+			return d.Data.Data[secretName], d.Data.Metadata.Version, nil
 		}
 	}
 
-	return "", fmt.Errorf("failed to get secret value")
+	return "", 0, fmt.Errorf("failed to get secret value")
 }
 
 func (p *Provider) getRootCAsPools() (*x509.CertPool, error) {
@@ -378,10 +427,10 @@ func loadCertFolder(pool *x509.CertPool, p string) error {
 }
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
-func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib map[string]string, secrets map[string]string, targetPath string, permission os.FileMode) (err error) {
+func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib map[string]string, secrets map[string]string, targetPath string, permission os.FileMode) (map[string]int, error) {
 	roleName := attrib["roleName"]
 	if roleName == "" {
-		return errors.Errorf("missing vault role name. please specify 'roleName' in pv definition.")
+		return nil, errors.Errorf("missing vault role name. please specify 'roleName' in pv definition.")
 	}
 	p.VaultRole = roleName
 
@@ -404,7 +453,7 @@ func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib ma
 	if s := attrib["vaultSkipTLSVerify"]; s != "" {
 		b, err := strconv.ParseBool(s)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		p.VaultSkipVerify = b
 	}
@@ -419,15 +468,15 @@ func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib ma
 		p.KubernetesServiceAccountPath = defaultKubernetesServiceAccountPath
 	}
 
-	keyValueObjects := []KeyValueObject{}
+	var keyValueObjects []KeyValueObject
 	objectsStrings := attrib["objects"]
 	fmt.Printf("objectsStrings: [%s]\n", objectsStrings)
 
 	var objects StringArray
-	err = yaml.Unmarshal([]byte(objectsStrings), &objects)
+	err := yaml.Unmarshal([]byte(objectsStrings), &objects)
 	if err != nil {
 		fmt.Printf("unmarshall failed for objects")
-		return err
+		return nil, err
 	}
 	fmt.Printf("objects: [%v]", objects.Array)
 	for _, object := range objects.Array {
@@ -436,35 +485,37 @@ func (p *Provider) MountSecretsStoreObjectContent(ctx context.Context, attrib ma
 		err = yaml.Unmarshal([]byte(object), &keyValueObject)
 		if err != nil {
 			fmt.Printf("unmarshall failed for keyValueObjects at index")
-			return err
+			return nil, err
 		}
 
 		keyValueObjects = append(keyValueObjects, keyValueObject)
 	}
 
+	versions := make(map[string]int)
 	for _, keyValueObject := range keyValueObjects {
-		content, err := p.GetKeyValueObjectContent(ctx, keyValueObject.ObjectPath, keyValueObject.ObjectName, keyValueObject.ObjectVersion)
+		content, version, err := p.GetKeyValueObjectContent(ctx, keyValueObject.ObjectPath, keyValueObject.ObjectName, keyValueObject.ObjectVersion)
 		if err != nil {
-			return err
+			return nil, err
 		}
+		versions[keyValueObject.ID()] = version
 		objectContent := []byte(content)
 		path := keyValueObject.ObjectName
 		if err := validateFilePath(path); err != nil {
-			return err
+			return nil, err
 		}
 		if filepath.Base(path) != path {
 			err = os.MkdirAll(filepath.Join(targetPath, filepath.Dir(path)), 0755)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if err := ioutil.WriteFile(filepath.Join(targetPath, path), objectContent, permission); err != nil {
-			return errors.Wrapf(err, "secrets-store csi driver failed to write %s at %s", path, targetPath)
+			return nil, errors.Wrapf(err, "secrets-store csi driver failed to write %s at %s", path, targetPath)
 		}
 		log.Infof("secrets-store csi driver wrote %s at %s", path, targetPath)
 	}
 
-	return nil
+	return versions, nil
 }
 
 func validateFilePath(path string) error {
@@ -478,25 +529,25 @@ func validateFilePath(path string) error {
 	return nil
 }
 
-// GetKeyValueObjectContent get content of the vault object
-func (p *Provider) GetKeyValueObjectContent(ctx context.Context, objectPath string, objectName string, objectVersion string) (content string, err error) {
+// GetKeyValueObjectContent get content and version of the vault object
+func (p *Provider) GetKeyValueObjectContent(ctx context.Context, objectPath string, objectName string, objectVersion string) (content string, version int, err error) {
 	// Read the jwt token from disk
 	jwt, err := readJWTToken(p.KubernetesServiceAccountPath)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	// Authenticate to vault using the jwt token
 	token, err := p.login(jwt, p.VaultRole)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	// Get Secret
-	value, err := p.getSecret(token, objectPath, objectName, objectVersion)
+	value, version, err := p.getSecret(token, objectPath, objectName, objectVersion)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
-	return value, nil
+	return value, version, nil
 }
