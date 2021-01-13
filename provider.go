@@ -33,7 +33,7 @@ const (
 )
 
 var (
-	_ pb.CSIDriverProviderServer = &ProviderServer{}
+	_ pb.CSIDriverProviderServer = (*ProviderServer)(nil)
 )
 
 // Provider implements the secrets-store-csi-driver provider interface
