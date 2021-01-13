@@ -23,7 +23,7 @@ var (
 	version  = pflag.Bool("version", false, "prints the version information")
 )
 
-const minDriverVersion = "v0.0.8"
+const minDriverVersion = "v0.0.17"
 
 // LogHook is used to setup custom hooks
 type LogHook struct {
