@@ -34,7 +34,8 @@ You should have a development Vault cluster up and running using the [guide](./d
 ### Install the Secrets Store CSI Driver (Kubernetes Version 1.16.0+)
 
 Make sure you have followed the [Installation guide for the Secrets Store CSI Driver](https://github.com/deislabs/secrets-store-csi-driver#usage),
-and have installed at least v0.0.17 of the driver.
+and have installed at least v0.0.17 of the driver. For version 0.0.7 onwards of the provider, the driver must have
+`vault` in the list of `--grpc-supported-providers`, which can be set in the helm chart via `grpcSupportedProviders`.
 
 To validate the driver is running as expected, run the following commands:
 
