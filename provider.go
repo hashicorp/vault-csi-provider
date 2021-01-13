@@ -58,7 +58,7 @@ func (p *ProviderServer) Version(context.Context, *pb.VersionRequest) (*pb.Versi
 	log.Info("Processing version method call")
 	return &pb.VersionResponse{
 		Version:        "v1alpha1",
-		RuntimeName:    "vault",
+		RuntimeName:    "secrets-store-csi-driver-provider-vault",
 		RuntimeVersion: BuildVersion,
 	}, nil
 }

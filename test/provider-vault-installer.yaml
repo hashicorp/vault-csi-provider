@@ -24,10 +24,11 @@ spec:
       tolerations:
       containers:
         - name: provider-vault-installer
-          image: hashicorp/secrets-store-csi-driver-provider-vault:0.0.6
-          imagePullPolicy: Always
+          image: e2e/secrets-store-csi-driver-provider-vault:0.0.6
+          imagePullPolicy: Never
           args:
             - --endpoint=/provider/vault.sock
+            - --debug=true
           resources:
             requests:
               cpu: 50m
