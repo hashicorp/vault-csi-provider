@@ -32,8 +32,8 @@ image: build
 	docker build --build-arg VERSION=$(IMAGE_VERSION) --no-cache -t $(IMAGE_TAG) .
 
 e2e-container:
-	REGISTRY_NAME="e2e" make image
-	kind load docker-image e2e/secrets-store-csi-driver-provider-vault:$(IMAGE_VERSION)
+	REGISTRY_NAME="e2e" IMAGE_VERSION="latest" make image
+	kind load docker-image e2e/secrets-store-csi-driver-provider-vault:latest
 
 docker-push: image
 	docker push $(IMAGE_TAG)

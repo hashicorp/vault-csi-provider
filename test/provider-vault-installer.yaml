@@ -24,7 +24,7 @@ spec:
       tolerations:
       containers:
         - name: provider-vault-installer
-          image: e2e/secrets-store-csi-driver-provider-vault:0.0.6
+          image: e2e/secrets-store-csi-driver-provider-vault:latest
           imagePullPolicy: Never
           args:
             - --endpoint=/provider/vault.sock
