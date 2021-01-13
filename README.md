@@ -33,7 +33,8 @@ You should have a development Vault cluster up and running using the [guide](./d
 
 ### Install the Secrets Store CSI Driver (Kubernetes Version 1.16.0+)
 
-Make sure you have followed the [Installation guide for the Secrets Store CSI Driver](https://github.com/deislabs/secrets-store-csi-driver#usage)
+Make sure you have followed the [Installation guide for the Secrets Store CSI Driver](https://github.com/deislabs/secrets-store-csi-driver#usage),
+and have installed at least v0.0.17 of the driver.
 
 To validate the driver is running as expected, run the following commands:
 
@@ -47,6 +48,12 @@ You should see the driver pods running on each agent node:
 NAME                                     READY   STATUS    RESTARTS   AGE
 csi-secrets-store-jlls6                  3/3     Running   0          10s
 csi-secrets-store-qt2l7                  3/3     Running   0          10s
+```
+
+Check the version, which should return something like `k8s.gcr.io/csi-secrets-store/driver:v0.0.18`:
+
+```bash
+kubectl get daemonset -l app=secrets-store-csi-driver -o jsonpath="{.items[0].spec.template.spec.containers[1].image}"
 ```
 
 ### Install the HashiCorp Vault Provider
