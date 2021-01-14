@@ -1,4 +1,4 @@
-FROM alpine:3.10
+FROM hashicorp.jfrog.io/docker/alpine:3.10
 
 ARG VERSION
 ARG ARCH="amd64"
