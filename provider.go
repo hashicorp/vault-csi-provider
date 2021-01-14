@@ -270,7 +270,7 @@ func (p *Provider) login(jwt string, roleName string) (string, error) {
 	return s.Auth.ClientToken, nil
 }
 
-func (p *Provider) getSecret(token string, secretPath string, secretName string, secretVersion string) (string, int, error) {
+func (p *Provider) getSecret(token string, secretPath string, secretName string, secretVersion string) (content string, version int, err error) {
 	log.Debugf("vault: getting secrets from vault.....")
 
 	client, err := p.createHTTPClient()
