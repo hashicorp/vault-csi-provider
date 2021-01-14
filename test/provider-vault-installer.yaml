@@ -21,9 +21,8 @@ spec:
         app: csi-secrets-store-provider-vault
     spec:
       serviceAccountName: secrets-store-csi-driver-provider-vault
-      tolerations:
       containers:
-        - name: provider-vault-installer
+        - name: secrets-store-csi-driver-provider-vault
           image: e2e/secrets-store-csi-driver-provider-vault:latest
           imagePullPolicy: Never
           args:
