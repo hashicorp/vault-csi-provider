@@ -20,6 +20,6 @@ spec:
       objects:  |
         array:
           - |
-            objectPath: "/foo"
+            objectPath: "v1/secret/foo"
             objectName: "bar"
             objectVersion: ""

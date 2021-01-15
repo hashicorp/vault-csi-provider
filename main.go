@@ -6,22 +6,24 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"google.golang.org/grpc"
+	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
 var (
-	attributes = pflag.String("attributes", "", "volume attributes")
-	secrets    = pflag.String("secrets", "", "node publish ref secret")
-	targetPath = pflag.String("targetPath", "", "Target path to write data.")
-	permission = pflag.String("permission", "", "File permission")
-	debug      = pflag.Bool("debug", false, "sets log to debug level")
-	version    = pflag.Bool("version", false, "prints the version information")
+	endpoint = pflag.String("endpoint", "/tmp/vault.sock", "path to socket on which to listen for driver gRPC calls")
+	debug    = pflag.Bool("debug", false, "sets log to debug level")
+	version  = pflag.Bool("version", false, "prints the version information")
 )
 
-const minDriverVersion = "v0.0.8"
+const minDriverVersion = "v0.0.17"
 
 // LogHook is used to setup custom hooks
 type LogHook struct {
@@ -31,9 +33,6 @@ type LogHook struct {
 
 func main() {
 	pflag.Parse()
-
-	var attrib, secret map[string]string
-	var filePermission os.FileMode
 
 	setupLogger()
 
@@ -47,31 +46,62 @@ func main() {
 		os.Exit(0)
 	}
 
-	err := json.Unmarshal([]byte(*attributes), &attrib)
+	server := grpc.NewServer()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		sig := <-c
+		log.Infof("Caught signal %s, shutting down", sig)
+		server.GracefulStop()
+	}()
+
+	listener, err := net.Listen("unix", *endpoint)
 	if err != nil {
-		log.Fatalf("failed to unmarshal attributes, err: %v", err)
+		log.Fatalf("Failed to listen on unix socket at %s: %v", *endpoint, err)
 	}
-	err = json.Unmarshal([]byte(*secrets), &secret)
+	defer listener.Close()
+	log.Infof("Listening on %s", *endpoint)
+
+	s := &ProviderServer{}
+	pb.RegisterCSIDriverProviderServer(server, s)
+
+	err = server.Serve(listener)
 	if err != nil {
-		log.Fatalf("failed to unmarshal secrets, err: %v", err)
+		log.Fatal(err)
 	}
-	err = json.Unmarshal([]byte(*permission), &filePermission)
+}
+
+func HandleRequest(ctx context.Context, attributes, secrets, permission, targetPath string) (map[string]int, error) {
+	var attrib, secret map[string]string
+	var filePermission os.FileMode
+
+	err := json.Unmarshal([]byte(attributes), &attrib)
 	if err != nil {
-		log.Fatalf("failed to unmarshal file permission, err: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal attributes, err: %v", err)
+	}
+	err = json.Unmarshal([]byte(secrets), &secret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal secrets, err: %v", err)
+	}
+	err = json.Unmarshal([]byte(permission), &filePermission)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal file permission, err: %v", err)
 	}
 
 	provider, err := NewProvider()
 	if err != nil {
-		log.Fatalf("[error] : %v", err)
+		return nil, fmt.Errorf("[error] : %v", err)
 	}
 
-	ctx := context.Background()
-	err = provider.MountSecretsStoreObjectContent(ctx, attrib, secret, *targetPath, filePermission)
+	versions, err := provider.MountSecretsStoreObjectContent(ctx, attrib, secret, targetPath, filePermission)
 	if err != nil {
-		log.Fatalf("[error] : %v", err)
+		return nil, fmt.Errorf("[error] : %v", err)
 	}
 
-	os.Exit(0)
+	log.Info("Successfully handled mount request")
+
+	return versions, nil
 }
 
 // setupLogger sets up hooks to redirect stdout and stderr

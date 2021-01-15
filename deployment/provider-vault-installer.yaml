@@ -37,6 +37,6 @@ spec:
       volumes:
         - name: providervol
           hostPath:
-              path: "/etc/kubernetes/secrets-store-csi-providers"
+            path: "/etc/kubernetes/secrets-store-csi-providers"
       nodeSelector:
         beta.kubernetes.io/os: linux

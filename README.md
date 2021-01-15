@@ -5,8 +5,9 @@ Vault and use the Secrets Store CSI driver interface to mount them into Kubernet
 
 **This is an experimental project. This project isn't production ready.**
 
-## Attribution	
-This project is forked from and initially developed by our awesome partners at Microsoft (https://github.com/deislabs/secrets-store-csi-driver). Thank you to [Rita](https://github.com/deislabs/secrets-store-csi-driver/commits?author=ritazh) and [Mishra](https://github.com/deislabs/secrets-store-csi-driver/commits?author=anubhavmishra) for pushing this great project forward.	
+## Attribution
+
+This project is forked from and initially developed by our awesome partners at Microsoft ([https://github.com/deislabs/secrets-store-csi-driver]). Thank you to [Rita](https://github.com/deislabs/secrets-store-csi-driver/commits?author=ritazh) and [Mishra](https://github.com/deislabs/secrets-store-csi-driver/commits?author=anubhavmishra) for pushing this great project forward.
 
 ## Demo
 
@@ -17,7 +18,7 @@ This project is forked from and initially developed by our awesome partners at M
 The guide assumes the following:
 
 * A Kubernetes v1.16.0+ cluster up and running.
-* [Vault CLI](https://www.vaultproject.io/docs/install) 
+* [Vault CLI](https://www.vaultproject.io/docs/install)
 * A Vault cluster up and running. Instructions for spinning up a *development* Vault cluster in Kubernetes can be
 found [here](./docs/vault-setup.md).
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl) installed.
@@ -30,10 +31,11 @@ driver on Kubernetes.
 Make sure you have followed the [prerequisites](#prerequisites) specified above before you continue with this guide.
 You should have a development Vault cluster up and running using the [guide](./docs/vault-setup.md) specified above.
 
-
 ### Install the Secrets Store CSI Driver (Kubernetes Version 1.16.0+)
 
-Make sure you have followed the [Installation guide for the Secrets Store CSI Driver](https://github.com/deislabs/secrets-store-csi-driver#usage)
+Make sure you have followed the [Installation guide for the Secrets Store CSI Driver](https://github.com/deislabs/secrets-store-csi-driver#usage),
+and have installed at least v0.0.17 of the driver. For version 0.0.7 onwards of the provider, the driver must have
+`vault` in the list of `--grpc-supported-providers`, which can be set in the helm chart via `grpcSupportedProviders`.
 
 To validate the driver is running as expected, run the following commands:
 
@@ -49,9 +51,16 @@ csi-secrets-store-jlls6                  3/3     Running   0          10s
 csi-secrets-store-qt2l7                  3/3     Running   0          10s
 ```
 
+Check the version, which should return something like `k8s.gcr.io/csi-secrets-store/driver:v0.0.18`:
+
+```bash
+kubectl get daemonset -l app=secrets-store-csi-driver -o jsonpath="{.items[0].spec.template.spec.containers[1].image}"
+```
+
 ### Install the HashiCorp Vault Provider
 
 For linux nodes
+
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/hashicorp/secrets-store-csi-driver-provider-vault/master/deployment/provider-vault-installer.yaml
 ```
@@ -88,7 +97,7 @@ spec:
     objects:  |
       array:
         - |
-          objectPath: "/foo"                    # secret path in the Vault Key-Value store e.g. vault kv put secret/foo bar=hello
+          objectPath: "v1/secret/foo"           # secret path in the Vault Key-Value store e.g. vault kv put secret/foo bar=hello
           objectName: "bar"
           objectVersion: ""
 ```
@@ -149,6 +158,7 @@ To validate, once the pod is started, you should see the new mounted content at 
 kubectl exec -it nginx-secrets-store-inline cat /mnt/secrets-store/bar
 hello
 ```
+
 > **Breaking change in Vault provider v0.0.5** NOTE: The name of the secret file is now equal to `objectName` (e.g `bar`), it used to be the `objectPath` (e.g `foo`). This breaking change enables to access multiple values within a single key (e.g both `bar` and `baz` within the `/foo` key).
 
 ## Troubleshooting

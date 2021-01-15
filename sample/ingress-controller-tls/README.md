@@ -102,11 +102,11 @@ spec:
     objects:  |
       array:
         - |
-          objectPath: "/tlscrt"
+          objectPath: "v1/secret/tlscrt"
           objectName: "tlscrt"
           objectVersion: ""
         - |
-          objectPath: "/tlskey"
+          objectPath: "v1/secret/tlskey"
           objectName: "tlskey"
           objectVersion: ""
 EOF
