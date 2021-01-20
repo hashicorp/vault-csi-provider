@@ -26,6 +26,9 @@ spec:
         - name: provider-vault-installer
           image: hashicorp/secrets-store-csi-driver-provider-vault:0.0.7
           imagePullPolicy: Always
+          args:
+            - --endpoint=/provider/vault.sock
+            - --debug=true
           resources:
             requests:
               cpu: 50m
