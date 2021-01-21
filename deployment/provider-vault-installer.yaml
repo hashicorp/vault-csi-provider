@@ -1,3 +1,8 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secrets-store-csi-driver-provider-vault
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -15,11 +20,15 @@ spec:
       labels:
         app: csi-secrets-store-provider-vault
     spec:
+      serviceAccountName: secrets-store-csi-driver-provider-vault
       tolerations:
       containers:
         - name: provider-vault-installer
           image: hashicorp/secrets-store-csi-driver-provider-vault:0.0.7
           imagePullPolicy: Always
+          args:
+            - --endpoint=/provider/vault.sock
+            - --debug=true
           resources:
             requests:
               cpu: 50m
@@ -27,16 +36,18 @@ spec:
             limits:
               cpu: 50m
               memory: 100Mi
-          env:
-            # set TARGET_DIR env var and mount the same directory to to the container
-            - name: TARGET_DIR
-              value: "/etc/kubernetes/secrets-store-csi-providers"
           volumeMounts:
-            - mountPath: "/etc/kubernetes/secrets-store-csi-providers"
-              name: providervol
+            - name: providervol
+              mountPath: "/provider"
+            - name: mountpoint-dir
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: HostToContainer
       volumes:
         - name: providervol
           hostPath:
             path: "/etc/kubernetes/secrets-store-csi-providers"
+        - name: mountpoint-dir
+          hostPath:
+            path: /var/lib/kubelet/pods
       nodeSelector:
         beta.kubernetes.io/os: linux
