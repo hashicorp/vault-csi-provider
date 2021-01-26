@@ -7,35 +7,57 @@ BUILD_DATE=$$(date +%Y-%m-%d-%H:%M)
 LDFLAGS?="-X main.BuildVersion=$(IMAGE_VERSION) -X main.BuildDate=$(BUILD_DATE) -extldflags "-static""
 GOOS=linux
 GOARCH=amd64
+GOLANG_IMAGE?=golang:1.15.7
+CI_TEST_ARGS=
+ifdef CI
+override CI_TEST_ARGS:=--junitfile=$(TEST_RESULTS_DIR)/go-test/results.xml --jsonfile=$(TEST_RESULTS_DIR)/go-test/results.json
+endif
 
-.PHONY: all build image clean test-style
+.PHONY: all test lint build build-in-docker image e2e-container docker-push e2e-setup e2e-teardown e2e-test clean setup mod
 
-GO111MODULE ?= on
+GO111MODULE?=on
 export GO111MODULE
-
-HAS_GOLANGCI := $(shell command -v golangci-lint;)
 
 all: build
 
-test: test-style
-	go test sigs.k8s.io/secrets-store-csi-driver/pkg/... -cover
-	go vet sigs.k8s.io/secrets-store-csi-driver/pkg/...
+lint:
+	golangci-lint run -v --concurrency 2 \
+		--disable-all \
+		--timeout 10m \
+		--enable gofmt \
+		--enable gosimple \
+		--enable govet
 
-test-style: setup
-	@echo "==> Running static validations and linters <=="
-	golangci-lint run
+test:
+	gotestsum --format=short-verbose $(CI_TEST_ARGS)
 
-build: setup
-	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -a -ldflags $(LDFLAGS) -o _output/secrets-store-csi-driver-provider-vault_$(GOOS)_$(GOARCH)_$(IMAGE_VERSION) .
+build: clean
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build \
+		-a -ldflags $(LDFLAGS) \
+		-o _output/secrets-store-csi-driver-provider-vault_$(GOOS)_$(GOARCH)_$(IMAGE_VERSION) \
+		.
 
-image: build 
+build-in-docker: clean
+	mkdir -m 777 _output
+	docker run --rm \
+		--volume `pwd`:`pwd` \
+		--workdir=`pwd` \
+		--env GOOS \
+		--env GOARCH \
+		--env LDFLAGS \
+		--env REGISTRY_NAME \
+		--env IMAGE_VERSION \
+		$(GOLANG_IMAGE) \
+		make build
+
+image: build-in-docker
 	docker build --build-arg VERSION=$(IMAGE_VERSION) -t $(IMAGE_TAG) .
 
 e2e-container:
 	REGISTRY_NAME="e2e" IMAGE_VERSION="latest" make image
 	kind load docker-image e2e/secrets-store-csi-driver-provider-vault:latest
 
-docker-push: image
+docker-push:
 	docker push $(IMAGE_TAG)
 	docker tag $(IMAGE_TAG) $(IMAGE_TAG_LATEST)
 	docker push $(IMAGE_TAG_LATEST)
@@ -66,10 +88,5 @@ e2e-test:
 clean:
 	-rm -rf _output
 
-setup: clean
-	@echo "Setup..."
-	$Q go env
-
-.PHONY: mod
 mod:
 	@go mod tidy

@@ -1,18 +1,116 @@
-# Golang CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-go/ for more details
-version: 2
+---
+version: 2.1
+
+references:
+  images:
+    go: &GOLANG_IMAGE docker.mirror.hashicorp.services/circleci/golang:1.15.7
+    ubuntu: &UBUNTU_IMAGE ubuntu-2004:202010-01
+
+  paths:
+    test-results: &TEST_RESULTS_DIR /tmp/test-results
+    working-directory: &WORKING_DIRECTORY /go/src/github.com/hashicorp/secrets-store-csi-driver-provider-vault
+
+  environment: &ENVIRONMENT
+    TEST_RESULTS_DIR: *TEST_RESULTS_DIR
+    GOLANG_IMAGE: *GOLANG_IMAGE
+    K8S_VERSION: "v1.20.2"
+    KIND_VERSION: "v0.10.0"
+
 jobs:
-  build:
+  lint:
     docker:
-      # specify the version
-      - image: circleci/golang:1.15.7
-    working_directory: /go/src/github.com/{{ORG_NAME}}/{{REPO_NAME}}
+      - image: *GOLANG_IMAGE
+    working_directory: *WORKING_DIRECTORY
     steps:
       - checkout
-      - run: mkdir -p test-results/go-test
-      - run: gotestsum --format=short-verbose --junitfile=test-results/go-test/results.xml --jsonfile=test-results/go-test/results.json
+      # Install command from https://golangci-lint.run/usage/install/
+      - run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.35.2
+      - run: make lint
+
+  gomod:
+    docker:
+      - image: *GOLANG_IMAGE
+    working_directory: *WORKING_DIRECTORY
+    steps:
+      - checkout
+      - run:
+          name: go mod tidy
+          command: |
+            make mod
+            if ! git diff --exit-code; then
+              echo "Git directory has go.mod or go.sum changes"
+              exit 1
+            fi
+
+  build:
+    # Uses docker to build, so use machine to allow local file system volume mounting
+    docker:
+      - image: *GOLANG_IMAGE
+    working_directory: *WORKING_DIRECTORY
+    steps:
+      - checkout
+      - run: make build
+
+  go-test:
+    docker:
+      - image: *GOLANG_IMAGE
+    environment:
+      <<: *ENVIRONMENT
+    working_directory: *WORKING_DIRECTORY
+    steps:
+      - checkout
+      - run: mkdir -p $TEST_RESULTS_DIR/go-test && make test
+
+      # Store the results so they display nicely in CircleCI.
       - store_artifacts:
-          path: test-results
+          path: *TEST_RESULTS_DIR
       - store_test_results:
-          path: test-results
+          path: *TEST_RESULTS_DIR
+
+  integration-test:
+    machine:
+      image: *UBUNTU_IMAGE
+    environment:
+      <<: *ENVIRONMENT
+    steps:
+      - checkout
+      - run:
+          name: Setup
+          command: |
+            # Install kubectl
+            curl -Lo kubectl https://dl.k8s.io/release/${K8S_VERSION}/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+            # Install helm
+            curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+
+            # Install kind
+            curl -Lo ./kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-$(uname)-amd64 && chmod +x ./kind && sudo mv ./kind /usr/local/bin/
+
+            # Create a cluster
+            kind create cluster --image kindest/node:${K8S_VERSION}
+
+      - run:
+          name: Run e2e tests
+          command: |
+            make e2e-setup
+            make e2e-test
+            make e2e-teardown
+
+workflows:
+  version: 2
+  test-workflow:
+    jobs:
+      - lint
+      - gomod
+      - build
+          # requires:
+          #   - lint
+          #   - gomod
+      - go-test
+          # requires:
+          #   - lint
+          #   - gomod
+      - integration-test
+          # requires:
+          #   - build
+          #   - go-test
