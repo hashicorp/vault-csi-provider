@@ -7,7 +7,7 @@ BUILD_DATE=$$(date +%Y-%m-%d-%H:%M)
 LDFLAGS?="-X main.BuildVersion=$(IMAGE_VERSION) -X main.BuildDate=$(BUILD_DATE) -extldflags "-static""
 GOOS=linux
 GOARCH=amd64
-GOLANG_IMAGE?=golang:1.15.7
+GOLANG_IMAGE?=docker.mirror.hashicorp.services/golang:1.15.7
 CI_TEST_ARGS=
 ifdef CI
 override CI_TEST_ARGS:=--junitfile=$(TEST_RESULTS_DIR)/go-test/results.xml --jsonfile=$(TEST_RESULTS_DIR)/go-test/results.json

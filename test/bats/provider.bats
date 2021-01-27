@@ -24,6 +24,7 @@ setup(){
         policies=default,example-readonly \
         ttl=20m
 
+    # Create secrets in Vault.
     kubectl --namespace=csi exec vault -- vault kv put secret/foo1 bar1=hello1
     kubectl --namespace=csi exec vault -- vault kv put secret/foo2 bar2=hello2
     kubectl --namespace=csi exec vault -- vault kv put secret/foo-sync1 bar1=hello-sync1

@@ -3,9 +3,5 @@ path "sys/mounts" {
 }
 
 path "secret/*" {
-  capabilities = ["read", "list"]
-}
-
-path "sys/renew/*" {
-  capabilities = ["update"]
+  capabilities = ["read"]
 }
