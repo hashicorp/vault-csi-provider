@@ -12,23 +12,23 @@ CONFIGS=test/bats/configs
 setup(){
     { # Braces used to redirect all setup logs.
     # Configure Vault.
-    kubectl --namespace=csi exec vault -- vault auth enable kubernetes
-    kubectl --namespace=csi exec vault -- sh -c 'vault write auth/kubernetes/config \
+    kubectl --namespace=csi exec vault-0 -- vault auth enable kubernetes
+    kubectl --namespace=csi exec vault-0 -- sh -c 'vault write auth/kubernetes/config \
         token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
         kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
         kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
-    cat $CONFIGS/vault-policy-readonly.hcl | kubectl --namespace=csi exec -i vault -- vault policy write example-readonly -
-    kubectl --namespace=csi exec vault -- vault write auth/kubernetes/role/example-role \
+    cat $CONFIGS/vault-policy-readonly.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write example-readonly -
+    kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/example-role \
         bound_service_account_names=secrets-store-csi-driver-provider-vault \
         bound_service_account_namespaces=csi \
         policies=default,example-readonly \
         ttl=20m
 
     # Create secrets in Vault.
-    kubectl --namespace=csi exec vault -- vault kv put secret/foo1 bar1=hello1
-    kubectl --namespace=csi exec vault -- vault kv put secret/foo2 bar2=hello2
-    kubectl --namespace=csi exec vault -- vault kv put secret/foo-sync1 bar1=hello-sync1
-    kubectl --namespace=csi exec vault -- vault kv put secret/foo-sync2 bar2=hello-sync2
+    kubectl --namespace=csi exec vault-0 -- vault kv put secret/foo1 bar1=hello1
+    kubectl --namespace=csi exec vault-0 -- vault kv put secret/foo2 bar2=hello2
+    kubectl --namespace=csi exec vault-0 -- vault kv put secret/foo-sync1 bar1=hello-sync1
+    kubectl --namespace=csi exec vault-0 -- vault kv put secret/foo-sync2 bar2=hello-sync2
 
     # Create shared k8s resources.
     kubectl create namespace test
@@ -46,12 +46,12 @@ teardown(){
 
     { # Braces used to redirect all teardown logs.
     # Teardown Vault configuration.
-    kubectl --namespace=csi exec vault -- vault auth disable kubernetes
-    kubectl --namespace=csi exec vault -- vault policy delete example-readonly
-    kubectl --namespace=csi exec vault -- vault kv delete secret/foo1
-    kubectl --namespace=csi exec vault -- vault kv delete secret/foo2
-    kubectl --namespace=csi exec vault -- vault kv delete secret/foo-sync1
-    kubectl --namespace=csi exec vault -- vault kv delete secret/foo-sync2
+    kubectl --namespace=csi exec vault-0 -- vault auth disable kubernetes
+    kubectl --namespace=csi exec vault-0 -- vault policy delete example-readonly
+    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/foo1
+    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/foo2
+    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/foo-sync1
+    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/foo-sync2
 
     # Teardown shared k8s resources.
     kubectl delete --ignore-not-found namespace test

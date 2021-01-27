@@ -69,14 +69,19 @@ e2e-setup: e2e-container
 		--namespace=csi \
 		--set linux.image.pullPolicy="IfNotPresent" \
 		--set grpcSupportedProviders="azure;gcp;vault"
-	kubectl apply --namespace=csi -f test/bats/configs/vault.yaml
+	helm install vault https://github.com/hashicorp/vault-helm/archive/v0.9.0.tar.gz \
+		--wait --timeout=5m \
+		--namespace=csi \
+		--set injector.enabled=false \
+		--set server.dev.enabled=true \
+		--set 'server.extraEnvironmentVars.VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200'
 	kubectl apply --namespace=csi -f test/bats/configs/secrets-store-csi-driver-provider-vault.yaml
-	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app=vault
+	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app.kubernetes.io/name=vault
 	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app=secrets-store-csi-driver-provider-vault
 
 e2e-teardown:
-	kubectl delete --namespace=csi --ignore-not-found -f test/bats/configs/vault.yaml
 	kubectl delete --namespace=csi --ignore-not-found -f test/bats/configs/secrets-store-csi-driver-provider-vault.yaml
+	helm uninstall --namespace=csi vault
 	helm uninstall --namespace=csi secrets-store-csi-driver
 	kubectl delete --ignore-not-found namespace csi
 
