@@ -44,7 +44,6 @@ jobs:
             fi
 
   build:
-    # Uses docker to build, so use machine to allow local file system volume mounting
     docker:
       - image: *GOLANG_IMAGE
     working_directory: *WORKING_DIRECTORY
