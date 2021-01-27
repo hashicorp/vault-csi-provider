@@ -1,0 +1,40 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: nginx-multiple-volumes
+spec:
+  terminationGracePeriodSeconds: 0
+  containers:
+  - image: nginx
+    name: nginx
+    volumeMounts:
+    - name: secrets-store-1
+      mountPath: "/mnt/secrets-store-1"
+      readOnly: true
+    - name: secrets-store-2
+      mountPath: "/mnt/secrets-store-2"
+      readOnly: true
+    env:
+    - name: SECRET_1_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: foosecret-1
+          key: username
+    - name: SECRET_2_PWD
+      valueFrom:
+        secretKeyRef:
+          name: foosecret-2
+          key: pwd
+  volumes:
+    - name: secrets-store-1
+      csi:
+        driver: secrets-store.csi.k8s.io
+        readOnly: true
+        volumeAttributes:
+          secretProviderClass: "vault-foo-sync-1"
+    - name: secrets-store-2
+      csi:
+        driver: secrets-store.csi.k8s.io
+        readOnly: true
+        volumeAttributes:
+          secretProviderClass: "vault-foo-sync-2"

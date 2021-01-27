@@ -14,6 +14,7 @@ references:
     TEST_RESULTS_DIR: *TEST_RESULTS_DIR
     GOLANG_IMAGE: *GOLANG_IMAGE
     K8S_VERSION: "v1.20.2"
+    HELM_VERSION: "v3.5.0"
     KIND_VERSION: "v0.10.0"
 
 jobs:
@@ -81,10 +82,10 @@ jobs:
             curl -Lo kubectl https://dl.k8s.io/release/${K8S_VERSION}/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
 
             # Install helm
-            curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+            curl -Lo helm.tar.gz https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz && tar -xvzf helm.tar.gz && sudo mv linux-amd64/helm /usr/local/bin/
 
             # Install kind
-            curl -Lo ./kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-$(uname)-amd64 && chmod +x ./kind && sudo mv ./kind /usr/local/bin/
+            curl -Lo kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-$(uname)-amd64 && chmod +x kind && sudo mv kind /usr/local/bin/
 
             # Create a cluster
             kind create cluster --image kindest/node:${K8S_VERSION}
@@ -94,7 +95,6 @@ jobs:
           command: |
             make e2e-setup
             make e2e-test
-            make e2e-teardown
 
 workflows:
   version: 2
@@ -102,15 +102,15 @@ workflows:
     jobs:
       - lint
       - gomod
-      - build
-          # requires:
-          #   - lint
-          #   - gomod
-      - go-test
-          # requires:
-          #   - lint
-          #   - gomod
-      - integration-test
-          # requires:
-          #   - build
-          #   - go-test
+      - build:
+          requires:
+            - lint
+            - gomod
+      - go-test:
+          requires:
+            - lint
+            - gomod
+      - integration-test:
+          requires:
+            - build
+            - go-test

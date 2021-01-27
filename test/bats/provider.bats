@@ -1,273 +1,163 @@
 #!/usr/bin/env bats
 
+export SETUP_TEARDOWN_OUTFILE=/dev/stdout
+SUPPRESS_SETUP_TEARDOWN_LOGS=true       # Comment this line out to show setup/teardown logs for failed tests.
+if [[ -n $SUPPRESS_SETUP_TEARDOWN_LOGS ]]; then
+  export SETUP_TEARDOWN_OUTFILE=/dev/null
+fi
+
+#SKIP_TEARDOWN=true
 CONFIGS=test/bats/configs
 
 setup(){
+    { # Braces used to redirect all setup logs.
     # Configure Vault.
-    VAULT_POD=$(kubectl --namespace=csi get pod -l app=vault -o jsonpath="{.items[0].metadata.name}")
-    kubectl --namespace=csi exec $VAULT_POD -- vault auth enable kubernetes
-    CLUSTER_NAME="$(kubectl config view --raw \
-    -o go-template="{{ range .contexts }}{{ if eq .name \"$(kubectl --namespace=csi config current-context)\" }}{{ index .context \"cluster\" }}{{ end }}{{ end }}")"
-
-    SECRET_NAME="$(kubectl --namespace=csi get serviceaccount vault-auth \
-        -o go-template='{{ (index .secrets 0).name }}')"
-
-    export TR_ACCOUNT_TOKEN="$(kubectl --namespace=csi get secret ${SECRET_NAME} \
-        -o go-template='{{ .data.token }}' | base64 --decode)"
-
-    export K8S_HOST="https://$(kubectl get svc kubernetes -o go-template="{{ .spec.clusterIP }}")"
-
-    export K8S_CACERT="$(kubectl config view --raw \
-        -o go-template="{{ range .clusters }}{{ if eq .name \"${CLUSTER_NAME}\" }}{{ index .cluster \"certificate-authority-data\" }}{{ end }}{{ end }}" | base64 --decode)"
-
-    kubectl --namespace=csi exec $VAULT_POD -- vault write auth/kubernetes/config \
-        kubernetes_host="${K8S_HOST}" \
-        kubernetes_ca_cert="${K8S_CACERT}" \
-        token_reviewer_jwt="${TR_ACCOUNT_TOKEN}"
-
-    kubectl --namespace=csi exec -ti $VAULT_POD -- vault policy write example-readonly -<<EOF
-path "sys/mounts" {
-  capabilities = ["read"]
-}
-
-path "secret/data/foo" {
-  capabilities = ["read", "list"]
-}
-
-path "secret/data/foo1" {
-  capabilities = ["read", "list"]
-}
-
-path "secret/*" {
-  capabilities = ["read", "list"]
-}
-
-path "sys/renew/*" {
-  capabilities = ["update"]
-}
-EOF
-
-    kubectl --namespace=csi exec $VAULT_POD -- vault write auth/kubernetes/role/example-role \
+    kubectl --namespace=csi exec vault -- vault auth enable kubernetes
+    kubectl --namespace=csi exec vault -- sh -c 'vault write auth/kubernetes/config \
+        token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+        kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
+        kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+    cat $CONFIGS/vault-policy-readonly.hcl | kubectl --namespace=csi exec -i vault -- vault policy write example-readonly -
+    kubectl --namespace=csi exec vault -- vault write auth/kubernetes/role/example-role \
         bound_service_account_names=secrets-store-csi-driver-provider-vault \
         bound_service_account_namespaces=csi \
         policies=default,example-readonly \
         ttl=20m
 
-    kubectl --namespace=csi exec $VAULT_POD -- vault kv put secret/foo bar=hello > /dev/null
-    kubectl --namespace=csi exec $VAULT_POD -- vault kv put secret/foo1 bar1=hello1 > /dev/null
+    kubectl --namespace=csi exec vault -- vault kv put secret/foo1 bar1=hello1
+    kubectl --namespace=csi exec vault -- vault kv put secret/foo2 bar2=hello2
+    kubectl --namespace=csi exec vault -- vault kv put secret/foo-sync1 bar1=hello-sync1
+    kubectl --namespace=csi exec vault -- vault kv put secret/foo-sync2 bar2=hello-sync2
 
-    # Final setup pieces.
-    kubectl create namespace test > /dev/null
-    kubectl --namespace=test apply -f $CONFIGS/*-secretproviderclass.yaml
-    kubectl --namespace=csi wait --for condition=established --timeout=60s crd/secretproviderclasses.secrets-store.csi.x-k8s.io > /dev/null
+    # Create shared k8s resources.
+    kubectl create namespace test
+    kubectl --namespace=test apply -f $CONFIGS/vault-foo-secretproviderclass.yaml
+    kubectl --namespace=test apply -f $CONFIGS/vault-foo-sync-secretproviderclass.yaml
+    kubectl --namespace=test apply -f $CONFIGS/vault-foo-sync-multiple-secretproviderclass.yaml
+    } > $SETUP_TEARDOWN_OUTFILE
 }
 
 teardown(){
-    # Teardown Vault configuration.
-    kubectl --namespace=csi exec $VAULT_POD -- vault auth disable kubernetes
-    kubectl --namespace=csi exec -ti $VAULT_POD -- vault policy delete example-readonly
-    kubectl --namespace=csi exec $VAULT_POD -- vault kv delete secret/foo
-    kubectl --namespace=csi exec $VAULT_POD -- vault kv delete secret/foo1
+    if [[ -n $SKIP_TEARDOWN ]]; then
+      echo "Skipping teardown"
+      return
+    fi
 
-    # Teardown k8s resources.
-    kubectl delete namespace test
+    { # Braces used to redirect all teardown logs.
+    # Teardown Vault configuration.
+    kubectl --namespace=csi exec vault -- vault auth disable kubernetes
+    kubectl --namespace=csi exec vault -- vault policy delete example-readonly
+    kubectl --namespace=csi exec vault -- vault kv delete secret/foo1
+    kubectl --namespace=csi exec vault -- vault kv delete secret/foo2
+    kubectl --namespace=csi exec vault -- vault kv delete secret/foo-sync1
+    kubectl --namespace=csi exec vault -- vault kv delete secret/foo-sync2
+
+    # Teardown shared k8s resources.
+    kubectl delete --ignore-not-found namespace test
+    kubectl delete --ignore-not-found namespace negative-test-ns
+    } > $SETUP_TEARDOWN_OUTFILE
 }
 
-@test "Inline secrets-store-csi volume" {
+@test "1 Inline secrets-store-csi volume" {
     kubectl --namespace=test apply -f $CONFIGS/nginx-inline-volume.yaml
     kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod/nginx-secrets-store-inline
 
-    result=$(kubectl --namespace=test exec nginx-secrets-store-inline -- cat /mnt/secrets-store/bar)
-    [[ "$result" == "hello" ]]
-
     result=$(kubectl --namespace=test exec nginx-secrets-store-inline -- cat /mnt/secrets-store/bar1)
     [[ "$result" == "hello1" ]]
+
+    result=$(kubectl --namespace=test exec nginx-secrets-store-inline -- cat /mnt/secrets-store/bar2)
+    [[ "$result" == "hello2" ]]
 }
 
-# @test "Sync with K8s secrets - create deployment" {
-#   export VAULT_SERVICE_IP=$(kubectl --namespace=test get service vault -o jsonpath='{.spec.clusterIP}')
+@test "2 Sync with kubernetes secrets" {
+  # Deploy some pods that should cause k8s secrets to be created.
+  kubectl --namespace=test apply -f $CONFIGS/nginx-env-var.yaml
+  kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod -l app=nginx
 
-#   envsubst < $BATS_TESTS_DIR/vault_synck8s_v1alpha1_secretproviderclass.yaml | kubectl --namespace=test apply -f -
+  POD=$(kubectl --namespace=test get pod -l app=nginx -o jsonpath="{.items[0].metadata.name}")
+  result=$(kubectl --namespace=test exec $POD -- cat /mnt/secrets-store/bar1)
+  [[ "$result" == "hello-sync1" ]]
 
-#   cmd="kubectl --namespace=test wait --for condition=established --timeout=60s crd/secretproviderclasses.secrets-store.csi.x-k8s.io"
-#   wait_for_process $WAIT_TIME $SLEEP_TIME "$cmd"
+  result=$(kubectl --namespace=test exec $POD -- cat /mnt/secrets-store/bar2)
+  [[ "$result" == "hello-sync2" ]]
 
-#   cmd="kubectl --namespace=test get secretproviderclasses.secrets-store.csi.x-k8s.io/vault-foo-sync -o yaml | grep vault"
-#   wait_for_process $WAIT_TIME $SLEEP_TIME "$cmd"
+  result=$(kubectl --namespace=test get secret foosecret -o jsonpath="{.data.pwd}" | base64 -d)
+  [[ "$result" == "hello-sync1" ]]
 
-#   run kubectl --namespace=test apply -f $BATS_TESTS_DIR/nginx-deployment-synck8s.yaml
-#   assert_success
+  result=$(kubectl --namespace=test exec $POD -- printenv | grep SECRET_USERNAME | awk -F"=" '{ print $2 }' | tr -d '\r\n')
+  [[ "$result" == "hello-sync2" ]]
 
-#   run kubectl --namespace=test apply -f $BATS_TESTS_DIR/nginx-deployment-two-synck8s.yaml
-#   assert_success
+  run kubectl get secret --namespace=test foosecret
+  [ "$status" -eq 0 ]
 
-#   cmd="kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod -l app=nginx"
-#   wait_for_process $WAIT_TIME $SLEEP_TIME "$cmd"
-# }
+  result=$(kubectl --namespace=test get secret foosecret -o jsonpath="{.metadata.labels.environment}")
+  [[ "${result//$'\r'}" == "test" ]]
 
-# @test "Sync with K8s secrets - read secret from pod, read K8s secret, read env var, check secret ownerReferences with multiple owners" {
-#   POD=$(kubectl --namespace=test get pod -l app=nginx -o jsonpath="{.items[0].metadata.name}")
-#   result=$(kubectl --namespace=test exec $POD -- cat /mnt/secrets-store/bar)
-#   [[ "$result" == "hello" ]]
+  result=$(kubectl --namespace=test get secret foosecret -o jsonpath="{.metadata.labels.secrets-store\.csi\.k8s\.io/managed}")
+  [[ "${result//$'\r'}" == "true" ]]
 
-#   result=$(kubectl --namespace=test exec $POD -- cat /mnt/secrets-store/bar1)
-#   [[ "$result" == "hello1" ]]
+  # There isn't really an event we can wait for to ensure this has happened.
+  for i in {0..60}; do
+      result="$(kubectl --namespace=test get secret foosecret -o json | jq '.metadata.ownerReferences | length')"
+      if [[ "$result" -eq 2 ]]; then
+          break
+      fi
+      sleep 1
+  done
+  [[ "$result" -eq 2 ]]
 
-#   result=$(kubectl --namespace=test get secret foosecret -o jsonpath="{.data.pwd}" | base64 -d)
-#   [[ "$result" == "hello" ]]
+  # Wait for secret deletion in a background process.
+  kubectl --namespace=test wait --for=delete secret foosecret &
+  WAIT_PID=$!
 
-#   result=$(kubectl --namespace=test exec $POD -- printenv | grep SECRET_USERNAME | awk -F"=" '{ print $2 }' | tr -d '\r\n')
-#   [[ "$result" == "hello1" ]]
+  # Trigger deletion implicitly by deleting only owners.
+  kubectl --namespace=test delete -f $CONFIGS/nginx-env-var.yaml
+  echo "Waiting for foosecret to get deleted"
+  wait $WAIT_PID
 
-#   result=$(kubectl --namespace=test get secret foosecret -o jsonpath="{.metadata.labels.environment}")
-#   [[ "${result//$'\r'}" == "${LABEL_VALUE}" ]]
+  # Ensure it actually got deleted.
+  run kubectl --namespace=test get secret foosecret
+  [ "$status" -eq 1 ]
+}
 
-#   result=$(kubectl --namespace=test get secret foosecret -o jsonpath="{.metadata.labels.secrets-store\.csi\.k8s\.io/managed}")
-#   [[ "${result//$'\r'}" == "true" ]]
+@test "3 SecretProviderClass in different namespace not usable" {
+  kubectl create namespace negative-test-ns
+  kubectl --namespace=negative-test-ns apply -f $CONFIGS/nginx-env-var.yaml
+  kubectl --namespace=negative-test-ns wait --for=condition=PodScheduled --timeout=60s pod -l app=nginx
+  POD=$(kubectl get pod -l app=nginx -n negative-test-ns -o jsonpath="{.items[0].metadata.name}")
 
-#   run wait_for_process $WAIT_TIME $SLEEP_TIME "compare_owner_count foosecret default 4"
-#   assert_success
-# }
+  wait_for_success "kubectl describe pod $POD -n negative-test-ns | grep 'FailedMount.*failed to get secretproviderclass negative-test-ns/vault-foo-sync.*not found'"
+}
 
-# @test "Sync with K8s secrets - delete deployment, check secret is deleted" {
-#   run kubectl --namespace=test delete -f $BATS_TESTS_DIR/nginx-deployment-synck8s.yaml
-#   assert_success
-  
-#   run wait_for_process $WAIT_TIME $SLEEP_TIME "compare_owner_count foosecret default 2"
-#   assert_success
+@test "4 Pod with multiple SecretProviderClasses" {
+  POD=nginx-multiple-volumes
+  kubectl --namespace=test apply -f $CONFIGS/nginx-multiple-volumes.yaml
+  kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod $POD
 
-#   run kubectl --namespace=test delete -f $BATS_TESTS_DIR/nginx-deployment-two-synck8s.yaml
-#   assert_success
+  result=$(kubectl --namespace=test exec $POD -- cat /mnt/secrets-store-1/bar1)
+  [[ "$result" == "hello-sync1" ]]
+  result=$(kubectl --namespace=test exec $POD -- cat /mnt/secrets-store-2/bar2)
+  [[ "$result" == "hello-sync2" ]]
 
-#   run wait_for_process $WAIT_TIME $SLEEP_TIME "check_secret_deleted foosecret default"
-#   assert_success
+  result=$(kubectl --namespace=test get secret foosecret-1 -o jsonpath="{.data.username}" | base64 -d)
+  [[ "$result" == "hello-sync1" ]]
+  result=$(kubectl --namespace=test get secret foosecret-2 -o jsonpath="{.data.pwd}" | base64 -d)
+  [[ "$result" == "hello-sync2" ]]
 
-#   run kubectl --namespace=test delete -f $BATS_TESTS_DIR/vault_synck8s_v1alpha1_secretproviderclass.yaml
-#   assert_success
-# }
+  result=$(kubectl --namespace=test exec $POD -- printenv | grep SECRET_1_USERNAME | awk -F"=" '{ print $2 }' | tr -d '\r\n')
+  [[ "$result" == "hello-sync1" ]]
+  result=$(kubectl --namespace=test exec $POD -- printenv | grep SECRET_2_PWD | awk -F"=" '{ print $2 }' | tr -d '\r\n')
+  [[ "$result" == "hello-sync2" ]]
+}
 
-# @test "Test Namespaced scope SecretProviderClass - create deployment" {
-#   export VAULT_SERVICE_IP=$(kubectl --namespace=test get service vault -o jsonpath='{.spec.clusterIP}')
-
-#   run kubectl --namespace=test create ns test-ns
-#   assert_success
-
-#   envsubst < $BATS_TESTS_DIR/vault_v1alpha1_secretproviderclass_ns.yaml | kubectl --namespace=test apply -f -
-
-#   cmd="kubectl --namespace=test wait --for condition=established --timeout=60s crd/secretproviderclasses.secrets-store.csi.x-k8s.io"
-#   wait_for_process $WAIT_TIME $SLEEP_TIME "$cmd"
-
-#   cmd="kubectl --namespace=test get secretproviderclasses.secrets-store.csi.x-k8s.io/vault-foo-sync -o yaml | grep vault"
-#   wait_for_process $WAIT_TIME $SLEEP_TIME "$cmd"
-
-#   cmd="kubectl --namespace=test get secretproviderclasses.secrets-store.csi.x-k8s.io/vault-foo-sync -n test-ns -o yaml | grep vault"
-#   wait_for_process $WAIT_TIME $SLEEP_TIME "$cmd"
-
-#   envsubst < $BATS_TESTS_DIR/nginx-deployment-synck8s.yaml | kubectl --namespace=test apply -n test-ns -f -
-
-#   cmd="kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod -l app=nginx -n test-ns"
-#   wait_for_process $WAIT_TIME $SLEEP_TIME "$cmd"
-# }
-
-# @test "Test Namespaced scope SecretProviderClass - Sync with K8s secrets - read secret from pod, read K8s secret, read env var, check secret ownerReferences" {
-#   POD=$(kubectl --namespace=test get pod -l app=nginx -n test-ns -o jsonpath="{.items[0].metadata.name}")
-#   result=$(kubectl --namespace=test exec -n test-ns $POD -- cat /mnt/secrets-store/bar)
-#   [[ "$result" == "hello" ]]
-
-#   result=$(kubectl --namespace=test exec -n test-ns $POD -- cat /mnt/secrets-store/bar1)
-#   [[ "$result" == "hello1" ]]
-
-#   result=$(kubectl --namespace=test get secret foosecret -n test-ns -o jsonpath="{.data.pwd}" | base64 -d)
-#   [[ "$result" == "hello" ]]
-
-#   result=$(kubectl --namespace=test exec -n test-ns $POD -- printenv | grep SECRET_USERNAME | awk -F"=" '{ print $2 }' | tr -d '\r\n')
-#   [[ "$result" == "hello1" ]]
-
-#   run wait_for_process $WAIT_TIME $SLEEP_TIME "compare_owner_count foosecret test-ns 2"
-#   assert_success
-# }
-
-# @test "Test Namespaced scope SecretProviderClass - Sync with K8s secrets - delete deployment, check secret deleted" {
-#   run kubectl --namespace=test delete -f $BATS_TESTS_DIR/nginx-deployment-synck8s.yaml -n test-ns
-#   assert_success
-
-#   run wait_for_process $WAIT_TIME $SLEEP_TIME "check_secret_deleted foosecret test-ns"
-#   assert_success
-# }
-
-# @test "Test Namespaced scope SecretProviderClass - Should fail when no secret provider class in same namespace" {
-#   export VAULT_SERVICE_IP=$(kubectl --namespace=test get service vault -o jsonpath='{.spec.clusterIP}')
-
-#   run kubectl --namespace=test create ns negative-test-ns
-#   assert_success
-
-#   envsubst < $BATS_TESTS_DIR/nginx-deployment-synck8s.yaml | kubectl --namespace=test apply -n negative-test-ns -f -
-#   sleep 5
-
-#   POD=$(kubectl --namespace=test get pod -l app=nginx -n negative-test-ns -o jsonpath="{.items[0].metadata.name}")
-#   cmd="kubectl --namespace=test describe pod $POD -n negative-test-ns | grep 'FailedMount.*failed to get secretproviderclass negative-test-ns/vault-foo-sync.*not found'"
-#   wait_for_process $WAIT_TIME $SLEEP_TIME "$cmd"
-
-#   run kubectl --namespace=test delete -f $BATS_TESTS_DIR/nginx-deployment-synck8s.yaml -n negative-test-ns
-#   assert_success
-
-#   run kubectl --namespace=test delete ns negative-test-ns
-#   assert_success
-# }
-
-# @test "deploy multiple vault secretproviderclass crd" {
-#   export VAULT_SERVICE_IP=$(kubectl --namespace=test get service vault -o jsonpath='{.spec.clusterIP}')
-
-#   envsubst < $BATS_TESTS_DIR/vault_v1alpha1_multiple_secretproviderclass.yaml | kubectl --namespace=test apply -f -
-
-#   cmd="kubectl --namespace=test wait --for condition=established --timeout=60s crd/secretproviderclasses.secrets-store.csi.x-k8s.io"
-#   wait_for_process $WAIT_TIME $SLEEP_TIME "$cmd"
-
-#   cmd="kubectl --namespace=test get secretproviderclasses.secrets-store.csi.x-k8s.io/vault-foo-sync-0 -o yaml | grep vault-foo-sync-0"
-#   wait_for_process $WAIT_TIME $SLEEP_TIME "$cmd"
-
-#   cmd="kubectl --namespace=test get secretproviderclasses.secrets-store.csi.x-k8s.io/vault-foo-sync-1 -o yaml | grep vault-foo-sync-1"
-#   wait_for_process $WAIT_TIME $SLEEP_TIME "$cmd"
-# }
-
-# @test "deploy pod with multiple secret provider class" {
-#   envsubst < $BATS_TESTS_DIR/nginx-pod-vault-inline-volume-multiple-spc.yaml | kubectl --namespace=test apply -f -
-  
-#   cmd="kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod/nginx-secrets-store-inline-multiple-crd"
-#   wait_for_process $WAIT_TIME $SLEEP_TIME "$cmd"
-
-#   run kubectl --namespace=test get pod/nginx-secrets-store-inline-multiple-crd
-#   assert_success
-# }
-
-# @test "CSI inline volume test with multiple secret provider class" {
-#   result=$(kubectl --namespace=test exec nginx-secrets-store-inline-multiple-crd -- cat /mnt/secrets-store-0/bar)
-#   [[ "$result" == "hello" ]]
-
-#   result=$(kubectl --namespace=test exec nginx-secrets-store-inline-multiple-crd -- cat /mnt/secrets-store-0/bar1)
-#   [[ "$result" == "hello1" ]]
-
-#   result=$(kubectl --namespace=test get secret foosecret-0 -o jsonpath="{.data.pwd}" | base64 -d)
-#   [[ "$result" == "hello" ]]
-
-#   result=$(kubectl --namespace=test exec nginx-secrets-store-inline-multiple-crd -- printenv | grep SECRET_USERNAME_0 | awk -F"=" '{ print $2 }' | tr -d '\r\n')
-#   [[ "$result" == "hello1" ]]
-
-#   run wait_for_process $WAIT_TIME $SLEEP_TIME "compare_owner_count foosecret-0 default 1"
-#   assert_success
-
-#   result=$(kubectl --namespace=test exec nginx-secrets-store-inline-multiple-crd -- cat /mnt/secrets-store-1/bar)
-#   [[ "$result" == "hello" ]]
-
-#   result=$(kubectl --namespace=test exec nginx-secrets-store-inline-multiple-crd -- cat /mnt/secrets-store-1/bar1)
-#   [[ "$result" == "hello1" ]]
-
-#   result=$(kubectl --namespace=test get secret foosecret-1 -o jsonpath="{.data.pwd}" | base64 -d)
-#   [[ "$result" == "hello" ]]
-
-#   result=$(kubectl --namespace=test exec nginx-secrets-store-inline-multiple-crd -- printenv | grep SECRET_USERNAME_1 | awk -F"=" '{ print $2 }' | tr -d '\r\n')
-#   [[ "$result" == "hello1" ]]
-
-#   run wait_for_process $WAIT_TIME $SLEEP_TIME "compare_owner_count foosecret-1 default 1"
-#   assert_success
-# }
+wait_for_success() {
+  echo $1
+  for i in {0..60}; do
+      if eval "$1"; then
+          return
+      fi
+      sleep 1
+  done
+  # Fail the test.
+  [ 1 -eq 2 ]
+}
