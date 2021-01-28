@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 
+load _helpers
+
 export SETUP_TEARDOWN_OUTFILE=/dev/stdout
 SUPPRESS_SETUP_TEARDOWN_LOGS=true       # Comment this line out to show setup/teardown logs for failed tests.
 if [[ -n $SUPPRESS_SETUP_TEARDOWN_LOGS ]]; then
@@ -82,14 +84,14 @@ teardown(){
   result=$(kubectl --namespace=test exec $POD -- cat /mnt/secrets-store/bar2)
   [[ "$result" == "hello-sync2" ]]
 
+  run kubectl get secret --namespace=test foosecret
+  [ "$status" -eq 0 ]
+
   result=$(kubectl --namespace=test get secret foosecret -o jsonpath="{.data.pwd}" | base64 -d)
   [[ "$result" == "hello-sync1" ]]
 
   result=$(kubectl --namespace=test exec $POD -- printenv | grep SECRET_USERNAME | awk -F"=" '{ print $2 }' | tr -d '\r\n')
   [[ "$result" == "hello-sync2" ]]
-
-  run kubectl get secret --namespace=test foosecret
-  [ "$status" -eq 0 ]
 
   result=$(kubectl --namespace=test get secret foosecret -o jsonpath="{.metadata.labels.environment}")
   [[ "${result//$'\r'}" == "test" ]]
@@ -108,7 +110,7 @@ teardown(){
   [[ "$result" -eq 2 ]]
 
   # Wait for secret deletion in a background process.
-  kubectl --namespace=test wait --for=delete secret foosecret &
+  kubectl --namespace=test wait --for=delete --timeout=60s secret foosecret &
   WAIT_PID=$!
 
   # Trigger deletion implicitly by deleting only owners.
@@ -149,16 +151,4 @@ teardown(){
   [[ "$result" == "hello-sync1" ]]
   result=$(kubectl --namespace=test exec $POD -- printenv | grep SECRET_2_PWD | awk -F"=" '{ print $2 }' | tr -d '\r\n')
   [[ "$result" == "hello-sync2" ]]
-}
-
-wait_for_success() {
-  echo $1
-  for i in {0..60}; do
-      if eval "$1"; then
-          return
-      fi
-      sleep 1
-  done
-  # Fail the test.
-  [ 1 -eq 2 ]
 }
