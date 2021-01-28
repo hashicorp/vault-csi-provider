@@ -340,10 +340,10 @@ func (p *Provider) getSecret(token string, secretPath string, secretName string,
 		case "2":
 			var d struct {
 				Data struct {
-					Data map[string]string `json:"data"`
+					Data     map[string]string `json:"data"`
 					Metadata struct {
-						Version int `json:version`
-					} `json:metadata`
+						Version int `json:"version"`
+					} `json:"metadata"`
 				} `json:"data"`
 			}
 			if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
