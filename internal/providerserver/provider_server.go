@@ -30,7 +30,7 @@ func (p *ProviderServer) Version(context.Context, *pb.VersionRequest) (*pb.Versi
 }
 
 func (p *ProviderServer) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResponse, error) {
-	p.Logger.Info(fmt.Sprintf("Processing mount method call: %+v", req))
+	p.Logger.Info("Processing mount method call", "request", req)
 
 	versions, err := p.handleMountRequest(ctx, req.Attributes, req.TargetPath, req.Permission)
 	if err != nil {
@@ -39,21 +39,20 @@ func (p *ProviderServer) Mount(ctx context.Context, req *pb.MountRequest) (*pb.M
 
 	var ov []*pb.ObjectVersion
 	for k, v := range versions {
-		ov = append(ov, &pb.ObjectVersion{Id: k, Version: fmt.Sprintf("%d", v)})
+		ov = append(ov, &pb.ObjectVersion{Id: k, Version: v})
 	}
 
 	return &pb.MountResponse{ObjectVersion: ov}, nil
 }
 
-func (p *ProviderServer) handleMountRequest(ctx context.Context, parametersStr, targetPath, permissionStr string) (map[string]int, error) {
-	p.Logger.Debug("parametersStr", parametersStr)
+func (p *ProviderServer) handleMountRequest(ctx context.Context, parametersStr, targetPath, permissionStr string) (map[string]string, error) {
+	p.Logger.Debug("Handling mount request", "parametersStr", parametersStr)
 	cfg, err := config.Parse(parametersStr, targetPath, permissionStr)
 	if err != nil {
 		return nil, err
 	}
 
-	p.Logger.Debug("vault: vault address", cfg.Parameters.VaultAddress)
-	p.Logger.Debug("vault: roleName", cfg.Parameters.VaultRoleName)
+	p.Logger.Debug("Running provider", "vault address", cfg.Parameters.VaultAddress, "roleName", cfg.Parameters.VaultRoleName)
 
 	provider := provider.NewProvider(p.Logger)
 	versions, err := provider.MountSecretsStoreObjectContent(ctx, cfg)

@@ -3,11 +3,8 @@ package provider
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,13 +13,13 @@ import (
 	"github.com/hashicorp/go-hclog"
 	vaultclient "github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/client"
 	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/config"
-	"github.com/pkg/errors"
+	"github.com/hashicorp/vault/api"
 )
 
 func readJWTToken(path string) (string, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to read jwt token")
+		return "", fmt.Errorf("failed to read jwt token: %w", err)
 	}
 
 	return string(bytes.TrimSpace(data)), nil
@@ -42,58 +39,34 @@ func NewProvider(logger hclog.Logger) *provider {
 	return p
 }
 
-func (p *provider) getMountInfo(ctx context.Context, client *http.Client, vaultAddress, mountName, token string) (string, string, error) {
-	p.logger.Debug(fmt.Sprintf("vault: checking mount info for %q", mountName))
-
-	addr := vaultAddress + "/v1/sys/mounts"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, addr, nil)
+func (p *provider) getMountInfo(_ context.Context, client *api.Client, mountName string) (string, string, error) {
+	p.logger.Debug("vault: checking mount info", "mountName", mountName)
+	// TODO: Don't ignore ctx
+	resp, err := client.Logical().Read("sys/mounts")
 	if err != nil {
-		return "", "", errors.Wrapf(err, "couldn't generate request")
-	}
-	// Set vault token.
-	req.Header.Set("X-Vault-Token", token)
-	req.Header.Set("X-Vault-Request", "true")
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", "", errors.Wrapf(err, "couldn't get sys mounts")
+		return "", "", fmt.Errorf("failed to query mounts endpoint: %w", err)
 	}
 
-	defer resp.Body.Close()
+	p.logger.Debug("v1/sys/mounts response received", "response", *resp)
 
-	if resp.StatusCode != 200 {
-		var b bytes.Buffer
-		_, err := io.Copy(&b, resp.Body)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to copy reponse body to byte buffer")
-		}
-		return "", "", fmt.Errorf("failed to get successful response reading mount info: %#v, %s",
-			resp, b.String())
-	}
+	mount := resp.Data[mountName+"/"].(map[string]interface{})
+	typ := mount["type"].(string)
+	options := mount["options"].(map[string]interface{})
 
-	var mount struct {
-		Data map[string]struct {
-			Type    string            `json:"type"`
-			Options map[string]string `json:"options"`
-		} `json:"data"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&mount); err != nil {
-		return "", "", err
-	}
-
-	return mount.Data[mountName+"/"].Type, mount.Data[mountName+"/"].Options["version"], nil
+	// TODO: Defend against panics here.
+	return typ, options["version"].(string), nil
 }
 
-func generateSecretEndpoint(vaultAddress string, secretMountType string, secretMountVersion string, secretPrefix string, secretSuffix string, secretVersion string) (string, error) {
+func generateSecretEndpoint(secretMountType string, secretMountVersion string, secretPrefix string, secretSuffix string, secretVersion string) (string, error) {
 	addr := ""
 	errMessage := fmt.Errorf("Only mount types KV/1 and KV/2 are supported")
 	switch secretMountType {
 	case "kv":
 		switch secretMountVersion {
 		case "1":
-			addr = vaultAddress + "/v1/" + secretPrefix + "/" + secretSuffix
+			addr = secretPrefix + "/" + secretSuffix
 		case "2":
-			addr = vaultAddress + "/v1/" + secretPrefix + "/data/" + secretSuffix + "?version=" + secretVersion
+			addr = secretPrefix + "/data/" + secretSuffix // + "?version=" + secretVersion
 		default:
 			return "", errMessage
 		}
@@ -103,50 +76,25 @@ func generateSecretEndpoint(vaultAddress string, secretMountType string, secretM
 	return addr, nil
 }
 
-func (p *provider) login(ctx context.Context, client *http.Client, vaultAddress, vaultKubernetesMountPath, roleName, jwt string) (string, error) {
-	p.logger.Debug(fmt.Sprintf("vault: performing vault login....."))
+func (p *provider) login(_ context.Context, client *api.Client, vaultKubernetesMountPath, roleName, jwt string) (string, error) {
+	p.logger.Debug("vault: performing vault login...")
 
-	addr := vaultAddress + "/v1/auth/" + vaultKubernetesMountPath + "/login"
-	body := fmt.Sprintf(`{"role": "%s", "jwt": "%s"}`, roleName, jwt)
-
-	p.logger.Debug(fmt.Sprintf("vault: vault address: %s\n", addr))
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, addr, strings.NewReader(body))
+	// TODO: Don't ignore ctx
+	resp, err := client.Logical().Write("auth/"+vaultKubernetesMountPath+"/login", map[string]interface{}{
+		"role": roleName,
+		"jwt":  jwt,
+	})
 	if err != nil {
-		return "", errors.Wrapf(err, "couldn't generate request")
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", errors.Wrapf(err, "couldn't login")
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		var b bytes.Buffer
-		_, err := io.Copy(&b, resp.Body)
-		if err != nil {
-			return "", fmt.Errorf("failed to copy reponse body to byte buffer")
-		}
-		return "", fmt.Errorf("failed to get successful response logging in: %#v, %s",
-			resp, b.String())
+		return "", fmt.Errorf("couldn't login: %w", err)
 	}
 
-	var s struct {
-		Auth struct {
-			ClientToken string `json:"client_token"`
-		} `json:"auth"`
-	}
+	client.SetToken(resp.Auth.ClientToken)
 
-	if err := json.NewDecoder(resp.Body).Decode(&s); err != nil {
-		return "", errors.Wrapf(err, "failed to read body")
-	}
-
-	return s.Auth.ClientToken, nil
+	return resp.Auth.ClientToken, nil
 }
 
-func (p *provider) getSecret(ctx context.Context, client *http.Client, vaultAddress string, token string, secret config.Secret) (content string, version int, err error) {
-	p.logger.Debug(fmt.Sprintf("vault: getting secrets from vault....."))
+func (p *provider) getSecret(ctx context.Context, client *api.Client, secret config.Secret) (content string, err error) {
+	p.logger.Debug("vault: getting secrets from vault...")
 
 	secretVersion := secret.ObjectVersion
 	if secretVersion == "" {
@@ -155,87 +103,57 @@ func (p *provider) getSecret(ctx context.Context, client *http.Client, vaultAddr
 
 	s := regexp.MustCompile("/+").Split(secret.ObjectPath, 3)
 	if len(s) < 3 {
-		return "", 0, fmt.Errorf("unable to parse secret path %q", secret.ObjectPath)
+		return "", fmt.Errorf("unable to parse secret path %q", secret.ObjectPath)
 	}
 	secretPrefix := s[1]
 	secretSuffix := s[2]
 
-	secretMountType, secretMountVersion, err := p.getMountInfo(ctx, client, vaultAddress, secretPrefix, token)
+	secretMountType, secretMountVersion, err := p.getMountInfo(ctx, client, secretPrefix)
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 
-	addr, err := generateSecretEndpoint(vaultAddress, secretMountType, secretMountVersion, secretPrefix, secretSuffix, secretVersion)
+	endpoint, err := generateSecretEndpoint(secretMountType, secretMountVersion, secretPrefix, secretSuffix, secretVersion)
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 
-	p.logger.Debug(fmt.Sprintf("vault: Requesting valid secret mounted at %q", addr))
+	p.logger.Debug("vault: Requesting valid secret mounted", "endpoint", endpoint)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, addr, nil)
-	// Set vault token.
-	req.Header.Set("X-Vault-Token", token)
+	// TODO: Don't ignore ctx
+	resp, err := client.Logical().Read(endpoint)
 	if err != nil {
-		return "", 0, errors.Wrapf(err, "couldn't generate request")
+		return "", fmt.Errorf("couldn't get secret: %w", err)
+	}
+	if resp == nil {
+		return "", fmt.Errorf("no secret found at %s", endpoint)
 	}
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", 0, errors.Wrapf(err, "couldn't get secret")
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		var b bytes.Buffer
-		_, err := io.Copy(&b, resp.Body)
-		if err != nil {
-			return "", 0, fmt.Errorf("failed to copy reponse body to byte buffer")
-		}
-		return "", 0, fmt.Errorf("failed to get successful response reading secret: %#v, %s",
-			resp, b.String())
-	}
-
+	p.logger.Debug("Received response from secret read", "response", *resp)
 	switch secretMountType {
 	case "kv":
 		switch secretMountVersion {
 		case "1":
-			var d struct {
-				Data map[string]string `json:"data"`
-			}
-			if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
-				return "", 0, errors.Wrapf(err, "failed to read body")
-			}
-			return d.Data[secret.ObjectName], 0, nil
+			return resp.Data[secret.ObjectName].(string), nil
 
 		case "2":
-			var d struct {
-				Data struct {
-					Data     map[string]string `json:"data"`
-					Metadata struct {
-						Version int `json:"version"`
-					} `json:"metadata"`
-				} `json:"data"`
-			}
-			if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
-				return "", 0, errors.Wrapf(err, "failed to read body")
-			}
-			return d.Data.Data[secret.ObjectName], d.Data.Metadata.Version, nil
+			data := resp.Data["data"].(map[string]interface{})
+			return data[secret.ObjectName].(string), nil
 		}
 	}
 
-	return "", 0, fmt.Errorf("failed to get secret value")
+	return "", fmt.Errorf("failed to get secret value")
 }
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
-func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg config.Config) (map[string]int, error) {
-	versions := make(map[string]int)
+func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg config.Config) (map[string]string, error) {
+	versions := make(map[string]string)
 	for _, secret := range cfg.Parameters.Secrets {
-		content, version, err := p.getSecretContent(ctx, cfg.Parameters, secret)
+		content, err := p.getSecretContent(ctx, cfg.Parameters, secret)
 		if err != nil {
 			return nil, err
 		}
-		versions[fmt.Sprintf("%s:%s:%s", secret.ObjectName, secret.ObjectPath, secret.ObjectVersion)] = version
+		versions[fmt.Sprintf("%s:%s:%s", secret.ObjectName, secret.ObjectPath, secret.ObjectVersion)] = secret.ObjectVersion
 		err = writeSecret(p.logger, cfg.TargetPath, secret.ObjectName, content, cfg.FilePermission)
 		if err != nil {
 			return nil, err
@@ -257,9 +175,9 @@ func writeSecret(logger hclog.Logger, directory string, file string, content str
 		}
 	}
 	if err := ioutil.WriteFile(filepath.Join(directory, file), objectContent, permission); err != nil {
-		return errors.Wrapf(err, "secrets-store csi driver failed to write %s at %s", file, directory)
+		return fmt.Errorf("secrets-store csi driver failed to write %s at %s: %w", file, directory, err)
 	}
-	logger.Info(fmt.Sprintf("secrets-store csi driver wrote %s at %s", file, directory))
+	logger.Info("secrets-store csi driver wrote secret", "directory", directory, "file", file)
 
 	return nil
 }
@@ -276,29 +194,43 @@ func validateFilePath(path string) error {
 }
 
 // getSecretContent get content and version of the vault object
-func (p *provider) getSecretContent(ctx context.Context, params config.Parameters, secret config.Secret) (content string, version int, err error) {
+func (p *provider) getSecretContent(ctx context.Context, params config.Parameters, secret config.Secret) (content string, err error) {
 	// Read the jwt token from disk
 	jwt, err := readJWTToken(params.KubernetesServiceAccountPath)
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 
-	client, err := vaultclient.CreateHTTPClient(params.TLSConfig)
-	if err != nil {
-		return "", 0, err
+	config := api.DefaultConfig()
+	if params.VaultAddress != "" {
+		config.Address = params.VaultAddress
 	}
+	if params.TLSConfig.CertificatesConfigured() {
+		config.HttpClient, err = vaultclient.CreateHTTPClient(params.TLSConfig)
+		if err != nil {
+			return "", err
+		}
+	} else if params.TLSConfig.VaultSkipTLSVerify {
+		err = config.ConfigureTLS(&api.TLSConfig{
+			Insecure: true,
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+	client, err := api.NewClient(config)
 
 	// Authenticate to vault using the jwt token
-	token, err := p.login(ctx, client, params.VaultAddress, params.VaultKubernetesMountPath, params.VaultRoleName, jwt)
+	_, err = p.login(ctx, client, params.VaultKubernetesMountPath, params.VaultRoleName, jwt)
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 
 	// Get Secret
-	value, version, err := p.getSecret(ctx, client, params.VaultAddress, token, secret)
+	value, err := p.getSecret(ctx, client, secret)
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 
-	return value, version, nil
+	return value, nil
 }

@@ -48,6 +48,12 @@ type TLSConfig struct {
 	VaultSkipTLSVerify bool
 }
 
+func (c TLSConfig) CertificatesConfigured() bool {
+	return c.VaultCAPEM != "" ||
+		c.VaultCACertPath != "" ||
+		c.VaultCADirectory != ""
+}
+
 type Secret struct {
 	ObjectName    string `yaml:"objectName"`
 	ObjectPath    string `yaml:"objectPath"`
@@ -147,9 +153,7 @@ func (c *Config) Validate() error {
 	if c.Parameters.VaultRoleName == "" {
 		return errors.Errorf("missing 'roleName' in SecretProviderClass definition")
 	}
-	certificatesConfigured := c.Parameters.TLSConfig.VaultCAPEM != "" ||
-		c.Parameters.TLSConfig.VaultCACertPath != "" ||
-		c.Parameters.TLSConfig.VaultCADirectory != ""
+	certificatesConfigured := c.Parameters.TLSConfig.CertificatesConfigured()
 	if c.Parameters.TLSConfig.VaultSkipTLSVerify && certificatesConfigured == true {
 		return errors.New("both vaultSkipTLSVerify and TLS configuration are set")
 	}
