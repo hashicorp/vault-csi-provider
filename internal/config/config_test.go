@@ -9,6 +9,10 @@ import (
 	"gotest.tools/assert"
 )
 
+const (
+	objects = "array:\n  - |\n    objectPath: \"v1/secret/foo1\"\n    objectName: \"bar1\"\n    objectVersion: \"\""
+)
+
 func TestParseParameters(t *testing.T) {
 	parametersStr, err := ioutil.ReadFile("testdata/example-parameters-string.txt")
 	require.NoError(t, err)
@@ -43,7 +47,6 @@ func TestParseConfig(t *testing.T) {
 		targetPath string
 		parameters map[string]string
 		expected   Config
-		warnings   int
 	}{
 		{
 			name:       "defaults",
@@ -51,7 +54,7 @@ func TestParseConfig(t *testing.T) {
 			parameters: map[string]string{
 				"roleName":           "example-role",
 				"vaultSkipTLSVerify": "true",
-				"objects":            "array:\n  - |\n    objectPath: \"v1/secret/foo1\"\n    objectName: \"bar1\"\n    objectVersion: \"\"",
+				"objects":            objects,
 			},
 			expected: Config{
 				TargetPath:     targetPath,
@@ -67,35 +70,6 @@ func TestParseConfig(t *testing.T) {
 				}(),
 			},
 		},
-		// {
-		// 	name: "minimum for no errors",
-		// 	targetPath: "/some/path",
-		// 	parametersStr:     "{'roleName': 'example-role', 'vaultSkipTLSVerify': 'true'}",
-		// 	cfg: Config{
-		// 		TargetPath: targetPath,
-		// 		Parameters: Parameters{
-		// 			VaultRoleName: roleName,
-		// 			TLSConfig: TLSConfig{
-		// 				VaultSkipTLSVerify: true,
-		// 			},
-		// 			Secrets: []Secret{
-		// 				{"foo", "bar", "baz"},
-		// 			},
-		// 		},
-		// 	},
-		// 	expected: Config{
-		// 		TargetPath: "targetPath",
-		// 		Parameters: func() Parameters {
-		// 			expected := defaultParams
-		// 			expected.Secrets = []Secret{
-		// 				{"foo", "bar", "baz"},
-		// 			}
-		// 			expected.TLSConfig.VaultSkipTLSVerify = true
-		// 			return expected
-		// 		}(),
-		// 	},
-		// 	warnings: 0,
-		// },
 		{
 			name:       "non-defaults can be set",
 			targetPath: targetPath,
@@ -105,7 +79,7 @@ func TestParseConfig(t *testing.T) {
 				"vaultAddress":                 "my-vault-address",
 				"vaultKubernetesMountPath":     "my-mount-path",
 				"KubernetesServiceAccountPath": "my-account-path",
-				"objects":                      "array:\n  - |\n    objectPath: \"v1/secret/foo1\"\n    objectName: \"bar1\"\n    objectVersion: \"\"",
+				"objects":                      objects,
 			},
 			expected: Config{
 				TargetPath:     targetPath,
@@ -125,69 +99,110 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 	} {
-		// logBuffer := &bytes.Buffer{}
-		// logger := hclog.New(&hclog.LoggerOptions{
-		// 	Output:     logBuffer,
-		// 	JSONFormat: true,
-		// })
 		parametersStr, err := json.Marshal(tc.parameters)
 		require.NoError(t, err)
 		cfg, err := Parse(string(parametersStr), tc.targetPath, "420")
-		t.Logf("%+v", cfg)
 		require.NoError(t, err, tc.name)
 		assert.DeepEqual(t, tc.expected, cfg)
 	}
 }
 
-// func TestNewProvider_Errors(t *testing.T) {
-// 	for _, tc := range []struct {
-// 		name string
-// 		cfg  Config
-// 	}{
-// 		{
-// 			name: "no roleName set",
-// 			cfg: Config{
-// 				Parameters: Parameters{},
-// 			},
-// 		},
-// 		{
-// 			name: "CA PEM configured and skip TLS set",
-// 			cfg: Config{
-// 				Parameters: Parameters{
-// 					VaultRoleName: "foo",
-// 					TLSConfig: TLSConfig{
-// 						VaultSkipTLSVerify: true,
-// 						VaultCAPEM:         "bar",
-// 					},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			name: "CA cert path configured and skip TLS set",
-// 			cfg: Config{
-// 				Parameters: Parameters{
-// 					VaultRoleName: "foo",
-// 					TLSConfig: TLSConfig{
-// 						VaultSkipTLSVerify: true,
-// 						VaultCACertPath:    "bar",
-// 					},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			name: "CA directory configured and skip TLS set",
-// 			cfg: Config{
-// 				Parameters: Parameters{
-// 					VaultRoleName: "foo",
-// 					TLSConfig: TLSConfig{
-// 						VaultSkipTLSVerify: true,
-// 						VaultCADirectory:   "bar",
-// 					},
-// 				},
-// 			},
-// 		},
-// 	} {
-// 		_, err := NewProvider(hclog.NewNullLogger(), tc.params)
-// 		assert.Error(t, err)
-// 	}
-// }
+func TestParseConfig_Errors(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		targetPath string
+		parameters map[string]string
+	}{
+		{
+			name: "no roleName",
+			parameters: map[string]string{
+				"vaultSkipTLSVerify": "true",
+				"objects":            objects,
+			},
+		},
+		{
+			name: "no secrets configured",
+			parameters: map[string]string{
+				"roleName":           "example-role",
+				"vaultSkipTLSVerify": "true",
+				"objects":            "",
+			},
+		},
+	} {
+		parametersStr, err := json.Marshal(tc.parameters)
+		require.NoError(t, err)
+		_, err = Parse(string(parametersStr), "/some/path", "420")
+		require.Error(t, err, tc.name)
+	}
+}
+
+func TestValidateConfig(t *testing.T) {
+	minimumValid := Config{
+		TargetPath: "a",
+		Parameters: Parameters{
+			VaultRoleName: "b",
+			Secrets:       []Secret{{}},
+			TLSConfig: TLSConfig{
+				VaultSkipTLSVerify: true,
+			},
+		},
+	}
+	for _, tc := range []struct {
+		name     string
+		cfg      Config
+		cfgValid bool
+	}{
+		{
+			name:     "minimum valid",
+			cfgValid: true,
+			cfg:      minimumValid,
+		},
+		{
+			name: "No role name",
+			cfg: func() Config {
+				cfg := minimumValid
+				cfg.VaultRoleName = ""
+				return cfg
+			}(),
+		},
+		{
+			name: "No target path",
+			cfg: func() Config {
+				cfg := minimumValid
+				cfg.TargetPath = ""
+				return cfg
+			}(),
+		},
+		{
+			name: "Skip verify with certs configured",
+			cfg: func() Config {
+				cfg := minimumValid
+				cfg.TLSConfig.VaultCAPEM = "foo"
+				return cfg
+			}(),
+		},
+		{
+			name: "No certs or skip TLS setting",
+			cfg: func() Config {
+				cfg := minimumValid
+				cfg.TLSConfig.VaultSkipTLSVerify = false
+				return cfg
+			}(),
+		},
+		{
+			name: "No secrets configured",
+			cfg: func() Config {
+				cfg := minimumValid
+				cfg.Secrets = []Secret{}
+				return cfg
+			}(),
+		},
+	} {
+		err := tc.cfg.Validate()
+		if tc.cfgValid {
+			require.NoError(t, err, tc.name)
+		} else {
+			require.Error(t, err, tc.name)
+		}
+	}
+}

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -10,9 +11,28 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/config"
+	"github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
 	"golang.org/x/net/http2"
 )
+
+func Do(ctx context.Context, c *api.Client, req *api.Request) (*api.Secret, error) {
+	resp, err := c.RawRequestWithContext(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("received empty response from %q", req.URL.Path)
+	}
+
+	defer resp.Body.Close()
+	secret, err := api.ParseSecret(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return secret, nil
+}
 
 func CreateHTTPClient(tlsConfig config.TLSConfig) (*http.Client, error) {
 	rootCAs, err := getRootCAsPools(tlsConfig)
@@ -98,20 +118,24 @@ func loadCertFile(pool *x509.CertPool, p string) error {
 }
 
 // loadCertFolder iterates exactly one level below the given directory path and
-// loads all certificates in that path. It does not recurse
-func loadCertFolder(pool *x509.CertPool, p string) error {
-	if err := filepath.Walk(p, func(path string, info os.FileInfo, err error) error {
+// loads all certificates in that path. It does not recurse.
+func loadCertFolder(pool *x509.CertPool, root string) error {
+	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		if info.IsDir() {
+			if path != root {
+				return filepath.SkipDir
+			}
+
 			return nil
 		}
 
 		return loadCertFile(pool, path)
 	}); err != nil {
-		return errors.Wrapf(err, "failed to load CAs at %s", p)
+		return errors.Wrapf(err, "failed to load CAs at %s", root)
 	}
 	return nil
 }

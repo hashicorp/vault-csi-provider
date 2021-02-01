@@ -154,10 +154,10 @@ func (c *Config) Validate() error {
 		return errors.Errorf("missing 'roleName' in SecretProviderClass definition")
 	}
 	certificatesConfigured := c.Parameters.TLSConfig.CertificatesConfigured()
-	if c.Parameters.TLSConfig.VaultSkipTLSVerify && certificatesConfigured == true {
+	if c.Parameters.TLSConfig.VaultSkipTLSVerify && certificatesConfigured {
 		return errors.New("both vaultSkipTLSVerify and TLS configuration are set")
 	}
-	if !c.Parameters.TLSConfig.VaultSkipTLSVerify && certificatesConfigured == false {
+	if !c.Parameters.TLSConfig.VaultSkipTLSVerify && !certificatesConfigured {
 		return errors.New("no TLS configuration and vaultSkipTLSVerify is false, will use system CA certificates")
 	}
 	if len(c.Parameters.Secrets) == 0 {

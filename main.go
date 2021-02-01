@@ -60,24 +60,9 @@ func realMain(logger hclog.Logger) error {
 		server.GracefulStop()
 	}()
 
-	if _, err := os.Stat(*endpoint); err != nil {
-		if os.IsNotExist(err) {
-			// No action required.
-		} else {
-			return fmt.Errorf("failed to check for existence of unix socket: %w", err)
-		}
-	} else {
-		logger.Info("Cleaning up pre-existing file at unix socket location", "endpoint", *endpoint)
-		err = os.Remove(*endpoint)
-		if err != nil {
-			return fmt.Errorf("failed to clean up pre-existing file at unix socket location: %w", err)
-		}
-	}
-
-	logger.Info("Opening unix socket", "endpoint", *endpoint)
-	listener, err := net.Listen("unix", *endpoint)
+	listener, err := listen(logger)
 	if err != nil {
-		return fmt.Errorf("failed to listen on unix socket at %s: %v", *endpoint, err)
+		return err
 	}
 	defer listener.Close()
 	logger.Info(fmt.Sprintf("Listening on %s", *endpoint))
@@ -93,4 +78,28 @@ func realMain(logger hclog.Logger) error {
 	}
 
 	return nil
+}
+
+func listen(logger hclog.Logger) (net.Listener, error) {
+	// Because the unix socket is created in a host volume (i.e. persistent
+	// storage), it can persist from previous runs if the pod was not terminated
+	// cleanly. Check if we need to clean up before creating a listener.
+	_, err := os.Stat(*endpoint)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to check for existence of unix socket: %w", err)
+	} else if err == nil {
+		logger.Info("Cleaning up pre-existing file at unix socket location", "endpoint", *endpoint)
+		err = os.Remove(*endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to clean up pre-existing file at unix socket location: %w", err)
+		}
+	}
+
+	logger.Info("Opening unix socket", "endpoint", *endpoint)
+	listener, err := net.Listen("unix", *endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen on unix socket at %s: %v", *endpoint, err)
+	}
+
+	return listener, nil
 }
