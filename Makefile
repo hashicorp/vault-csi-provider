@@ -4,8 +4,8 @@ IMAGE_VERSION?=$(shell git tag | tail -1)
 IMAGE_TAG=$(REGISTRY_NAME)/$(IMAGE_NAME):$(IMAGE_VERSION)
 IMAGE_TAG_LATEST=$(REGISTRY_NAME)/$(IMAGE_NAME):latest
 BUILD_DATE=$$(date +%Y-%m-%d-%H:%M)
-LDFLAGS?="-X main.BuildVersion=$(IMAGE_VERSION) -X main.BuildDate=$(BUILD_DATE) -extldflags "-static""
-GOOS=linux
+LDFLAGS?="-X github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/version.BuildVersion=$(IMAGE_VERSION) -X github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/version.BuildDate=$(BUILD_DATE) -extldflags "-static""
+GOOS?=linux
 GOARCH=amd64
 GOLANG_IMAGE?=docker.mirror.hashicorp.services/golang:1.15.7
 CI_TEST_ARGS=

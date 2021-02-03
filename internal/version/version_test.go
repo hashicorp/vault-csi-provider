@@ -1,4 +1,4 @@
-package main
+package version
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ func TestGetVersion(t *testing.T) {
 	BuildDate = "Now"
 	BuildVersion = "version"
 
-	v, err := getVersion()
+	v, err := GetVersion()
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
