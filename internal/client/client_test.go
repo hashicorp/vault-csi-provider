@@ -51,10 +51,6 @@ func TestGetRootCAsPools(t *testing.T) {
 				VaultCADirectory: "testdata",
 			},
 		},
-		{
-			name: "system",
-			cfg:  config.TLSConfig{},
-		},
 	} {
 		pool, err := getRootCAsPools(tc.cfg)
 		require.NoError(t, err, tc.name)
@@ -74,6 +70,10 @@ func TestGetRootCAsAsPoolsError(t *testing.T) {
 		name string
 		cfg  config.TLSConfig
 	}{
+		{
+			name: "none",
+			cfg:  config.TLSConfig{},
+		},
 		{
 			name: "PEM encoded error",
 			cfg: config.TLSConfig{

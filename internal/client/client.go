@@ -16,6 +16,29 @@ import (
 	"golang.org/x/net/http2"
 )
 
+func New(params config.Parameters) (*api.Client, error) {
+	cfg := api.DefaultConfig()
+	if params.VaultAddress != "" {
+		cfg.Address = params.VaultAddress
+	}
+	if params.TLSConfig.CertificatesConfigured() {
+		var err error
+		cfg.HttpClient, err = createHTTPClient(params.TLSConfig)
+		if err != nil {
+			return nil, err
+		}
+	} else if params.TLSConfig.VaultSkipTLSVerify {
+		err := cfg.ConfigureTLS(&api.TLSConfig{
+			Insecure: true,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return api.NewClient(cfg)
+}
+
 func Do(ctx context.Context, c *api.Client, req *api.Request) (*api.Secret, error) {
 	resp, err := c.RawRequestWithContext(ctx, req)
 	if err != nil {
@@ -34,7 +57,7 @@ func Do(ctx context.Context, c *api.Client, req *api.Request) (*api.Secret, erro
 	return secret, nil
 }
 
-func CreateHTTPClient(tlsConfig config.TLSConfig) (*http.Client, error) {
+func createHTTPClient(tlsConfig config.TLSConfig) (*http.Client, error) {
 	rootCAs, err := getRootCAsPools(tlsConfig)
 	if err != nil {
 		return nil, err
@@ -87,11 +110,7 @@ func getRootCAsPools(tlsConfig config.TLSConfig) (*x509.CertPool, error) {
 		}
 		return certPool, nil
 	default:
-		certPool, err := x509.SystemCertPool()
-		if err != nil {
-			return nil, errors.Wrapf(err, "couldn't load system certs")
-		}
-		return certPool, err
+		return nil, errors.New("no certificates configured")
 	}
 }
 

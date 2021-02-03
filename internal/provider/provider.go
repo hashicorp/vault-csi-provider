@@ -165,8 +165,25 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secret con
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
 func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg config.Config) (map[string]string, error) {
 	versions := make(map[string]string)
+
+	client, err := vaultclient.New(cfg.Parameters)
+	if err != nil {
+		return nil, err
+	}
+
+	jwt, err := readJWTToken(cfg.Parameters.KubernetesServiceAccountPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Authenticate to vault using the jwt token
+	_, err = p.login(ctx, client, cfg.Parameters.VaultKubernetesMountPath, cfg.Parameters.VaultRoleName, jwt)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, secret := range cfg.Parameters.Secrets {
-		content, err := p.getSecretContent(ctx, cfg.Parameters, secret)
+		content, err := p.getSecret(ctx, client, secret)
 		if err != nil {
 			return nil, err
 		}
@@ -208,46 +225,4 @@ func validateFilePath(path string) error {
 	}
 
 	return nil
-}
-
-// getSecretContent get content and version of the vault object
-func (p *provider) getSecretContent(ctx context.Context, params config.Parameters, secret config.Secret) (content string, err error) {
-	// Read the jwt token from disk
-	jwt, err := readJWTToken(params.KubernetesServiceAccountPath)
-	if err != nil {
-		return "", err
-	}
-
-	config := api.DefaultConfig()
-	if params.VaultAddress != "" {
-		config.Address = params.VaultAddress
-	}
-	if params.TLSConfig.CertificatesConfigured() {
-		config.HttpClient, err = vaultclient.CreateHTTPClient(params.TLSConfig)
-		if err != nil {
-			return "", err
-		}
-	} else if params.TLSConfig.VaultSkipTLSVerify {
-		err = config.ConfigureTLS(&api.TLSConfig{
-			Insecure: true,
-		})
-		if err != nil {
-			return "", err
-		}
-	}
-	client, err := api.NewClient(config)
-
-	// Authenticate to vault using the jwt token
-	_, err = p.login(ctx, client, params.VaultKubernetesMountPath, params.VaultRoleName, jwt)
-	if err != nil {
-		return "", err
-	}
-
-	// Get Secret
-	value, err := p.getSecret(ctx, client, secret)
-	if err != nil {
-		return "", err
-	}
-
-	return value, nil
 }
