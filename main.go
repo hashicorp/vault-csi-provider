@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/providerserver"
+	providerserver "github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/server"
 	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/version"
 	"github.com/spf13/pflag"
 	"google.golang.org/grpc"
@@ -67,8 +67,8 @@ func realMain(logger hclog.Logger) error {
 	defer listener.Close()
 	logger.Info(fmt.Sprintf("Listening on %s", *endpoint))
 
-	s := &providerserver.ProviderServer{
-		Logger: logger,
+	s := &providerserver.Server{
+		Logger: logger.Named("server"),
 	}
 	pb.RegisterCSIDriverProviderServer(server, s)
 
