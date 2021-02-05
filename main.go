@@ -45,8 +45,8 @@ func realMain(logger hclog.Logger) error {
 			return fmt.Errorf("failed to print version, err: %w", err)
 		}
 		// print the version and exit
-		logger.Info(v)
-		return nil
+		_, err = fmt.Println(v)
+		return err
 	}
 
 	logger.Info("Creating new gRPC server")

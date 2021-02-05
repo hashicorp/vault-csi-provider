@@ -7,24 +7,24 @@ import (
 const minDriverVersion = "v0.0.17"
 
 var (
-	// BuildDate is date when binary was built
-	BuildDate string
-	// BuildVersion is the version of binary
+	BuildDate    string
 	BuildVersion string
+	GoVersion    string
 )
 
 // providerVersion holds current provider version
 type providerVersion struct {
-	Version   string `json:"version"`
-	BuildDate string `json:"buildDate"`
-	// MinDriverVersion is minimum driver version the provider works with
-	MinDriverVersion string `json:"minDriverVersion"`
+	Version          string `json:"version"`          // Version of the binary.
+	BuildDate        string `json:"buildDate"`        // The date the binary was built.
+	GoVersion        string `json:"goVersion"`        // Version of Go the binary was built with.
+	MinDriverVersion string `json:"minDriverVersion"` // Minimum driver version the provider works with.
 }
 
 func GetVersion() (string, error) {
 	pv := providerVersion{
 		Version:          BuildVersion,
 		BuildDate:        BuildDate,
+		GoVersion:        GoVersion,
 		MinDriverVersion: minDriverVersion,
 	}
 
