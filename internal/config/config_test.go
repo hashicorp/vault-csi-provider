@@ -23,6 +23,7 @@ spec:
     objects: |
       - objectName: "test-certs"
         secretPath: "pki/issue/example-dot-com"
+        secretKey: "certificate"
         secretArgs:
           common_name: "test.example.com"
           ip_sans: "127.0.0.1"
@@ -60,6 +61,7 @@ func TestParseParametersFromYaml(t *testing.T) {
 			{
 				ObjectName: "test-certs",
 				SecretPath: "pki/issue/example-dot-com",
+				SecretKey:  "certificate",
 				SecretArgs: map[string]interface{}{
 					"common_name":          "test.example.com",
 					"ip_sans":              "127.0.0.1",
