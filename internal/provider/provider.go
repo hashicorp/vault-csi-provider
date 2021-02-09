@@ -112,6 +112,26 @@ func generateRequest(client *api.Client, secret config.Secret) (*api.Request, er
 	return req, nil
 }
 
+func keyFromData(rootData map[string]interface{}, secretKey string) (string, error) {
+	// Automatically parse through to embedded .data.data map if it's present
+	// and the correct type (e.g. for kv v2).
+	var data map[string]interface{}
+	d, ok := rootData["data"]
+	if ok {
+		data, ok = d.(map[string]interface{})
+	}
+	if !ok {
+		data = rootData
+	}
+
+	content, ok := data[secretKey].(string)
+	if !ok {
+		return "", fmt.Errorf("failed to get secret content %q as string", secretKey)
+	}
+
+	return content, nil
+}
+
 func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConfig config.Secret) (string, error) {
 	var secret *api.Secret
 	var cached bool
@@ -143,23 +163,7 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 		return string(bytes), nil
 	}
 
-	// Automatically parse through to embedded .data.data map if it's present
-	// and the correct type (e.g. for kv v2).
-	var data map[string]interface{}
-	d, ok := secret.Data["data"]
-	if ok {
-		data, ok = d.(map[string]interface{})
-	}
-	if !ok {
-		data = secret.Data
-	}
-
-	content, ok := data[secretConfig.SecretKey].(string)
-	if !ok {
-		return "", fmt.Errorf("failed to get secret content %q as string", secretConfig.SecretKey)
-	}
-
-	return content, nil
+	return keyFromData(secret.Data, secretConfig.SecretKey)
 }
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
