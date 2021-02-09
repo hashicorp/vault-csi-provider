@@ -1,0 +1,16 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: postgres-client
+spec:
+  containers:
+  - image: hashicorp.jfrog.io/docker/postgres:13-alpine
+    name: postgres
+    ports:
+      - containerPort: 5432
+    env:
+      - name: POSTGRES_DB
+        value: db
+    envFrom:
+      - secretRef:
+          name: postgres-root

@@ -1,0 +1,28 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: postgres
+spec:
+  containers:
+  - image: hashicorp.jfrog.io/docker/postgres:13-alpine
+    name: postgres
+    ports:
+      - containerPort: 5432
+    env:
+      - name: POSTGRES_DB
+        value: db
+    envFrom:
+      - secretRef:
+          name: postgres-root
+    readinessProbe:
+      exec:
+        command:
+          - pg_isready
+          - -ddb
+          - -h127.0.0.1
+          - -p5432
+      initialDelaySeconds: 1
+      periodSeconds: 1
+      timeoutSeconds: 5
+      successThreshold: 1
+      failureThreshold: 1

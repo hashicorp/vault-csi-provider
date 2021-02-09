@@ -4,7 +4,7 @@ metadata:
   name: nginx-pki
 spec:
   containers:
-  - image: nginx
+  - image: hashicorp.jfrog.io/docker/nginx
     name: nginx
     volumeMounts:
     - name: secrets-store-inline

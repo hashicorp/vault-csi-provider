@@ -45,6 +45,7 @@ setup(){
 
     # Create shared k8s resources.
     kubectl create namespace test
+    kubectl --namespace=test apply -f $CONFIGS/vault-dynamic-creds-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-foo-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-foo-sync-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-foo-sync-multiple-secretproviderclass.yaml
@@ -62,6 +63,7 @@ teardown(){
     # Teardown Vault configuration.
     kubectl --namespace=csi exec vault-0 -- vault auth disable kubernetes
     kubectl --namespace=csi exec vault-0 -- vault secrets disable pki
+    kubectl --namespace=csi exec vault-0 -- vault secrets disable database
     kubectl --namespace=csi exec vault-0 -- vault policy delete example-policy
     kubectl --namespace=csi exec vault-0 -- vault kv delete secret/foo1
     kubectl --namespace=csi exec vault-0 -- vault kv delete secret/foo2
@@ -168,11 +170,49 @@ teardown(){
 
 @test "5 SecretProviderClass with query parameters and PUT method" {
     kubectl --namespace=test apply -f $CONFIGS/nginx-pki.yaml
-    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod/nginx-pki
+    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod nginx-pki
 
     result=$(kubectl --namespace=test exec nginx-pki -- cat /mnt/secrets-store/certs)
     [[ "$result" != "" ]]
+
     # Ensure we have some valid x509 certificates.
     echo "$result" | jq -r '.data.certificate' | openssl x509 -noout
     echo "$result" | jq -r '.data.issuing_ca' | openssl x509 -noout
+    echo "$result" | jq -r '.data.certificate' | openssl x509 -noout -text | grep "test.example.com"
+}
+
+@test "6 Dynamic secrets engine, endpoint is called only once per SecretProviderClass" {
+    # Setup postgres
+    POSTGRES_PASSWORD=$(openssl rand -base64 30)
+    kubectl --namespace=test create secret generic postgres-root \
+        --from-literal=POSTGRES_USER="root" \
+        --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
+    kubectl --namespace=test apply -f $CONFIGS/postgres.yaml
+    kubectl wait --namespace=test --for=condition=Ready --timeout=5m pod postgres
+    POSTGRES_POD_IP=$(kubectl --namespace=test get pod postgres -o json | jq -r '.status.podIP')
+
+    # Configure vault to manage postgres
+    kubectl --namespace=csi exec vault-0 -- vault secrets enable database
+    kubectl --namespace=csi exec vault-0 -- vault write database/config/postgres \
+        plugin_name="postgresql-database-plugin" \
+        allowed_roles="*" \
+        connection_url="postgres://{{username}}:{{password}}@${POSTGRES_POD_IP}:5432/db?sslmode=disable" \
+        username="root" \
+        password="${POSTGRES_PASSWORD}"
+    cat $CONFIGS/postgres-creation-statements.sql | kubectl --namespace=csi exec -i vault-0 -- vault write database/roles/test-role \
+        db_name="postgres" \
+        default_ttl="1h" max_ttl="24h" \
+        creation_statements=-
+
+    # Now deploy a pod that will generate some dynamic credentials.
+    kubectl --namespace=test apply -f $CONFIGS/nginx-dynamic-creds.yaml
+    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod nginx-dynamic-creds
+
+    # Read the creds out of the pod and verify they work for a query.
+    DYNAMIC_USERNAME=$(kubectl --namespace=test exec nginx-dynamic-creds -- cat /mnt/secrets-store/dbUsername)
+    DYNAMIC_PASSWORD=$(kubectl --namespace=test exec nginx-dynamic-creds -- cat /mnt/secrets-store/dbPassword)
+    result=$(kubectl --namespace=test exec postgres -- psql postgres://${DYNAMIC_USERNAME}:${DYNAMIC_PASSWORD}@127.0.0.1:5432/db --command="SELECT usename FROM pg_catalog.pg_user" --csv | sed -n '3 p')
+
+    [[ "$result" != "" ]]
+    [[ "$result" == "${DYNAMIC_USERNAME}" ]]
 }
