@@ -99,6 +99,12 @@ func TestParseParameters(t *testing.T) {
 		},
 		VaultKubernetesMountPath:     defaultVaultKubernetesMountPath,
 		KubernetesServiceAccountPath: defaultKubernetesServiceAccountPath,
+		PodInfo: PodInfo{
+			Name:               "nginx-secrets-store-inline",
+			UID:                "9aeb260f-d64a-426c-9872-95b6bab37e00",
+			Namespace:          "test",
+			ServiceAccountName: "default",
+		},
 	}
 	assert.DeepEqual(t, expected, actual)
 }

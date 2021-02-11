@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -16,7 +17,7 @@ const (
 )
 
 // Config represents all of the provider's configurable behaviour from the MountRequest proto message:
-// * `parameters` from the SecretProviderClass (serialised into the `Attributes` field in the proto).
+// * Parameters from the `Attributes` field.
 // * Plus the rest of the proto fields we consume.
 // See sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1/service.pb.go
 type Config struct {
@@ -25,7 +26,10 @@ type Config struct {
 	FilePermission os.FileMode
 }
 
-// Parameters stores the parameters specified in the SecretProviderClass.
+// Parameters stores the parameters specified in a mount request's `Attributes` field.
+// It consists of the parameters section from the SecretProviderClass being mounted
+// and pod metadata provided by the driver.
+//
 // Top-level values that aren't strings are not directly deserialisable because
 // they are defined as literal string types:
 // https://github.com/kubernetes-sigs/secrets-store-csi-driver/blob/0ba9810d41cc2dc336c68251d45ebac19f2e7f28/apis/v1alpha1/secretproviderclass_types.go#L59
@@ -38,6 +42,7 @@ type Parameters struct {
 	KubernetesServiceAccountPath string
 	TLSConfig                    TLSConfig
 	Secrets                      []Secret
+	PodInfo                      PodInfo
 }
 
 type TLSConfig struct {
@@ -46,6 +51,13 @@ type TLSConfig struct {
 	VaultCADirectory   string
 	VaultTLSServerName string
 	VaultSkipTLSVerify bool
+}
+
+type PodInfo struct {
+	Name               string
+	UID                types.UID
+	Namespace          string
+	ServiceAccountName string
 }
 
 func (c TLSConfig) CertificatesConfigured() bool {
@@ -102,6 +114,10 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	parameters.TLSConfig.VaultTLSServerName = params["vaultTLSServerName"]
 	parameters.VaultKubernetesMountPath = params["vaultKubernetesMountPath"]
 	parameters.KubernetesServiceAccountPath = params["KubernetesServiceAccountPath"]
+	parameters.PodInfo.Name = params["csi.storage.k8s.io/pod.name"]
+	parameters.PodInfo.UID = types.UID(params["csi.storage.k8s.io/pod.uid"])
+	parameters.PodInfo.Namespace = params["csi.storage.k8s.io/pod.namespace"]
+	parameters.PodInfo.ServiceAccountName = params["csi.storage.k8s.io/serviceAccount.name"]
 	if skipTLS, ok := params["vaultSkipTLSVerify"]; ok {
 		value, err := strconv.ParseBool(skipTLS)
 		if err == nil {

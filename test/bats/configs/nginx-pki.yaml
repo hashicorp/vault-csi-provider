@@ -1,8 +1,16 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nginx-pki
+---
 kind: Pod
 apiVersion: v1
 metadata:
   name: nginx-pki
 spec:
+  serviceAccountName: nginx-pki
+  terminationGracePeriodSeconds: 0
   containers:
   - image: hashicorp.jfrog.io/docker/nginx
     name: nginx

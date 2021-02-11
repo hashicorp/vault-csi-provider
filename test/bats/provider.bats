@@ -13,21 +13,38 @@ CONFIGS=test/bats/configs
 
 setup(){
     { # Braces used to redirect all setup logs.
-    # Configure Vault.
-    # Setup kubernetes auth engine.
+    # 1. Configure Vault.
+    # 1. a) Vault policies
+    cat $CONFIGS/vault-policy-db.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write db-policy -
+    cat $CONFIGS/vault-policy-kv.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write kv-policy -
+    cat $CONFIGS/vault-policy-pki.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write pki-policy -
+
+    # 1. b) Setup kubernetes auth engine.
     kubectl --namespace=csi exec vault-0 -- vault auth enable kubernetes
+    # `issuer` argument corresponds to value of --service-account-issuer for kube-apiserver,
+    # and for this test assumes the default value that kind sets.
     kubectl --namespace=csi exec vault-0 -- sh -c 'vault write auth/kubernetes/config \
         token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
         kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
-        kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
-    cat $CONFIGS/vault-policy.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write example-policy -
-    kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/example-role \
-        bound_service_account_names=secrets-store-csi-driver-provider-vault \
-        bound_service_account_namespaces=csi \
-        policies=default,example-policy \
+        kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+        issuer="https://kubernetes.default.svc.cluster.local"'
+    kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/db-role \
+        bound_service_account_names=nginx-db \
+        bound_service_account_namespaces=test \
+        policies=db-policy \
+        ttl=20m
+    kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/kv-role \
+        bound_service_account_names=nginx-kv \
+        bound_service_account_namespaces=test \
+        policies=kv-policy \
+        ttl=20m
+    kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/pki-role \
+        bound_service_account_names=nginx-pki \
+        bound_service_account_namespaces=test \
+        policies=pki-policy \
         ttl=20m
 
-    # Setup pki secrets engine.
+    # 1. c) Setup pki secrets engine.
     kubectl --namespace=csi exec vault-0 -- vault secrets enable pki
     kubectl --namespace=csi exec vault-0 -- vault write -field=certificate pki/root/generate/internal \
         common_name="example.com"
@@ -37,13 +54,13 @@ setup(){
         allowed_domains="example.com" \
         allow_subdomains=true
 
-    # Create kv secrets in Vault.
+    # 1. d) Create kv secrets in Vault.
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/foo1 bar1=hello1
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/foo2 bar2=hello2
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/foo-sync1 bar1=hello-sync1
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/foo-sync2 bar2=hello-sync2
 
-    # Create shared k8s resources.
+    # 2. Create shared k8s resources.
     kubectl create namespace test
     kubectl --namespace=test apply -f $CONFIGS/vault-dynamic-creds-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-foo-secretproviderclass.yaml
@@ -140,11 +157,10 @@ teardown(){
 
 @test "3 SecretProviderClass in different namespace not usable" {
     kubectl create namespace negative-test-ns
-    kubectl --namespace=negative-test-ns apply -f $CONFIGS/nginx-env-var.yaml
-    kubectl --namespace=negative-test-ns wait --for=condition=PodScheduled --timeout=60s pod -l app=nginx
-    POD=$(kubectl get pod -l app=nginx -n negative-test-ns -o jsonpath="{.items[0].metadata.name}")
+    kubectl --namespace=negative-test-ns apply -f $CONFIGS/nginx-inline-volume.yaml
+    kubectl --namespace=negative-test-ns wait --for=condition=PodScheduled --timeout=60s pod nginx-inline
 
-    wait_for_success "kubectl describe pod $POD -n negative-test-ns | grep 'FailedMount.*failed to get secretproviderclass negative-test-ns/vault-foo-sync.*not found'"
+    wait_for_success "kubectl --namespace=negative-test-ns describe pod nginx-inline | grep 'FailedMount.*failed to get secretproviderclass negative-test-ns/vault-foo.*not found'"
 }
 
 @test "4 Pod with multiple SecretProviderClasses" {
