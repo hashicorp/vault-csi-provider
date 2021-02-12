@@ -110,7 +110,7 @@ teardown(){
 @test "1 Inline secrets-store-csi volume" {
     helm --namespace=test install nginx $CONFIGS/nginx \
         --set engine=kv --set sa=kv \
-        --wait --timeout=60s
+        --wait --timeout=5m
 
     result=$(kubectl --namespace=test exec nginx-kv -- cat /mnt/secrets-store/secret-1)
     [[ "$result" == "hello2" ]]
@@ -122,7 +122,7 @@ teardown(){
 @test "2 Sync with kubernetes secrets" {
     # Deploy some pods that should cause k8s secrets to be created.
     kubectl --namespace=test apply -f $CONFIGS/nginx-kv-env-var.yaml
-    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod -l app=nginx
+    kubectl --namespace=test wait --for=condition=Ready --timeout=5m pod -l app=nginx
 
     POD=$(kubectl --namespace=test get pod -l app=nginx -o jsonpath="{.items[0].metadata.name}")
     result=$(kubectl --namespace=test exec $POD -- cat /mnt/secrets-store/secret-1)
@@ -182,7 +182,7 @@ teardown(){
 @test "4 Pod with multiple SecretProviderClasses" {
     POD=nginx-multiple-volumes
     kubectl --namespace=test apply -f $CONFIGS/nginx-kv-multiple-volumes.yaml
-    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod $POD
+    kubectl --namespace=test wait --for=condition=Ready --timeout=5m pod $POD
 
     result=$(kubectl --namespace=test exec $POD -- cat /mnt/secrets-store-1/secret-1)
     [[ "$result" == "hello-sync1" ]]
@@ -203,7 +203,7 @@ teardown(){
 @test "5 SecretProviderClass with query parameters and PUT method" {
     helm --namespace=test install nginx $CONFIGS/nginx \
         --set engine=pki --set sa=pki \
-        --wait --timeout=60s
+        --wait --timeout=5m
 
     result=$(kubectl --namespace=test exec nginx-pki -- cat /mnt/secrets-store/certs)
     [[ "$result" != "" ]]
@@ -220,7 +220,7 @@ teardown(){
     # Now deploy a pod that will generate some dynamic credentials.
     helm --namespace=test install nginx $CONFIGS/nginx \
         --set engine=db --set sa=db \
-        --wait --timeout=60s
+        --wait --timeout=5m
 
     # Read the creds out of the pod and verify they work for a query.
     DYNAMIC_USERNAME=$(kubectl --namespace=test exec nginx-db -- cat /mnt/secrets-store/dbUsername)
@@ -236,7 +236,7 @@ teardown(){
 
     helm --namespace=test install nginx $CONFIGS/nginx \
         --set engine=all --set sa=all \
-        --wait --timeout=60s
+        --wait --timeout=5m
 
     # Verify dynamic database creds.
     DYNAMIC_USERNAME=$(kubectl --namespace=test exec nginx-all -- cat /mnt/secrets-store/dbUsername)
