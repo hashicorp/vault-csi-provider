@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -160,8 +161,10 @@ func (c *Config) Validate() error {
 	if c.Parameters.TLSConfig.VaultSkipTLSVerify && certificatesConfigured {
 		return errors.New("both vaultSkipTLSVerify and TLS configuration are set")
 	}
-	if !c.Parameters.TLSConfig.VaultSkipTLSVerify && !certificatesConfigured {
-		return errors.New("no TLS configuration and vaultSkipTLSVerify is false, will use system CA certificates")
+	if !certificatesConfigured &&
+		!c.Parameters.TLSConfig.VaultSkipTLSVerify &&
+		strings.HasPrefix(c.Parameters.VaultAddress, "https") {
+		return errors.New("no TLS configuration and vaultSkipTLSVerify is false but vault address scheme is https")
 	}
 	if len(c.Parameters.Secrets) == 0 {
 		return errors.New("no secrets configured - the provider will not read any secret material")

@@ -212,9 +212,10 @@ func TestParseConfig_Errors(t *testing.T) {
 }
 
 func TestValidateConfig(t *testing.T) {
-	minimumValid := Config{
+	minimumValidHTTPS := Config{
 		TargetPath: "a",
 		Parameters: Parameters{
+			VaultAddress:  defaultVaultAddress,
 			VaultRoleName: "b",
 			Secrets:       []Secret{{}},
 			TLSConfig: TLSConfig{
@@ -230,12 +231,27 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name:     "minimum valid",
 			cfgValid: true,
-			cfg:      minimumValid,
+			cfg:      minimumValidHTTPS,
+		},
+		{
+			name:     "minimum valid with http scheme",
+			cfgValid: true,
+			cfg: Config{
+				TargetPath: "a",
+				Parameters: Parameters{
+					VaultAddress:  "https://127.0.0.1:8200",
+					VaultRoleName: "b",
+					Secrets:       []Secret{{}},
+					TLSConfig: TLSConfig{
+						VaultSkipTLSVerify: true,
+					},
+				},
+			},
 		},
 		{
 			name: "No role name",
 			cfg: func() Config {
-				cfg := minimumValid
+				cfg := minimumValidHTTPS
 				cfg.VaultRoleName = ""
 				return cfg
 			}(),
@@ -243,7 +259,7 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "No target path",
 			cfg: func() Config {
-				cfg := minimumValid
+				cfg := minimumValidHTTPS
 				cfg.TargetPath = ""
 				return cfg
 			}(),
@@ -251,7 +267,7 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "Skip verify with certs configured",
 			cfg: func() Config {
-				cfg := minimumValid
+				cfg := minimumValidHTTPS
 				cfg.TLSConfig.VaultCAPEM = "foo"
 				return cfg
 			}(),
@@ -259,7 +275,7 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "No certs or skip TLS setting",
 			cfg: func() Config {
-				cfg := minimumValid
+				cfg := minimumValidHTTPS
 				cfg.TLSConfig.VaultSkipTLSVerify = false
 				return cfg
 			}(),
@@ -267,7 +283,7 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "No secrets configured",
 			cfg: func() Config {
-				cfg := minimumValid
+				cfg := minimumValidHTTPS
 				cfg.Secrets = []Secret{}
 				return cfg
 			}(),
