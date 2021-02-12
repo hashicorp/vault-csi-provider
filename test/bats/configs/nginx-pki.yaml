@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: nginx-inline
+  name: nginx-pki
 spec:
   containers:
   - image: hashicorp.jfrog.io/docker/nginx
@@ -16,4 +16,4 @@ spec:
         driver: secrets-store.csi.k8s.io
         readOnly: true
         volumeAttributes:
-          secretProviderClass: "vault-foo"
+          secretProviderClass: "vault-pki"

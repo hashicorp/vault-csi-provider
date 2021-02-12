@@ -1,17 +1,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	providerserver "github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/server"
 	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/version"
 	"github.com/spf13/pflag"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
@@ -50,7 +53,14 @@ func realMain(logger hclog.Logger) error {
 	}
 
 	logger.Info("Creating new gRPC server")
-	server := grpc.NewServer()
+	server := grpc.NewServer(
+		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+			startTime := time.Now()
+			resp, err := handler(ctx, req)
+			logger.Info("Finished unary gRPC call", "grpc.method", info.FullMethod, "grpc.time", time.Since(startTime), "grpc.code", status.Code(err), "err", err)
+			return resp, err
+		}),
+	)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)

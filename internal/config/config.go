@@ -55,9 +55,11 @@ func (c TLSConfig) CertificatesConfigured() bool {
 }
 
 type Secret struct {
-	ObjectName    string `yaml:"objectName"`
-	ObjectPath    string `yaml:"objectPath"`
-	ObjectVersion string `yaml:"objectVersion"`
+	ObjectName string                 `yaml:"objectName,omitempty"`
+	SecretPath string                 `yaml:"secretPath,omitempty"`
+	SecretKey  string                 `yaml:"secretKey,omitempty"`
+	Method     string                 `yaml:"method,omitempty"`
+	SecretArgs map[string]interface{} `yaml:"secretArgs,omitempty"`
 }
 
 func Parse(parametersStr, targetPath, permissionStr string) (Config, error) {
@@ -110,24 +112,9 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	}
 
 	secretsYaml := params["objects"]
-	// TODO: There is an unnecessary map under objects, instead of just directly storing an array there.
-	// Deserialisation can be simplified a fair bit if we remove it.
-	secretsMap := map[string][]string{}
-	err = yaml.Unmarshal([]byte(secretsYaml), &secretsMap)
+	err = yaml.Unmarshal([]byte(secretsYaml), &parameters.Secrets)
 	if err != nil {
 		return Parameters{}, err
-	}
-	secrets, ok := secretsMap["array"]
-	if !ok {
-		return Parameters{}, errors.New("no secrets to read configured")
-	}
-	for _, s := range secrets {
-		var secret Secret
-		err = yaml.Unmarshal([]byte(s), &secret)
-		if err != nil {
-			return Parameters{}, err
-		}
-		parameters.Secrets = append(parameters.Secrets, secret)
 	}
 
 	// Set default values.

@@ -72,12 +72,12 @@ e2e-setup: e2e-container
 		--namespace=csi \
 		--set linux.image.pullPolicy="IfNotPresent" \
 		--set grpcSupportedProviders="azure;gcp;vault"
-	helm install vault https://github.com/hashicorp/vault-helm/archive/v0.9.0.tar.gz \
+	helm install vault https://github.com/hashicorp/vault-helm/archive/v0.9.1.tar.gz \
 		--wait --timeout=5m \
 		--namespace=csi \
 		--set injector.enabled=false \
 		--set server.dev.enabled=true \
-		--set 'server.extraEnvironmentVars.VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200'
+		--set server.image.repository=hashicorp.jfrog.io/docker/vault
 	kubectl apply --namespace=csi -f test/bats/configs/secrets-store-csi-driver-provider-vault.yaml
 	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app.kubernetes.io/name=vault
 	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app=secrets-store-csi-driver-provider-vault

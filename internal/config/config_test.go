@@ -3,18 +3,87 @@ package config
 import (
 	"encoding/json"
 	"io/ioutil"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 	"gotest.tools/assert"
 )
 
 const (
-	objects = "array:\n  - |\n    objectPath: \"v1/secret/foo1\"\n    objectName: \"bar1\"\n    objectVersion: \"\""
+	objects      = "-\n  secretPath: \"v1/secret/foo1\"\n  objectName: \"bar1\""
+	certsSPCYaml = `apiVersion: secrets-store.csi.x-k8s.io/v1alpha1
+kind: SecretProviderClass
+metadata:
+  name: vault-foo
+spec:
+  provider: vault
+  parameters:
+    objects: |
+      - objectName: "test-certs"
+        secretPath: "pki/issue/example-dot-com"
+        secretKey: "certificate"
+        secretArgs:
+          common_name: "test.example.com"
+          ip_sans: "127.0.0.1"
+          exclude_cn_from_sans: true
+        method: "PUT"
+      - objectName: "internal-certs"
+        secretPath: "pki/issue/example-dot-com"
+        secretArgs:
+          common_name: "internal.example.com"
+        method: "PUT"
+`
 )
 
+func TestParseParametersFromYaml(t *testing.T) {
+	// Test starts with a minimal simulation of the processing the driver does
+	// with each SecretProviderClass yaml.
+	var secretProviderClass struct {
+		Spec struct {
+			Parameters map[string]string `yaml:"parameters"`
+		} `yaml:"spec"`
+	}
+	err := yaml.Unmarshal([]byte(certsSPCYaml), &secretProviderClass)
+	require.NoError(t, err)
+	paramsBytes, err := json.Marshal(secretProviderClass.Spec.Parameters)
+
+	// This is now the form the provider receives the data in.
+	params, err := parseParameters(string(paramsBytes))
+	require.NoError(t, err)
+
+	assert.DeepEqual(t, Parameters{
+		VaultAddress:                 defaultVaultAddress,
+		KubernetesServiceAccountPath: defaultKubernetesServiceAccountPath,
+		VaultKubernetesMountPath:     defaultVaultKubernetesMountPath,
+		Secrets: []Secret{
+			{
+				ObjectName: "test-certs",
+				SecretPath: "pki/issue/example-dot-com",
+				SecretKey:  "certificate",
+				SecretArgs: map[string]interface{}{
+					"common_name":          "test.example.com",
+					"ip_sans":              "127.0.0.1",
+					"exclude_cn_from_sans": true,
+				},
+				Method: "PUT",
+			},
+			{
+				ObjectName: "internal-certs",
+				SecretPath: "pki/issue/example-dot-com",
+				SecretArgs: map[string]interface{}{
+					"common_name": "internal.example.com",
+				},
+				Method: "PUT",
+			},
+		},
+	}, params)
+}
+
 func TestParseParameters(t *testing.T) {
-	parametersStr, err := ioutil.ReadFile("testdata/example-parameters-string.txt")
+	// This file's contents are copied directly from a driver mount request.
+	parametersStr, err := ioutil.ReadFile(filepath.Join("testdata", "example-parameters-string.txt"))
 	require.NoError(t, err)
 	actual, err := parseParameters(string(parametersStr))
 	require.NoError(t, err)
@@ -25,8 +94,8 @@ func TestParseParameters(t *testing.T) {
 			VaultSkipTLSVerify: true,
 		},
 		Secrets: []Secret{
-			{"bar1", "v1/secret/foo1", ""},
-			{"bar2", "v1/secret/foo2", ""},
+			{"bar1", "v1/secret/foo1", "", "GET", nil},
+			{"bar2", "v1/secret/foo2", "", "", nil},
 		},
 		VaultKubernetesMountPath:     defaultVaultKubernetesMountPath,
 		KubernetesServiceAccountPath: defaultKubernetesServiceAccountPath,
@@ -64,7 +133,7 @@ func TestParseConfig(t *testing.T) {
 					expected.VaultRoleName = roleName
 					expected.TLSConfig.VaultSkipTLSVerify = true
 					expected.Secrets = []Secret{
-						{"bar1", "v1/secret/foo1", ""},
+						{"bar1", "v1/secret/foo1", "", "", nil},
 					}
 					return expected
 				}(),
@@ -92,7 +161,7 @@ func TestParseConfig(t *testing.T) {
 					expected.KubernetesServiceAccountPath = "my-account-path"
 					expected.TLSConfig.VaultSkipTLSVerify = true
 					expected.Secrets = []Secret{
-						{"bar1", "v1/secret/foo1", ""},
+						{"bar1", "v1/secret/foo1", "", "", nil},
 					}
 					return expected
 				}(),

@@ -5,7 +5,7 @@ metadata:
 spec:
   terminationGracePeriodSeconds: 0
   containers:
-  - image: nginx
+  - image: hashicorp.jfrog.io/docker/nginx
     name: nginx
     volumeMounts:
     - name: secrets-store-1

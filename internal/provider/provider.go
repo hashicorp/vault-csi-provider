@@ -3,19 +3,18 @@ package provider
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	vaultclient "github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/client"
 	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/config"
 	"github.com/hashicorp/vault/api"
-	"github.com/mitchellh/mapstructure"
 )
 
 func readJWTToken(path string) (string, error) {
@@ -31,58 +30,21 @@ func readJWTToken(path string) (string, error) {
 // and communicates with the Vault API.
 type provider struct {
 	logger hclog.Logger
+	cache  map[cacheKey]*api.Secret
 }
 
 func NewProvider(logger hclog.Logger) *provider {
 	p := &provider{
 		logger: logger,
+		cache:  make(map[cacheKey]*api.Secret),
 	}
 
 	return p
 }
 
-func (p *provider) getMountInfo(ctx context.Context, client *api.Client, mountName string) (string, string, error) {
-	p.logger.Debug("vault: checking mount info", "mountName", mountName)
-	req := client.NewRequest("GET", "/v1/sys/mounts")
-	secret, err := vaultclient.Do(ctx, client, req)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to read mounts: %w", err)
-	}
-	if secret == nil || secret.Data == nil {
-		return "", "", fmt.Errorf("empty response from %q, warnings: %v", req.URL.Path, secret.Warnings)
-	}
-
-	mounts := map[string]*api.MountOutput{}
-	err = mapstructure.Decode(secret.Data, &mounts)
-	if err != nil {
-		return "", "", err
-	}
-
-	mount, ok := mounts[mountName+"/"]
-	if !ok {
-		return "", "", fmt.Errorf("did not found mount %q in v1/sys/mounts", mountName)
-	}
-
-	return mount.Type, mount.Options["version"], nil
-}
-
-func generateSecretEndpoint(secretMountType string, secretMountVersion string, secretPrefix string, secretSuffix string) (string, error) {
-	addr := ""
-	errMessage := fmt.Errorf("Only mount types KV/1 and KV/2 are supported")
-	switch secretMountType {
-	case "kv":
-		switch secretMountVersion {
-		case "1":
-			addr = "/v1/" + secretPrefix + "/" + secretSuffix
-		case "2":
-			addr = "/v1/" + secretPrefix + "/data/" + secretSuffix
-		default:
-			return "", errMessage
-		}
-	default:
-		return "", errMessage
-	}
-	return addr, nil
+type cacheKey struct {
+	secretPath string
+	method     string
 }
 
 func (p *provider) login(ctx context.Context, client *api.Client, vaultKubernetesMountPath, roleName, jwt string) (string, error) {
@@ -109,57 +71,99 @@ func (p *provider) login(ctx context.Context, client *api.Client, vaultKubernete
 	return secret.Auth.ClientToken, nil
 }
 
-func (p *provider) getSecret(ctx context.Context, client *api.Client, secret config.Secret) (content string, err error) {
-	p.logger.Debug("vault: getting secrets from vault...")
-
-	s := regexp.MustCompile("/+").Split(secret.ObjectPath, 3)
-	if len(s) < 3 {
-		return "", fmt.Errorf("unable to parse secret path %q", secret.ObjectPath)
+func ensureV1Prefix(s string) string {
+	switch {
+	case strings.HasPrefix(s, "/v1/"):
+		return s
+	case strings.HasPrefix(s, "v1/"):
+		return "/" + s
+	case strings.HasPrefix(s, "/"):
+		return "/v1" + s
+	default:
+		return "/v1/" + s
 	}
-	secretPrefix := s[1]
-	secretSuffix := s[2]
+}
 
-	secretMountType, secretMountVersion, err := p.getMountInfo(ctx, client, secretPrefix)
-	if err != nil {
-		return "", err
-	}
-
-	endpoint, err := generateSecretEndpoint(secretMountType, secretMountVersion, secretPrefix, secretSuffix)
-	if err != nil {
-		return "", err
-	}
-
-	p.logger.Debug("vault: Requesting valid secret mounted", "endpoint", endpoint)
-
-	req := client.NewRequest("GET", endpoint)
-	if secret.ObjectVersion != "" {
-		req.Params = url.Values{
-			"version": []string{secret.ObjectVersion},
+func generateRequest(client *api.Client, secret config.Secret) (*api.Request, error) {
+	secretPath := ensureV1Prefix(secret.SecretPath)
+	queryIndex := strings.Index(secretPath, "?")
+	var queryParams map[string][]string
+	if queryIndex != -1 {
+		var err error
+		queryParams, err = url.ParseQuery(secretPath[queryIndex+1:])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse query parameters from secretPath %q for objectName %q: %w", secretPath, secret.ObjectName, err)
 		}
+		secretPath = secretPath[:queryIndex]
 	}
-	resp, err := vaultclient.Do(ctx, client, req)
-	if err != nil {
-		return "", fmt.Errorf("couldn't read secret %q: %w", secret.ObjectName, err)
-	}
-	if resp == nil || resp.Data == nil {
-		return "", fmt.Errorf("empty response from %q, warnings: %v", req.URL.Path, resp.Warnings)
+	method := "GET"
+	if secret.Method != "" {
+		method = secret.Method
 	}
 
+	req := client.NewRequest(method, secretPath)
+	if queryParams != nil {
+		req.Params = queryParams
+	}
+	if secret.SecretArgs != nil {
+		req.SetJSONBody(secret.SecretArgs)
+	}
+
+	return req, nil
+}
+
+func keyFromData(rootData map[string]interface{}, secretKey string) (string, error) {
+	// Automatically parse through to embedded .data.data map if it's present
+	// and the correct type (e.g. for kv v2).
 	var data map[string]interface{}
-	d, ok := resp.Data["data"]
+	d, ok := rootData["data"]
 	if ok {
 		data, ok = d.(map[string]interface{})
 	}
 	if !ok {
-		data = resp.Data
+		data = rootData
 	}
 
-	content, ok = data[secret.ObjectName].(string)
+	content, ok := data[secretKey].(string)
 	if !ok {
-		return "", fmt.Errorf("failed to get secret content %q as string", data[secret.ObjectName])
+		return "", fmt.Errorf("failed to get secret content %q as string", secretKey)
 	}
 
 	return content, nil
+}
+
+func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConfig config.Secret) (string, error) {
+	var secret *api.Secret
+	var cached bool
+	key := cacheKey{secretPath: secretConfig.SecretPath, method: secretConfig.Method}
+	if secret, cached = p.cache[key]; !cached {
+		req, err := generateRequest(client, secretConfig)
+		p.logger.Debug("Requesting secret", "secretConfig", secretConfig, "method", req.Method, "path", req.URL.Path, "params", req.Params)
+
+		secret, err = vaultclient.Do(ctx, client, req)
+		if err != nil {
+			return "", fmt.Errorf("couldn't read secret %q: %w", secretConfig.ObjectName, err)
+		}
+		if secret == nil || secret.Data == nil {
+			return "", fmt.Errorf("empty response from %q, warnings: %v", req.URL.Path, secret.Warnings)
+		}
+
+		p.cache[key] = secret
+	} else {
+		p.logger.Debug("Secret fetched from cache", "secretConfig", secretConfig)
+	}
+
+	// If no secretKey specified, we return the whole response as a JSON object.
+	if secretConfig.SecretKey == "" {
+		bytes, err := json.Marshal(secret)
+		if err != nil {
+			return "", err
+		}
+
+		return string(bytes), nil
+	}
+
+	return keyFromData(secret.Data, secretConfig.SecretKey)
 }
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
@@ -187,7 +191,7 @@ func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg confi
 		if err != nil {
 			return nil, err
 		}
-		versions[fmt.Sprintf("%s:%s:%s", secret.ObjectName, secret.ObjectPath, secret.ObjectVersion)] = secret.ObjectVersion
+		versions[fmt.Sprintf("%s:%s:%s", secret.ObjectName, secret.SecretPath, secret.Method)] = "0"
 		err = writeSecret(p.logger, cfg.TargetPath, secret.ObjectName, content, cfg.FilePermission)
 		if err != nil {
 			return nil, err
