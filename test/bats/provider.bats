@@ -113,7 +113,7 @@ teardown(){
         --wait --timeout=5m
 
     result=$(kubectl --namespace=test exec nginx-kv -- cat /mnt/secrets-store/secret-1)
-    [[ "$result" == "hello2" ]]
+    [[ "$result" == "hello1" ]]
 
     result=$(kubectl --namespace=test exec nginx-kv -- cat /mnt/secrets-store/secret-2)
     [[ "$result" == "hello2" ]]
