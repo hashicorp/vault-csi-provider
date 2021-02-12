@@ -47,7 +47,7 @@ func (p *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResp
 
 func (p *Server) handleMountRequest(ctx context.Context, parametersStr, targetPath, permissionStr string) (map[string]string, error) {
 	p.Logger.Debug("Handling mount request", "parametersStr", parametersStr)
-	cfg, err := config.Parse(parametersStr, targetPath, permissionStr)
+	cfg, err := config.Parse(p.Logger.Named("config"), parametersStr, targetPath, permissionStr)
 	if err != nil {
 		return nil, err
 	}

@@ -26,7 +26,8 @@ setup_postgres() {
         allowed_roles="*" \
         connection_url="postgres://{{username}}:{{password}}@postgres.test.svc.cluster.local:5432/db?sslmode=disable" \
         username="root" \
-        password="${POSTGRES_PASSWORD}"
+        password="${POSTGRES_PASSWORD}" \
+        verify_connection=false
     cat $CONFIGS/postgres-creation-statements.sql | kubectl --namespace=csi exec -i vault-0 -- vault write database/roles/test-role \
         db_name="postgres" \
         default_ttl="1h" max_ttl="24h" \

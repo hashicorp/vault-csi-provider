@@ -60,18 +60,18 @@ setup(){
         allow_subdomains=true
 
     # 1. d) Create kv secrets in Vault.
-    kubectl --namespace=csi exec vault-0 -- vault kv put secret/foo1 bar1=hello1
-    kubectl --namespace=csi exec vault-0 -- vault kv put secret/foo2 bar2=hello2
-    kubectl --namespace=csi exec vault-0 -- vault kv put secret/foo-sync1 bar1=hello-sync1
-    kubectl --namespace=csi exec vault-0 -- vault kv put secret/foo-sync2 bar2=hello-sync2
+    kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv1 bar1=hello1
+    kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv2 bar2=hello2
+    kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv-sync1 bar1=hello-sync1
+    kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv-sync2 bar2=hello-sync2
 
     # 2. Create shared k8s resources.
     kubectl create namespace test
     kubectl --namespace=test apply -f $CONFIGS/vault-all-secretproviderclass.yaml
-    kubectl --namespace=test apply -f $CONFIGS/vault-dynamic-creds-secretproviderclass.yaml
-    kubectl --namespace=test apply -f $CONFIGS/vault-foo-secretproviderclass.yaml
-    kubectl --namespace=test apply -f $CONFIGS/vault-foo-sync-secretproviderclass.yaml
-    kubectl --namespace=test apply -f $CONFIGS/vault-foo-sync-multiple-secretproviderclass.yaml
+    kubectl --namespace=test apply -f $CONFIGS/vault-db-secretproviderclass.yaml
+    kubectl --namespace=test apply -f $CONFIGS/vault-kv-secretproviderclass.yaml
+    kubectl --namespace=test apply -f $CONFIGS/vault-kv-sync-secretproviderclass.yaml
+    kubectl --namespace=test apply -f $CONFIGS/vault-kv-sync-multiple-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-pki-secretproviderclass.yaml
     } > $SETUP_TEARDOWN_OUTFILE
 }
@@ -88,10 +88,10 @@ teardown(){
     kubectl --namespace=csi exec vault-0 -- vault secrets disable pki
     kubectl --namespace=csi exec vault-0 -- vault secrets disable database
     kubectl --namespace=csi exec vault-0 -- vault policy delete example-policy
-    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/foo1
-    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/foo2
-    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/foo-sync1
-    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/foo-sync2
+    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv1
+    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv2
+    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv-sync1
+    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv-sync2
 
     # Teardown shared k8s resources.
     kubectl delete --ignore-not-found namespace test
@@ -100,19 +100,19 @@ teardown(){
 }
 
 @test "1 Inline secrets-store-csi volume" {
-    kubectl --namespace=test apply -f $CONFIGS/nginx-inline-volume.yaml
-    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod/nginx-inline
+    helm --namespace=test install nginx $CONFIGS/nginx --set engine=kv --set sa=kv
+    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod nginx-kv
 
-    result=$(kubectl --namespace=test exec nginx-inline -- cat /mnt/secrets-store/secret-1)
+    result=$(kubectl --namespace=test exec nginx-kv -- cat /mnt/secrets-store/secret-1)
     [[ "$result" == "hello1" ]]
 
-    result=$(kubectl --namespace=test exec nginx-inline -- cat /mnt/secrets-store/secret-2)
+    result=$(kubectl --namespace=test exec nginx-kv -- cat /mnt/secrets-store/secret-2)
     [[ "$result" == "hello2" ]]
 }
 
 @test "2 Sync with kubernetes secrets" {
     # Deploy some pods that should cause k8s secrets to be created.
-    kubectl --namespace=test apply -f $CONFIGS/nginx-env-var.yaml
+    kubectl --namespace=test apply -f $CONFIGS/nginx-kv-env-var.yaml
     kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod -l app=nginx
 
     POD=$(kubectl --namespace=test get pod -l app=nginx -o jsonpath="{.items[0].metadata.name}")
@@ -122,24 +122,24 @@ teardown(){
     result=$(kubectl --namespace=test exec $POD -- cat /mnt/secrets-store/secret-2)
     [[ "$result" == "hello-sync2" ]]
 
-    run kubectl get secret --namespace=test foosecret
+    run kubectl get secret --namespace=test kvsecret
     [ "$status" -eq 0 ]
 
-    result=$(kubectl --namespace=test get secret foosecret -o jsonpath="{.data.pwd}" | base64 -d)
+    result=$(kubectl --namespace=test get secret kvsecret -o jsonpath="{.data.pwd}" | base64 -d)
     [[ "$result" == "hello-sync1" ]]
 
     result=$(kubectl --namespace=test exec $POD -- printenv | grep SECRET_USERNAME | awk -F"=" '{ print $2 }' | tr -d '\r\n')
     [[ "$result" == "hello-sync2" ]]
 
-    result=$(kubectl --namespace=test get secret foosecret -o jsonpath="{.metadata.labels.environment}")
+    result=$(kubectl --namespace=test get secret kvsecret -o jsonpath="{.metadata.labels.environment}")
     [[ "${result//$'\r'}" == "test" ]]
 
-    result=$(kubectl --namespace=test get secret foosecret -o jsonpath="{.metadata.labels.secrets-store\.csi\.k8s\.io/managed}")
+    result=$(kubectl --namespace=test get secret kvsecret -o jsonpath="{.metadata.labels.secrets-store\.csi\.k8s\.io/managed}")
     [[ "${result//$'\r'}" == "true" ]]
 
     # There isn't really an event we can wait for to ensure this has happened.
     for i in {0..60}; do
-        result="$(kubectl --namespace=test get secret foosecret -o json | jq '.metadata.ownerReferences | length')"
+        result="$(kubectl --namespace=test get secret kvsecret -o json | jq '.metadata.ownerReferences | length')"
         if [[ "$result" -eq 2 ]]; then
             break
         fi
@@ -148,30 +148,30 @@ teardown(){
     [[ "$result" -eq 2 ]]
 
     # Wait for secret deletion in a background process.
-    kubectl --namespace=test wait --for=delete --timeout=60s secret foosecret &
+    kubectl --namespace=test wait --for=delete --timeout=60s secret kvsecret &
     WAIT_PID=$!
 
     # Trigger deletion implicitly by deleting only owners.
-    kubectl --namespace=test delete -f $CONFIGS/nginx-env-var.yaml
-    echo "Waiting for foosecret to get deleted"
+    kubectl --namespace=test delete -f $CONFIGS/nginx-kv-env-var.yaml
+    echo "Waiting for kvsecret to get deleted"
     wait $WAIT_PID
 
     # Ensure it actually got deleted.
-    run kubectl --namespace=test get secret foosecret
+    run kubectl --namespace=test get secret kvsecret
     [ "$status" -eq 1 ]
 }
 
 @test "3 SecretProviderClass in different namespace not usable" {
     kubectl create namespace negative-test-ns
-    kubectl --namespace=negative-test-ns apply -f $CONFIGS/nginx-inline-volume.yaml
-    kubectl --namespace=negative-test-ns wait --for=condition=PodScheduled --timeout=60s pod nginx-inline
+    helm --namespace=negative-test-ns install nginx $CONFIGS/nginx --set engine=kv --set sa=kv
+    kubectl --namespace=negative-test-ns wait --for=condition=PodScheduled --timeout=60s pod nginx-kv
 
-    wait_for_success "kubectl --namespace=negative-test-ns describe pod nginx-inline | grep 'FailedMount.*failed to get secretproviderclass negative-test-ns/vault-foo.*not found'"
+    wait_for_success "kubectl --namespace=negative-test-ns describe pod nginx-kv | grep 'FailedMount.*failed to get secretproviderclass negative-test-ns/vault-kv.*not found'"
 }
 
 @test "4 Pod with multiple SecretProviderClasses" {
     POD=nginx-multiple-volumes
-    kubectl --namespace=test apply -f $CONFIGS/nginx-multiple-volumes.yaml
+    kubectl --namespace=test apply -f $CONFIGS/nginx-kv-multiple-volumes.yaml
     kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod $POD
 
     result=$(kubectl --namespace=test exec $POD -- cat /mnt/secrets-store-1/secret-1)
@@ -179,9 +179,9 @@ teardown(){
     result=$(kubectl --namespace=test exec $POD -- cat /mnt/secrets-store-2/secret-2)
     [[ "$result" == "hello-sync2" ]]
 
-    result=$(kubectl --namespace=test get secret foosecret-1 -o jsonpath="{.data.username}" | base64 -d)
+    result=$(kubectl --namespace=test get secret kvsecret-1 -o jsonpath="{.data.username}" | base64 -d)
     [[ "$result" == "hello-sync1" ]]
-    result=$(kubectl --namespace=test get secret foosecret-2 -o jsonpath="{.data.pwd}" | base64 -d)
+    result=$(kubectl --namespace=test get secret kvsecret-2 -o jsonpath="{.data.pwd}" | base64 -d)
     [[ "$result" == "hello-sync2" ]]
 
     result=$(kubectl --namespace=test exec $POD -- printenv | grep SECRET_1_USERNAME | awk -F"=" '{ print $2 }' | tr -d '\r\n')
@@ -191,7 +191,7 @@ teardown(){
 }
 
 @test "5 SecretProviderClass with query parameters and PUT method" {
-    kubectl --namespace=test apply -f $CONFIGS/nginx-pki.yaml
+    helm --namespace=test install nginx $CONFIGS/nginx --set engine=pki --set sa=pki
     kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod nginx-pki
 
     result=$(kubectl --namespace=test exec nginx-pki -- cat /mnt/secrets-store/certs)
@@ -207,12 +207,12 @@ teardown(){
     setup_postgres
 
     # Now deploy a pod that will generate some dynamic credentials.
-    kubectl --namespace=test apply -f $CONFIGS/nginx-dynamic-creds.yaml
-    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod nginx-dynamic-creds
+    helm --namespace=test install nginx $CONFIGS/nginx --set engine=db --set sa=db
+    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod nginx-db
 
     # Read the creds out of the pod and verify they work for a query.
-    DYNAMIC_USERNAME=$(kubectl --namespace=test exec nginx-dynamic-creds -- cat /mnt/secrets-store/dbUsername)
-    DYNAMIC_PASSWORD=$(kubectl --namespace=test exec nginx-dynamic-creds -- cat /mnt/secrets-store/dbPassword)
+    DYNAMIC_USERNAME=$(kubectl --namespace=test exec nginx-db -- cat /mnt/secrets-store/dbUsername)
+    DYNAMIC_PASSWORD=$(kubectl --namespace=test exec nginx-db -- cat /mnt/secrets-store/dbPassword)
     result=$(kubectl --namespace=test exec postgres -- psql postgres://${DYNAMIC_USERNAME}:${DYNAMIC_PASSWORD}@127.0.0.1:5432/db --command="SELECT usename FROM pg_catalog.pg_user" --csv | sed -n '3 p')
 
     [[ "$result" != "" ]]
@@ -222,7 +222,7 @@ teardown(){
 @test "7 SecretProviderClass with multiple secret types" {
     setup_postgres
 
-    kubectl --namespace=test apply -f $CONFIGS/nginx-all.yaml
+    helm --namespace=test install nginx $CONFIGS/nginx --set engine=all --set sa=all
     kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod nginx-all
 
     # Verify dynamic database creds.
@@ -244,4 +244,12 @@ teardown(){
     echo "$result" | jq -r '.data.certificate' | openssl x509 -noout
     echo "$result" | jq -r '.data.issuing_ca' | openssl x509 -noout
     echo "$result" | jq -r '.data.certificate' | openssl x509 -noout -text | grep "test.example.com"
+}
+
+@test "8 Wrong service account does not have access to Vault" {
+    helm --namespace=test install nginx $CONFIGS/nginx --set engine=kv --set sa=pki
+    kubectl --namespace=test wait --for=condition=PodScheduled --timeout=60s pod nginx-kv
+
+    wait_for_success "kubectl --namespace=test describe pod nginx-kv | grep 'FailedMount.*failed to mount secrets store objects for pod test/nginx-kv'"
+    wait_for_success "kubectl --namespace=test describe pod nginx-kv | grep 'service account name not authorized'"
 }

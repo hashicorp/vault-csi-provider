@@ -25,12 +25,12 @@ spec:
     - name: SECRET_1_USERNAME
       valueFrom:
         secretKeyRef:
-          name: foosecret-1
+          name: kvsecret-1
           key: username
     - name: SECRET_2_PWD
       valueFrom:
         secretKeyRef:
-          name: foosecret-2
+          name: kvsecret-2
           key: pwd
   volumes:
     - name: secrets-store-1
@@ -38,10 +38,10 @@ spec:
         driver: secrets-store.csi.k8s.io
         readOnly: true
         volumeAttributes:
-          secretProviderClass: "vault-foo-sync-1"
+          secretProviderClass: "vault-kv-sync-1"
     - name: secrets-store-2
       csi:
         driver: secrets-store.csi.k8s.io
         readOnly: true
         volumeAttributes:
-          secretProviderClass: "vault-foo-sync-2"
+          secretProviderClass: "vault-kv-sync-2"

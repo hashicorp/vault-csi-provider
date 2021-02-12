@@ -1,15 +1,13 @@
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: nginx-pki
----
 kind: Pod
 apiVersion: v1
 metadata:
-  name: nginx-pki
+  name: nginx-{{ .Values.engine }}
+  namespace: {{ .Release.namespace }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
-  serviceAccountName: nginx-pki
+  serviceAccountName: nginx-{{ .Values.sa }}
   terminationGracePeriodSeconds: 0
   containers:
   - image: hashicorp.jfrog.io/docker/nginx
@@ -24,4 +22,4 @@ spec:
         driver: secrets-store.csi.k8s.io
         readOnly: true
         volumeAttributes:
-          secretProviderClass: "vault-pki"
+          secretProviderClass: "vault-{{ .Values.engine }}"

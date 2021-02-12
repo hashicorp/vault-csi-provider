@@ -30,7 +30,7 @@ spec:
         - name: SECRET_USERNAME
           valueFrom:
             secretKeyRef:
-              name: foosecret
+              name: kvsecret
               key: username
         volumeMounts:
         - name: secret-volume
@@ -42,4 +42,4 @@ spec:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
-              secretProviderClass: "vault-foo-sync"
+              secretProviderClass: "vault-kv-sync"
