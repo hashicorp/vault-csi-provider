@@ -99,7 +99,7 @@ jobs:
           name: Run e2e tests
           command: |
             make e2e-setup
-            SUPPRESS_SETUP_TEARDOWN_LOGS=false make e2e-test
+            DISPLAY_SETUP_TEARDOWN_LOGS=true make e2e-test
 
 workflows:
   version: 2

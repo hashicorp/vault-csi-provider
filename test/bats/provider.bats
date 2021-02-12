@@ -2,10 +2,9 @@
 
 load _helpers
 
-export SETUP_TEARDOWN_OUTFILE=/dev/stdout
-SUPPRESS_SETUP_TEARDOWN_LOGS=true       # Set non-true to show setup/teardown logs and debug output for failed tests.
-if [[ "$SUPPRESS_SETUP_TEARDOWN_LOGS" -eq "true" ]]; then
-    export SETUP_TEARDOWN_OUTFILE=/dev/null
+export SETUP_TEARDOWN_OUTFILE=/dev/null
+if [[ -n "${DISPLAY_SETUP_TEARDOWN_LOGS:-}" ]]; then
+    export SETUP_TEARDOWN_OUTFILE=/dev/stdout
 fi
 
 #SKIP_TEARDOWN=true
@@ -89,7 +88,7 @@ teardown(){
         echo "DESCRIBE NGINX PODS"
         kubectl describe pod -l app=nginx --all-namespaces=true
         echo "PROVIDER LOGS"
-        kubectl --namespace=csi logs -l app=secrets-store-csi-driver-provider-vault --tail=-1
+        kubectl --namespace=csi logs -l app=secrets-store-csi-driver-provider-vault --tail=50
     fi
 
     # Teardown Vault configuration.
@@ -109,11 +108,12 @@ teardown(){
 }
 
 @test "1 Inline secrets-store-csi volume" {
-    helm --namespace=test install nginx $CONFIGS/nginx --set engine=kv --set sa=kv
-    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod nginx-kv
+    helm --namespace=test install nginx $CONFIGS/nginx \
+        --set engine=kv --set sa=kv \
+        --wait --timeout=60s
 
     result=$(kubectl --namespace=test exec nginx-kv -- cat /mnt/secrets-store/secret-1)
-    [[ "$result" == "hello1" ]]
+    [[ "$result" == "hello2" ]]
 
     result=$(kubectl --namespace=test exec nginx-kv -- cat /mnt/secrets-store/secret-2)
     [[ "$result" == "hello2" ]]
@@ -172,7 +172,8 @@ teardown(){
 
 @test "3 SecretProviderClass in different namespace not usable" {
     kubectl create namespace negative-test-ns
-    helm --namespace=negative-test-ns install nginx $CONFIGS/nginx --set engine=kv --set sa=kv
+    helm --namespace=negative-test-ns install nginx $CONFIGS/nginx \
+        --set engine=kv --set sa=kv
     kubectl --namespace=negative-test-ns wait --for=condition=PodScheduled --timeout=60s pod nginx-kv
 
     wait_for_success "kubectl --namespace=negative-test-ns describe pod nginx-kv | grep 'FailedMount.*failed to get secretproviderclass negative-test-ns/vault-kv.*not found'"
@@ -200,8 +201,9 @@ teardown(){
 }
 
 @test "5 SecretProviderClass with query parameters and PUT method" {
-    helm --namespace=test install nginx $CONFIGS/nginx --set engine=pki --set sa=pki
-    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod nginx-pki
+    helm --namespace=test install nginx $CONFIGS/nginx \
+        --set engine=pki --set sa=pki \
+        --wait --timeout=60s
 
     result=$(kubectl --namespace=test exec nginx-pki -- cat /mnt/secrets-store/certs)
     [[ "$result" != "" ]]
@@ -216,8 +218,9 @@ teardown(){
     setup_postgres
 
     # Now deploy a pod that will generate some dynamic credentials.
-    helm --namespace=test install nginx $CONFIGS/nginx --set engine=db --set sa=db
-    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod nginx-db
+    helm --namespace=test install nginx $CONFIGS/nginx \
+        --set engine=db --set sa=db \
+        --wait --timeout=60s
 
     # Read the creds out of the pod and verify they work for a query.
     DYNAMIC_USERNAME=$(kubectl --namespace=test exec nginx-db -- cat /mnt/secrets-store/dbUsername)
@@ -231,8 +234,9 @@ teardown(){
 @test "7 SecretProviderClass with multiple secret types" {
     setup_postgres
 
-    helm --namespace=test install nginx $CONFIGS/nginx --set engine=all --set sa=all
-    kubectl --namespace=test wait --for=condition=Ready --timeout=60s pod nginx-all
+    helm --namespace=test install nginx $CONFIGS/nginx \
+        --set engine=all --set sa=all \
+        --wait --timeout=60s
 
     # Verify dynamic database creds.
     DYNAMIC_USERNAME=$(kubectl --namespace=test exec nginx-all -- cat /mnt/secrets-store/dbUsername)
@@ -256,7 +260,8 @@ teardown(){
 }
 
 @test "8 Wrong service account does not have access to Vault" {
-    helm --namespace=test install nginx $CONFIGS/nginx --set engine=kv --set sa=pki
+    helm --namespace=test install nginx $CONFIGS/nginx \
+        --set engine=kv --set sa=pki
     kubectl --namespace=test wait --for=condition=PodScheduled --timeout=60s pod nginx-kv
 
     wait_for_success "kubectl --namespace=test describe pod nginx-kv | grep 'FailedMount.*failed to mount secrets store objects for pod test/nginx-kv'"
