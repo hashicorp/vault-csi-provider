@@ -3,8 +3,8 @@
 load _helpers
 
 export SETUP_TEARDOWN_OUTFILE=/dev/stdout
-SUPPRESS_SETUP_TEARDOWN_LOGS=true       # Comment this line out to show setup/teardown logs for failed tests.
-if [[ -n $SUPPRESS_SETUP_TEARDOWN_LOGS ]]; then
+SUPPRESS_SETUP_TEARDOWN_LOGS=true       # Set non-true to show setup/teardown logs and debug output for failed tests.
+if [[ "$SUPPRESS_SETUP_TEARDOWN_LOGS" -eq "true" ]]; then
     export SETUP_TEARDOWN_OUTFILE=/dev/null
 fi
 
@@ -83,6 +83,15 @@ teardown(){
     fi
 
     { # Braces used to redirect all teardown logs.
+
+    # If the test failed, print some debug output
+    if [[ "$BATS_ERROR_STATUS" -ne 0 ]]; then
+        echo "DESCRIBE NGINX PODS"
+        kubectl describe pod -l app=nginx --all-namespaces=true
+        echo "PROVIDER LOGS"
+        kubectl --namespace=csi logs -l app=secrets-store-csi-driver-provider-vault --tail=-1
+    fi
+
     # Teardown Vault configuration.
     kubectl --namespace=csi exec vault-0 -- vault auth disable kubernetes
     kubectl --namespace=csi exec vault-0 -- vault secrets disable pki

@@ -5,6 +5,7 @@ metadata:
   name: nginx-{{ .Values.engine }}
   namespace: {{ .Release.namespace }}
   labels:
+    app: nginx
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   serviceAccountName: nginx-{{ .Values.sa }}
