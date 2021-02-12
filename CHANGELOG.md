@@ -14,6 +14,7 @@ CHANGES:
   * `vaultSkipTLSVerify` is no longer required to be set to `"true"` if the `vaultAddress` scheme is not `https`
 * The provider will now authenticate to Vault as the requesting pod's service account [[GH-64](https://github.com/hashicorp/secrets-store-csi-driver-provider-vault/pull/64)]
   * **This is likely a breaking change for existing deployments being upgraded**
+  * secrets-store-csi-driver-provider-vault service account now requires cluster-wide permission to create service account tokens
   * auth/kubernetes mounts in Vault will now need to bind ACL policies to the requesting pods'
     service accounts instead of the provider's service account.
   * `spec.parameters.kubernetesServiceAccountPath` is now ignored and will log a warning if set
