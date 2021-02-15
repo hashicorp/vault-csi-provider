@@ -206,7 +206,7 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg config.Config) (map[string]string, error) {
 	versions := make(map[string]string)
 
-	client, err := vaultclient.New(cfg.Parameters)
+	client, err := vaultclient.New(cfg.Parameters.VaultAddress, cfg.Parameters.VaultTLSConfig)
 	if err != nil {
 		return nil, err
 	}

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/pkg/errors"
@@ -37,20 +36,21 @@ type Config struct {
 //
 // So we just deserialise by hand to avoid complexity and two passes.
 type Parameters struct {
-	VaultRoleName            string
 	VaultAddress             string
+	VaultRoleName            string
 	VaultKubernetesMountPath string
-	TLSConfig                TLSConfig
+	VaultTLSConfig           TLSConfig
 	Secrets                  []Secret
 	PodInfo                  PodInfo
 }
 
 type TLSConfig struct {
-	VaultCAPEM         string
-	VaultCACertPath    string
-	VaultCADirectory   string
-	VaultTLSServerName string
-	VaultSkipTLSVerify bool
+	CACertPath     string
+	CADirectory    string
+	TLSServerName  string
+	SkipVerify     bool
+	ClientCertPath string
+	ClientKeyPath  string
 }
 
 type PodInfo struct {
@@ -61,9 +61,10 @@ type PodInfo struct {
 }
 
 func (c TLSConfig) CertificatesConfigured() bool {
-	return c.VaultCAPEM != "" ||
-		c.VaultCACertPath != "" ||
-		c.VaultCADirectory != ""
+	return c.CACertPath != "" ||
+		c.CADirectory != "" ||
+		c.ClientCertPath != "" ||
+		c.ClientKeyPath != ""
 }
 
 type Secret struct {
@@ -108,10 +109,11 @@ func parseParameters(logger hclog.Logger, parametersStr string) (Parameters, err
 	var parameters Parameters
 	parameters.VaultRoleName = params["roleName"]
 	parameters.VaultAddress = params["vaultAddress"]
-	parameters.TLSConfig.VaultCAPEM = params["vaultCAPem"]
-	parameters.TLSConfig.VaultCACertPath = params["vaultCACertPath"]
-	parameters.TLSConfig.VaultCADirectory = params["vaultCADirectory"]
-	parameters.TLSConfig.VaultTLSServerName = params["vaultTLSServerName"]
+	parameters.VaultTLSConfig.CACertPath = params["vaultCACertPath"]
+	parameters.VaultTLSConfig.CADirectory = params["vaultCADirectory"]
+	parameters.VaultTLSConfig.TLSServerName = params["vaultTLSServerName"]
+	parameters.VaultTLSConfig.ClientCertPath = params["vaultTLSClientCertPath"]
+	parameters.VaultTLSConfig.ClientKeyPath = params["vaultTLSClientKeyPath"]
 	parameters.VaultKubernetesMountPath = params["vaultKubernetesMountPath"]
 	parameters.PodInfo.Name = params["csi.storage.k8s.io/pod.name"]
 	parameters.PodInfo.UID = types.UID(params["csi.storage.k8s.io/pod.uid"])
@@ -120,7 +122,7 @@ func parseParameters(logger hclog.Logger, parametersStr string) (Parameters, err
 	if skipTLS, ok := params["vaultSkipTLSVerify"]; ok {
 		value, err := strconv.ParseBool(skipTLS)
 		if err == nil {
-			parameters.TLSConfig.VaultSkipTLSVerify = value
+			parameters.VaultTLSConfig.SkipVerify = value
 		} else {
 			return Parameters{}, err
 		}
@@ -143,6 +145,9 @@ func parseParameters(logger hclog.Logger, parametersStr string) (Parameters, err
 	if _, exists := params["kubernetesServiceAccountPath"]; exists {
 		logger.Warn("kubernetesServiceAccountPath set but will be ignored", "PodInfo", parameters.PodInfo)
 	}
+	if _, exists := params["vaultCAPem"]; exists {
+		logger.Warn("vaultCAPem set but will be ignored", "PodInfo", parameters.PodInfo)
+	}
 
 	return parameters, nil
 }
@@ -154,15 +159,6 @@ func (c *Config) Validate() error {
 	}
 	if c.Parameters.VaultRoleName == "" {
 		return errors.Errorf("missing 'roleName' in SecretProviderClass definition")
-	}
-	certificatesConfigured := c.Parameters.TLSConfig.CertificatesConfigured()
-	if c.Parameters.TLSConfig.VaultSkipTLSVerify && certificatesConfigured {
-		return errors.New("both vaultSkipTLSVerify and TLS configuration are set")
-	}
-	if !certificatesConfigured &&
-		!c.Parameters.TLSConfig.VaultSkipTLSVerify &&
-		strings.HasPrefix(c.Parameters.VaultAddress, "https") {
-		return errors.New("no TLS configuration and vaultSkipTLSVerify is false but vault address scheme is https")
 	}
 	if len(c.Parameters.Secrets) == 0 {
 		return errors.New("no secrets configured - the provider will not read any secret material")

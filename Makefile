@@ -67,7 +67,7 @@ docker-push:
 
 e2e-setup: e2e-container
 	kubectl create namespace csi
-	helm install secrets-store-csi-driver https://github.com/kubernetes-sigs/secrets-store-csi-driver/blob/master/charts/secrets-store-csi-driver-0.0.19.tgz?raw=true \
+	helm install secrets-store-csi-driver https://github.com/kubernetes-sigs/secrets-store-csi-driver/blob/v0.0.19/charts/secrets-store-csi-driver-0.0.19.tgz?raw=true \
 		--wait --timeout=5m \
 		--namespace=csi \
 		--set linux.image.pullPolicy="IfNotPresent" \

@@ -6,11 +6,9 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"io/ioutil"
 	"math"
 	"math/big"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 	"time"
@@ -21,81 +19,43 @@ import (
 
 var caPath = filepath.Join("testdata", "ca.pem")
 
-func TestGetRootCAsPools(t *testing.T) {
-	generateCA(t, caPath)
+func TestNew(t *testing.T) {
+	err := os.Mkdir("testdata", 0755)
+	if err != nil && !os.IsExist(err) {
+		t.Fatal("failed to make testdata folder", err)
+	}
 	defer func() {
-		require.NoError(t, os.Remove(caPath))
+		require.NoError(t, os.RemoveAll("testdata"))
 	}()
-	ca, err := ioutil.ReadFile(caPath)
-	require.NoError(t, err)
+	generateCA(t, caPath)
 
 	for _, tc := range []struct {
 		name string
 		cfg  config.TLSConfig
 	}{
 		{
-			name: "PEM encoded",
-			cfg: config.TLSConfig{
-				VaultCAPEM: string(ca),
-			},
-		},
-		{
 			name: "file",
 			cfg: config.TLSConfig{
-				VaultCACertPath: caPath,
+				CACertPath: caPath,
 			},
 		},
 		{
 			name: "directory",
 			cfg: config.TLSConfig{
-				VaultCADirectory: "testdata",
+				CADirectory: "testdata",
 			},
 		},
 	} {
-		pool, err := getRootCAsPools(tc.cfg)
+		_, err = New("https://vault:8200", tc.cfg)
 		require.NoError(t, err, tc.name)
-		require.True(t, len(pool.Subjects()) > 0)
 	}
 }
 
-func TestGetRootCAsAsPoolsError(t *testing.T) {
-	generateCA(t, caPath)
-	defer func() {
-		require.NoError(t, os.Remove(caPath))
-	}()
-	ca, err := ioutil.ReadFile(path.Join("testdata", "bad_directory", "not-a-ca.pem"))
-	require.NoError(t, err)
-
-	for _, tc := range []struct {
-		name string
-		cfg  config.TLSConfig
-	}{
-		{
-			name: "none",
-			cfg:  config.TLSConfig{},
-		},
-		{
-			name: "PEM encoded error",
-			cfg: config.TLSConfig{
-				VaultCAPEM: string(ca),
-			},
-		},
-		{
-			name: "file error",
-			cfg: config.TLSConfig{
-				VaultCACertPath: path.Join("testdata", "bad_directory", "not-a-ca.pem"),
-			},
-		},
-		{
-			name: "directory error",
-			cfg: config.TLSConfig{
-				VaultCADirectory: path.Join("testdata", "bad_directory"),
-			},
-		},
-	} {
-		_, err := getRootCAsPools(tc.cfg)
-		require.Error(t, err, tc.name)
-	}
+func TestNew_Error(t *testing.T) {
+	_, err := New("https://vault:8200", config.TLSConfig{
+		CADirectory: "bad_directory",
+	})
+	require.Error(t, err)
 }
 
 func generateCA(t *testing.T, path string) {
