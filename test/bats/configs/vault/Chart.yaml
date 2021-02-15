@@ -1,0 +1,4 @@
+apiVersion: v3
+name: vault-test
+version: test
+description: Testing chart to deploy self-signed TLS certificates and a bootstrap script for Vault.

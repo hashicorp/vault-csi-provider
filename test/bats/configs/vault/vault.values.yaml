@@ -1,0 +1,35 @@
+# Values file for vaul-helm chart.
+global:
+  tlsDisable: false
+
+injector:
+  enabled: false
+
+server:
+  image:
+    repository: hashicorp.jfrog.io/docker/vault
+  extraVolumes:
+  - type: secret
+    name: vault-server-tls
+  - type: configMap
+    name: vault-bootstrap
+
+  extraEnvironmentVars:
+    # Ensure that running vault commands in the pod uses the correct CA.
+    VAULT_CACERT: /vault/userconfig/vault-server-tls/ca.crt
+
+  standalone:
+    enabled: true
+    config: |
+      listener "tcp" {
+        address = "[::]:8200"
+        cluster_address = "[::]:8201"
+        tls_cert_file = "/vault/userconfig/vault-server-tls/server.crt"
+        tls_key_file = "/vault/userconfig/vault-server-tls/server.key"
+        tls_client_ca_file = "/vault/userconfig/vault-server-tls/ca.crt"
+      }
+      storage "inmem" {
+      }
+
+  readinessProbe:
+    path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
