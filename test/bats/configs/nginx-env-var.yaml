@@ -16,7 +16,7 @@ spec:
     spec:
       terminationGracePeriodSeconds: 0
       containers:
-      - image: hashicorp.jfrog.io/docker/nginx
+      - image: docker.mirror.hashicorp.services/nginx
         name: nginx
         env:
         - name: SECRET_USERNAME

@@ -4,7 +4,7 @@ metadata:
   name: postgres-client
 spec:
   containers:
-  - image: hashicorp.jfrog.io/docker/postgres:13-alpine
+  - image: docker.mirror.hashicorp.services/postgres:13-alpine
     name: postgres
     ports:
       - containerPort: 5432

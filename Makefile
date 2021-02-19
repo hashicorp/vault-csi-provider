@@ -77,7 +77,7 @@ e2e-setup: e2e-container
 		--namespace=csi \
 		--set injector.enabled=false \
 		--set server.dev.enabled=true \
-		--set server.image.repository=hashicorp.jfrog.io/docker/vault
+		--set server.image.repository=docker.mirror.hashicorp.services/vault
 	kubectl apply --namespace=csi -f test/bats/configs/secrets-store-csi-driver-provider-vault.yaml
 	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app.kubernetes.io/name=vault
 	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app=secrets-store-csi-driver-provider-vault
