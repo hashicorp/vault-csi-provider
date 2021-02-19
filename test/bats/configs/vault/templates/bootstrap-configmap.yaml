@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-bootstrap
+  namespace: {{ .Release.namespace }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  bootstrap.sh: |-
+    {
+      vault status
+      while [[ $? -ne 2 ]]; do sleep 1 && vault status; done
+    } > /dev/null
+    vault operator init --key-shares=1 --key-threshold=1 > /tmp/vault_init
+    unseal=$(cat /tmp/vault_init | grep "Unseal Key 1: " | sed -e "s/Unseal Key 1: //g")
+    root=$(cat /tmp/vault_init | grep "Initial Root Token:" | sed -e "s/Initial Root Token: //g")
+    vault operator unseal ${unseal?} > /dev/null
+    vault login -no-print ${root?} > /dev/null
+    echo "Successfully bootstrapped vault"

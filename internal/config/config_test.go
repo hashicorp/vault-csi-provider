@@ -90,8 +90,8 @@ func TestParseParameters(t *testing.T) {
 	expected := Parameters{
 		VaultRoleName: "example-role",
 		VaultAddress:  "http://vault:8200",
-		TLSConfig: TLSConfig{
-			VaultSkipTLSVerify: true,
+		VaultTLSConfig: TLSConfig{
+			SkipVerify: true,
 		},
 		Secrets: []Secret{
 			{"bar1", "v1/secret/foo1", "", "GET", nil},
@@ -135,7 +135,7 @@ func TestParseConfig(t *testing.T) {
 				Parameters: func() Parameters {
 					expected := defaultParams
 					expected.VaultRoleName = roleName
-					expected.TLSConfig.VaultSkipTLSVerify = true
+					expected.VaultTLSConfig.SkipVerify = true
 					expected.Secrets = []Secret{
 						{"bar1", "v1/secret/foo1", "", "", nil},
 					}
@@ -162,7 +162,7 @@ func TestParseConfig(t *testing.T) {
 					expected.VaultRoleName = roleName
 					expected.VaultAddress = "my-vault-address"
 					expected.VaultKubernetesMountPath = "my-mount-path"
-					expected.TLSConfig.VaultSkipTLSVerify = true
+					expected.VaultTLSConfig.SkipVerify = true
 					expected.Secrets = []Secret{
 						{"bar1", "v1/secret/foo1", "", "", nil},
 					}
@@ -209,15 +209,12 @@ func TestParseConfig_Errors(t *testing.T) {
 }
 
 func TestValidateConfig(t *testing.T) {
-	minimumValidHTTPS := Config{
+	minimumValid := Config{
 		TargetPath: "a",
 		Parameters: Parameters{
 			VaultAddress:  defaultVaultAddress,
 			VaultRoleName: "b",
 			Secrets:       []Secret{{}},
-			TLSConfig: TLSConfig{
-				VaultSkipTLSVerify: true,
-			},
 		},
 	}
 	for _, tc := range []struct {
@@ -228,27 +225,12 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name:     "minimum valid",
 			cfgValid: true,
-			cfg:      minimumValidHTTPS,
-		},
-		{
-			name:     "minimum valid with http scheme",
-			cfgValid: true,
-			cfg: Config{
-				TargetPath: "a",
-				Parameters: Parameters{
-					VaultAddress:  "https://127.0.0.1:8200",
-					VaultRoleName: "b",
-					Secrets:       []Secret{{}},
-					TLSConfig: TLSConfig{
-						VaultSkipTLSVerify: true,
-					},
-				},
-			},
+			cfg:      minimumValid,
 		},
 		{
 			name: "No role name",
 			cfg: func() Config {
-				cfg := minimumValidHTTPS
+				cfg := minimumValid
 				cfg.VaultRoleName = ""
 				return cfg
 			}(),
@@ -256,37 +238,21 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "No target path",
 			cfg: func() Config {
-				cfg := minimumValidHTTPS
+				cfg := minimumValid
 				cfg.TargetPath = ""
-				return cfg
-			}(),
-		},
-		{
-			name: "Skip verify with certs configured",
-			cfg: func() Config {
-				cfg := minimumValidHTTPS
-				cfg.TLSConfig.VaultCAPEM = "foo"
-				return cfg
-			}(),
-		},
-		{
-			name: "No certs or skip TLS setting",
-			cfg: func() Config {
-				cfg := minimumValidHTTPS
-				cfg.TLSConfig.VaultSkipTLSVerify = false
 				return cfg
 			}(),
 		},
 		{
 			name: "No secrets configured",
 			cfg: func() Config {
-				cfg := minimumValidHTTPS
+				cfg := minimumValid
 				cfg.Secrets = []Secret{}
 				return cfg
 			}(),
 		},
 	} {
-		err := tc.cfg.Validate()
+		err := tc.cfg.validate()
 		if tc.cfgValid {
 			require.NoError(t, err, tc.name)
 		} else {

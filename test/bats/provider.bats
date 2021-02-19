@@ -61,7 +61,8 @@ setup(){
         allowed_domains="example.com" \
         allow_subdomains=true
 
-    # 1. d) Create kv secrets in Vault.
+    # 1. d) Setup kv secrets in Vault.
+    kubectl --namespace=csi exec vault-0 -- vault secrets enable -path=secret -version=2 kv
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv1 bar1=hello1
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv2 bar2=hello2
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv-sync1 bar1=hello-sync1
@@ -96,6 +97,7 @@ teardown(){
 
     # Teardown Vault configuration.
     kubectl --namespace=csi exec vault-0 -- vault auth disable kubernetes
+    kubectl --namespace=csi exec vault-0 -- vault secrets disable secret
     kubectl --namespace=csi exec vault-0 -- vault secrets disable pki
     kubectl --namespace=csi exec vault-0 -- vault secrets disable database
     kubectl --namespace=csi exec vault-0 -- vault policy delete example-policy

@@ -1,3 +1,4 @@
 apiVersion: v3
-name: test
+name: nginx-test
 version: test
+description: Testing chart to deploy pods which request secrets with configurable service accounts.

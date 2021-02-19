@@ -20,6 +20,9 @@ CHANGES:
   * `spec.parameters.kubernetesServiceAccountPath` is now ignored and will log a warning if set
   * Min k8s version
   * API to require enabled
+* The provider now supports mTLS [[GH-65](https://github.com/hashicorp/secrets-store-csi-driver-provider-vault/pull/65)]
+  * `spec.parameters.vaultCAPem` is now ignored and will log a warning if set. **This is a breaking change**
+  * `spec.parameters.vaultTLSClientCertPath` and `spec.parameters.vaultTLSClientKeyPath` are newly available options
 
 IMPROVEMENTS
 
