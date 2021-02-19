@@ -76,12 +76,12 @@ func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo) (
 		return "", fmt.Errorf("failed to create a service account token for requesting pod %v: %w", podInfo, err)
 	}
 
-	p.logger.Debug("successfully generated service account token")
+	p.logger.Debug("service account token creation successful")
 	return resp.Status.Token, nil
 }
 
 func (p *provider) login(ctx context.Context, client *api.Client, params config.Parameters) (string, error) {
-	p.logger.Debug("performing vault login...")
+	p.logger.Debug("performing vault login")
 
 	jwt, err := p.createJWTToken(ctx, params.PodInfo)
 	if err != nil {
@@ -106,6 +106,7 @@ func (p *provider) login(ctx context.Context, client *api.Client, params config.
 
 	client.SetToken(secret.Auth.ClientToken)
 
+	p.logger.Debug("vault login successful")
 	return secret.Auth.ClientToken, nil
 }
 
