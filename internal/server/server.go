@@ -21,7 +21,6 @@ type Server struct {
 }
 
 func (p *Server) Version(context.Context, *pb.VersionRequest) (*pb.VersionResponse, error) {
-	p.Logger.Info("Processing version method call")
 	return &pb.VersionResponse{
 		Version:        "v1alpha1",
 		RuntimeName:    "secrets-store-csi-driver-provider-vault",
@@ -30,8 +29,6 @@ func (p *Server) Version(context.Context, *pb.VersionRequest) (*pb.VersionRespon
 }
 
 func (p *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResponse, error) {
-	p.Logger.Info("Processing mount method call", "request", req)
-
 	versions, err := p.handleMountRequest(ctx, req.Attributes, req.TargetPath, req.Permission)
 	if err != nil {
 		return nil, err
@@ -46,21 +43,16 @@ func (p *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResp
 }
 
 func (p *Server) handleMountRequest(ctx context.Context, parametersStr, targetPath, permissionStr string) (map[string]string, error) {
-	p.Logger.Debug("Handling mount request", "parametersStr", parametersStr)
 	cfg, err := config.Parse(p.Logger.Named("config"), parametersStr, targetPath, permissionStr)
 	if err != nil {
 		return nil, err
 	}
-
-	p.Logger.Debug("Running provider server", "vault address", cfg.Parameters.VaultAddress, "roleName", cfg.Parameters.VaultRoleName)
 
 	provider := provider.NewProvider(p.Logger.Named("provider"))
 	versions, err := provider.MountSecretsStoreObjectContent(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("error making mount request: %w", err)
 	}
-
-	p.Logger.Info("Successfully handled mount request")
 
 	return versions, nil
 }

@@ -53,11 +53,14 @@ func realMain(logger hclog.Logger) error {
 	}
 
 	logger.Info("Creating new gRPC server")
+	serverLogger := logger.Named("server")
 	server := grpc.NewServer(
 		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 			startTime := time.Now()
+			serverLogger.Info("Processing unary gRPC call", "grpc.method", info.FullMethod)
+			serverLogger.Debug("Request contents", "req", req)
 			resp, err := handler(ctx, req)
-			logger.Info("Finished unary gRPC call", "grpc.method", info.FullMethod, "grpc.time", time.Since(startTime), "grpc.code", status.Code(err), "err", err)
+			serverLogger.Info("Finished unary gRPC call", "grpc.method", info.FullMethod, "grpc.time", time.Since(startTime), "grpc.code", status.Code(err), "err", err)
 			return resp, err
 		}),
 	)
@@ -78,7 +81,7 @@ func realMain(logger hclog.Logger) error {
 	logger.Info(fmt.Sprintf("Listening on %s", *endpoint))
 
 	s := &providerserver.Server{
-		Logger: logger.Named("server"),
+		Logger: serverLogger,
 	}
 	pb.RegisterCSIDriverProviderServer(server, s)
 

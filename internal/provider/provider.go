@@ -89,12 +89,9 @@ func (p *provider) login(ctx context.Context, client *api.Client, params config.
 	}
 
 	req := client.NewRequest("POST", "/v1/auth/"+params.VaultKubernetesMountPath+"/login")
-	err = req.SetJSONBody(struct {
-		Role string `json:"role"`
-		JWT  string `json:"jwt"`
-	}{
-		params.VaultRoleName,
-		jwt,
+	err = req.SetJSONBody(map[string]string{
+		"role": params.VaultRoleName,
+		"jwt":  jwt,
 	})
 	if err != nil {
 		return "", err
