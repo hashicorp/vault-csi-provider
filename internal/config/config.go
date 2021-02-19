@@ -60,13 +60,6 @@ type PodInfo struct {
 	ServiceAccountName string
 }
 
-func (c TLSConfig) CertificatesConfigured() bool {
-	return c.CACertPath != "" ||
-		c.CADirectory != "" ||
-		c.ClientCertPath != "" ||
-		c.ClientKeyPath != ""
-}
-
 type Secret struct {
 	ObjectName string                 `yaml:"objectName,omitempty"`
 	SecretPath string                 `yaml:"secretPath,omitempty"`
