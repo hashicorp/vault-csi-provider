@@ -22,6 +22,9 @@ setup(){
     kubectl --namespace=csi exec vault-0 -- vault auth enable kubernetes
     # `issuer` argument corresponds to value of --service-account-issuer for kube-apiserver,
     # and for this test assumes the default value that kind sets.
+    # For EKS: https://oidc.eks.<region>.amazonaws.com/id/<ID> (same as OpenID Connect provider URL)
+    # For AKS: "<dns-prefix>.hcp.<region>.azmk8s.io" (same as API server address, but with quotes)
+    # For GKE: https://container.googleapis.com/v1/projects/<project>/locations/<az|region>/clusters/<cluster-name>
     kubectl --namespace=csi exec vault-0 -- sh -c 'vault write auth/kubernetes/config \
         token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
         kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
