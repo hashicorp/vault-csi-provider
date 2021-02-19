@@ -1,8 +1,15 @@
+---
 kind: Pod
 apiVersion: v1
 metadata:
-  name: nginx-dynamic-creds
+  name: nginx-{{ .Values.engine }}
+  namespace: {{ .Release.namespace }}
+  labels:
+    app: nginx
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
+  serviceAccountName: nginx-{{ .Values.sa }}
+  terminationGracePeriodSeconds: 0
   containers:
   - image: docker.mirror.hashicorp.services/nginx
     name: nginx
@@ -16,4 +23,4 @@ spec:
         driver: secrets-store.csi.k8s.io
         readOnly: true
         volumeAttributes:
-          secretProviderClass: "vault-dynamic-creds"
+          secretProviderClass: "vault-{{ .Values.engine }}"

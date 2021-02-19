@@ -1,3 +1,9 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nginx-kv
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,6 +20,8 @@ spec:
       labels:
         app: nginx
     spec:
+      serviceAccountName: nginx-kv
+      terminationGracePeriodSeconds: 0
       terminationGracePeriodSeconds: 0
       containers:
       - image: docker.mirror.hashicorp.services/nginx
@@ -22,7 +30,7 @@ spec:
         - name: SECRET_USERNAME
           valueFrom:
             secretKeyRef:
-              name: foosecret
+              name: kvsecret
               key: username
         volumeMounts:
         - name: secret-volume
@@ -34,4 +42,4 @@ spec:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
-              secretProviderClass: "vault-foo-sync"
+              secretProviderClass: "vault-kv-sync"

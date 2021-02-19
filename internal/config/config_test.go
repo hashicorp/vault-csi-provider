@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 	"gotest.tools/assert"
@@ -50,13 +51,12 @@ func TestParseParametersFromYaml(t *testing.T) {
 	paramsBytes, err := json.Marshal(secretProviderClass.Spec.Parameters)
 
 	// This is now the form the provider receives the data in.
-	params, err := parseParameters(string(paramsBytes))
+	params, err := parseParameters(hclog.NewNullLogger(), string(paramsBytes))
 	require.NoError(t, err)
 
 	assert.DeepEqual(t, Parameters{
-		VaultAddress:                 defaultVaultAddress,
-		KubernetesServiceAccountPath: defaultKubernetesServiceAccountPath,
-		VaultKubernetesMountPath:     defaultVaultKubernetesMountPath,
+		VaultAddress:             defaultVaultAddress,
+		VaultKubernetesMountPath: defaultVaultKubernetesMountPath,
 		Secrets: []Secret{
 			{
 				ObjectName: "test-certs",
@@ -85,7 +85,7 @@ func TestParseParameters(t *testing.T) {
 	// This file's contents are copied directly from a driver mount request.
 	parametersStr, err := ioutil.ReadFile(filepath.Join("testdata", "example-parameters-string.txt"))
 	require.NoError(t, err)
-	actual, err := parseParameters(string(parametersStr))
+	actual, err := parseParameters(hclog.NewNullLogger(), string(parametersStr))
 	require.NoError(t, err)
 	expected := Parameters{
 		VaultRoleName: "example-role",
@@ -97,8 +97,13 @@ func TestParseParameters(t *testing.T) {
 			{"bar1", "v1/secret/foo1", "", "GET", nil},
 			{"bar2", "v1/secret/foo2", "", "", nil},
 		},
-		VaultKubernetesMountPath:     defaultVaultKubernetesMountPath,
-		KubernetesServiceAccountPath: defaultKubernetesServiceAccountPath,
+		VaultKubernetesMountPath: defaultVaultKubernetesMountPath,
+		PodInfo: PodInfo{
+			Name:               "nginx-secrets-store-inline",
+			UID:                "9aeb260f-d64a-426c-9872-95b6bab37e00",
+			Namespace:          "test",
+			ServiceAccountName: "default",
+		},
 	}
 	assert.DeepEqual(t, expected, actual)
 }
@@ -107,9 +112,8 @@ func TestParseConfig(t *testing.T) {
 	const roleName = "example-role"
 	const targetPath = "/some/path"
 	defaultParams := Parameters{
-		VaultAddress:                 defaultVaultAddress,
-		VaultKubernetesMountPath:     defaultVaultKubernetesMountPath,
-		KubernetesServiceAccountPath: defaultKubernetesServiceAccountPath,
+		VaultAddress:             defaultVaultAddress,
+		VaultKubernetesMountPath: defaultVaultKubernetesMountPath,
 	}
 	for _, tc := range []struct {
 		name       string
@@ -158,7 +162,6 @@ func TestParseConfig(t *testing.T) {
 					expected.VaultRoleName = roleName
 					expected.VaultAddress = "my-vault-address"
 					expected.VaultKubernetesMountPath = "my-mount-path"
-					expected.KubernetesServiceAccountPath = "my-account-path"
 					expected.TLSConfig.VaultSkipTLSVerify = true
 					expected.Secrets = []Secret{
 						{"bar1", "v1/secret/foo1", "", "", nil},
@@ -170,7 +173,7 @@ func TestParseConfig(t *testing.T) {
 	} {
 		parametersStr, err := json.Marshal(tc.parameters)
 		require.NoError(t, err)
-		cfg, err := Parse(string(parametersStr), tc.targetPath, "420")
+		cfg, err := Parse(hclog.NewNullLogger(), string(parametersStr), tc.targetPath, "420")
 		require.NoError(t, err, tc.name)
 		assert.DeepEqual(t, tc.expected, cfg)
 	}
@@ -200,15 +203,16 @@ func TestParseConfig_Errors(t *testing.T) {
 	} {
 		parametersStr, err := json.Marshal(tc.parameters)
 		require.NoError(t, err)
-		_, err = Parse(string(parametersStr), "/some/path", "420")
+		_, err = Parse(hclog.NewNullLogger(), string(parametersStr), "/some/path", "420")
 		require.Error(t, err, tc.name)
 	}
 }
 
 func TestValidateConfig(t *testing.T) {
-	minimumValid := Config{
+	minimumValidHTTPS := Config{
 		TargetPath: "a",
 		Parameters: Parameters{
+			VaultAddress:  defaultVaultAddress,
 			VaultRoleName: "b",
 			Secrets:       []Secret{{}},
 			TLSConfig: TLSConfig{
@@ -224,12 +228,27 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name:     "minimum valid",
 			cfgValid: true,
-			cfg:      minimumValid,
+			cfg:      minimumValidHTTPS,
+		},
+		{
+			name:     "minimum valid with http scheme",
+			cfgValid: true,
+			cfg: Config{
+				TargetPath: "a",
+				Parameters: Parameters{
+					VaultAddress:  "https://127.0.0.1:8200",
+					VaultRoleName: "b",
+					Secrets:       []Secret{{}},
+					TLSConfig: TLSConfig{
+						VaultSkipTLSVerify: true,
+					},
+				},
+			},
 		},
 		{
 			name: "No role name",
 			cfg: func() Config {
-				cfg := minimumValid
+				cfg := minimumValidHTTPS
 				cfg.VaultRoleName = ""
 				return cfg
 			}(),
@@ -237,7 +256,7 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "No target path",
 			cfg: func() Config {
-				cfg := minimumValid
+				cfg := minimumValidHTTPS
 				cfg.TargetPath = ""
 				return cfg
 			}(),
@@ -245,7 +264,7 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "Skip verify with certs configured",
 			cfg: func() Config {
-				cfg := minimumValid
+				cfg := minimumValidHTTPS
 				cfg.TLSConfig.VaultCAPEM = "foo"
 				return cfg
 			}(),
@@ -253,7 +272,7 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "No certs or skip TLS setting",
 			cfg: func() Config {
-				cfg := minimumValid
+				cfg := minimumValidHTTPS
 				cfg.TLSConfig.VaultSkipTLSVerify = false
 				return cfg
 			}(),
@@ -261,7 +280,7 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "No secrets configured",
 			cfg: func() Config {
-				cfg := minimumValid
+				cfg := minimumValidHTTPS
 				cfg.Secrets = []Secret{}
 				return cfg
 			}(),

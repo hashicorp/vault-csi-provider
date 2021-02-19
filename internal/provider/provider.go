@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,21 +9,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	vaultclient "github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/client"
 	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/config"
 	"github.com/hashicorp/vault/api"
+	authenticationv1 "k8s.io/api/authentication/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
-
-func readJWTToken(path string) (string, error) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("failed to read jwt token: %w", err)
-	}
-
-	return string(bytes.TrimSpace(data)), nil
-}
 
 // provider implements the secrets-store-csi-driver provider interface
 // and communicates with the Vault API.
@@ -47,16 +42,56 @@ type cacheKey struct {
 	method     string
 }
 
-func (p *provider) login(ctx context.Context, client *api.Client, vaultKubernetesMountPath, roleName, jwt string) (string, error) {
-	p.logger.Debug("vault: performing vault login...")
+func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo) (string, error) {
+	p.logger.Debug("creating service account token bound to pod",
+		"namespace", podInfo.Namespace,
+		"serviceAccountName", podInfo.ServiceAccountName,
+		"podName", podInfo.Name,
+		"podUID", podInfo.UID)
 
-	req := client.NewRequest("POST", "/v1/auth/"+vaultKubernetesMountPath+"/login")
-	err := req.SetJSONBody(struct {
-		Role string `json:"role"`
-		JWT  string `json:"jwt"`
-	}{
-		roleName,
-		jwt,
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return "", err
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return "", err
+	}
+
+	ttl := int64((15 * time.Minute).Seconds())
+	resp, err := clientset.CoreV1().ServiceAccounts(podInfo.Namespace).CreateToken(ctx, podInfo.ServiceAccountName, &authenticationv1.TokenRequest{
+		Spec: authenticationv1.TokenRequestSpec{
+			ExpirationSeconds: &ttl,
+			// TODO: Support audiences as a configurable.
+			//Audiences:         []string{},
+			BoundObjectRef: &authenticationv1.BoundObjectReference{
+				Kind:       "Pod",
+				APIVersion: "v1",
+				Name:       podInfo.Name,
+				UID:        podInfo.UID,
+			},
+		},
+	}, metav1.CreateOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to create a service account token for requesting pod %v: %w", podInfo, err)
+	}
+
+	p.logger.Debug("service account token creation successful")
+	return resp.Status.Token, nil
+}
+
+func (p *provider) login(ctx context.Context, client *api.Client, params config.Parameters) (string, error) {
+	p.logger.Debug("performing vault login")
+
+	jwt, err := p.createJWTToken(ctx, params.PodInfo)
+	if err != nil {
+		return "", err
+	}
+
+	req := client.NewRequest("POST", "/v1/auth/"+params.VaultKubernetesMountPath+"/login")
+	err = req.SetJSONBody(map[string]string{
+		"role": params.VaultRoleName,
+		"jwt":  jwt,
 	})
 	if err != nil {
 		return "", err
@@ -68,6 +103,7 @@ func (p *provider) login(ctx context.Context, client *api.Client, vaultKubernete
 
 	client.SetToken(secret.Auth.ClientToken)
 
+	p.logger.Debug("vault login successful")
 	return secret.Auth.ClientToken, nil
 }
 
@@ -175,13 +211,8 @@ func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg confi
 		return nil, err
 	}
 
-	jwt, err := readJWTToken(cfg.Parameters.KubernetesServiceAccountPath)
-	if err != nil {
-		return nil, err
-	}
-
 	// Authenticate to vault using the jwt token
-	_, err = p.login(ctx, client, cfg.Parameters.VaultKubernetesMountPath, cfg.Parameters.VaultRoleName, jwt)
+	_, err = p.login(ctx, client, cfg.Parameters)
 	if err != nil {
 		return nil, err
 	}

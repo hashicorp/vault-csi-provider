@@ -86,14 +86,20 @@ jobs:
             # Install kind
             curl -Lo kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-$(uname)-amd64 && chmod +x kind && sudo mv kind /usr/local/bin/
 
-            # Create a cluster
-            kind create cluster --image kindest/node:${K8S_VERSION}
+            # Create a cluster, enabling all APIs
+            kind create cluster --image kindest/node:${K8S_VERSION} --config=- \<<"EOF"
+            kind: Cluster
+            apiVersion: kind.x-k8s.io/v1alpha4
+            runtimeConfig:
+              "api/all": "true"
+            EOF
+
 
       - run:
           name: Run e2e tests
           command: |
             make e2e-setup
-            make e2e-test
+            DISPLAY_SETUP_TEARDOWN_LOGS=true make e2e-test
 
 workflows:
   version: 2

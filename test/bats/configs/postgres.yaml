@@ -2,7 +2,10 @@ kind: Pod
 apiVersion: v1
 metadata:
   name: postgres
+  labels:
+    app: postgres
 spec:
+  terminationGracePeriodSeconds: 0
   containers:
   - image: docker.mirror.hashicorp.services/postgres:13-alpine
     name: postgres
@@ -26,3 +29,15 @@ spec:
       timeoutSeconds: 5
       successThreshold: 1
       failureThreshold: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432

@@ -4,19 +4,21 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+	"strings"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
-	defaultVaultAddress                 string = "https://127.0.0.1:8200"
-	defaultKubernetesServiceAccountPath string = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-	defaultVaultKubernetesMountPath     string = "kubernetes"
+	defaultVaultAddress             string = "https://127.0.0.1:8200"
+	defaultVaultKubernetesMountPath string = "kubernetes"
 )
 
 // Config represents all of the provider's configurable behaviour from the MountRequest proto message:
-// * `parameters` from the SecretProviderClass (serialised into the `Attributes` field in the proto).
+// * Parameters from the `Attributes` field.
 // * Plus the rest of the proto fields we consume.
 // See sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1/service.pb.go
 type Config struct {
@@ -25,19 +27,22 @@ type Config struct {
 	FilePermission os.FileMode
 }
 
-// Parameters stores the parameters specified in the SecretProviderClass.
+// Parameters stores the parameters specified in a mount request's `Attributes` field.
+// It consists of the parameters section from the SecretProviderClass being mounted
+// and pod metadata provided by the driver.
+//
 // Top-level values that aren't strings are not directly deserialisable because
 // they are defined as literal string types:
 // https://github.com/kubernetes-sigs/secrets-store-csi-driver/blob/0ba9810d41cc2dc336c68251d45ebac19f2e7f28/apis/v1alpha1/secretproviderclass_types.go#L59
 //
 // So we just deserialise by hand to avoid complexity and two passes.
 type Parameters struct {
-	VaultRoleName                string
-	VaultAddress                 string
-	VaultKubernetesMountPath     string
-	KubernetesServiceAccountPath string
-	TLSConfig                    TLSConfig
-	Secrets                      []Secret
+	VaultRoleName            string
+	VaultAddress             string
+	VaultKubernetesMountPath string
+	TLSConfig                TLSConfig
+	Secrets                  []Secret
+	PodInfo                  PodInfo
 }
 
 type TLSConfig struct {
@@ -46,6 +51,13 @@ type TLSConfig struct {
 	VaultCADirectory   string
 	VaultTLSServerName string
 	VaultSkipTLSVerify bool
+}
+
+type PodInfo struct {
+	Name               string
+	UID                types.UID
+	Namespace          string
+	ServiceAccountName string
 }
 
 func (c TLSConfig) CertificatesConfigured() bool {
@@ -62,13 +74,13 @@ type Secret struct {
 	SecretArgs map[string]interface{} `yaml:"secretArgs,omitempty"`
 }
 
-func Parse(parametersStr, targetPath, permissionStr string) (Config, error) {
+func Parse(logger hclog.Logger, parametersStr, targetPath, permissionStr string) (Config, error) {
 	config := Config{
 		TargetPath: targetPath,
 	}
 
 	var err error
-	config.Parameters, err = parseParameters(parametersStr)
+	config.Parameters, err = parseParameters(logger, parametersStr)
 	if err != nil {
 		return Config{}, err
 	}
@@ -86,7 +98,7 @@ func Parse(parametersStr, targetPath, permissionStr string) (Config, error) {
 	return config, nil
 }
 
-func parseParameters(parametersStr string) (Parameters, error) {
+func parseParameters(logger hclog.Logger, parametersStr string) (Parameters, error) {
 	var params map[string]string
 	err := json.Unmarshal([]byte(parametersStr), &params)
 	if err != nil {
@@ -101,7 +113,10 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	parameters.TLSConfig.VaultCADirectory = params["vaultCADirectory"]
 	parameters.TLSConfig.VaultTLSServerName = params["vaultTLSServerName"]
 	parameters.VaultKubernetesMountPath = params["vaultKubernetesMountPath"]
-	parameters.KubernetesServiceAccountPath = params["KubernetesServiceAccountPath"]
+	parameters.PodInfo.Name = params["csi.storage.k8s.io/pod.name"]
+	parameters.PodInfo.UID = types.UID(params["csi.storage.k8s.io/pod.uid"])
+	parameters.PodInfo.Namespace = params["csi.storage.k8s.io/pod.namespace"]
+	parameters.PodInfo.ServiceAccountName = params["csi.storage.k8s.io/serviceAccount.name"]
 	if skipTLS, ok := params["vaultSkipTLSVerify"]; ok {
 		value, err := strconv.ParseBool(skipTLS)
 		if err == nil {
@@ -125,8 +140,8 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	if parameters.VaultKubernetesMountPath == "" {
 		parameters.VaultKubernetesMountPath = defaultVaultKubernetesMountPath
 	}
-	if parameters.KubernetesServiceAccountPath == "" {
-		parameters.KubernetesServiceAccountPath = defaultKubernetesServiceAccountPath
+	if _, exists := params["kubernetesServiceAccountPath"]; exists {
+		logger.Warn("kubernetesServiceAccountPath set but will be ignored", "PodInfo", parameters.PodInfo)
 	}
 
 	return parameters, nil
@@ -144,8 +159,10 @@ func (c *Config) Validate() error {
 	if c.Parameters.TLSConfig.VaultSkipTLSVerify && certificatesConfigured {
 		return errors.New("both vaultSkipTLSVerify and TLS configuration are set")
 	}
-	if !c.Parameters.TLSConfig.VaultSkipTLSVerify && !certificatesConfigured {
-		return errors.New("no TLS configuration and vaultSkipTLSVerify is false, will use system CA certificates")
+	if !certificatesConfigured &&
+		!c.Parameters.TLSConfig.VaultSkipTLSVerify &&
+		strings.HasPrefix(c.Parameters.VaultAddress, "https") {
+		return errors.New("no TLS configuration and vaultSkipTLSVerify is false but vault address scheme is https")
 	}
 	if len(c.Parameters.Secrets) == 0 {
 		return errors.New("no secrets configured - the provider will not read any secret material")
