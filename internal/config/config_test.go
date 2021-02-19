@@ -252,7 +252,7 @@ func TestValidateConfig(t *testing.T) {
 			}(),
 		},
 	} {
-		err := tc.cfg.Validate()
+		err := tc.cfg.validate()
 		if tc.cfgValid {
 			require.NoError(t, err, tc.name)
 		} else {

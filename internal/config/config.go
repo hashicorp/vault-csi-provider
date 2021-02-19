@@ -84,7 +84,7 @@ func Parse(logger hclog.Logger, parametersStr, targetPath, permissionStr string)
 		return Config{}, err
 	}
 
-	err = config.Validate()
+	err = config.validate()
 	if err != nil {
 		return Config{}, err
 	}
@@ -145,7 +145,7 @@ func parseParameters(logger hclog.Logger, parametersStr string) (Parameters, err
 	return parameters, nil
 }
 
-func (c *Config) Validate() error {
+func (c *Config) validate() error {
 	// Some basic validation checks.
 	if c.TargetPath == "" {
 		return errors.New("missing target path field")
