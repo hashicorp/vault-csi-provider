@@ -7,7 +7,7 @@ injector:
 
 server:
   image:
-    repository: hashicorp.jfrog.io/docker/vault
+    repository: docker.mirror.hashicorp.services/vault
   extraVolumes:
   - type: secret
     name: vault-server-tls
