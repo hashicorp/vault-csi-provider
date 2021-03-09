@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/config"
-	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/provider"
-	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/version"
+	"github.com/hashicorp/vault-csi-provider/internal/config"
+	"github.com/hashicorp/vault-csi-provider/internal/provider"
+	"github.com/hashicorp/vault-csi-provider/internal/version"
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
@@ -23,7 +23,7 @@ type Server struct {
 func (p *Server) Version(context.Context, *pb.VersionRequest) (*pb.VersionResponse, error) {
 	return &pb.VersionResponse{
 		Version:        "v1alpha1",
-		RuntimeName:    "secrets-store-csi-driver-provider-vault",
+		RuntimeName:    "vault-csi-provider",
 		RuntimeVersion: version.BuildVersion,
 	}, nil
 }

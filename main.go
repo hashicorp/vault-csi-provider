@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	providerserver "github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/server"
-	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/version"
+	providerserver "github.com/hashicorp/vault-csi-provider/internal/server"
+	"github.com/hashicorp/vault-csi-provider/internal/version"
 	"github.com/spf13/pflag"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"

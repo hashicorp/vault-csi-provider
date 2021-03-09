@@ -1,26 +1,26 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: secrets-store-csi-driver-provider-vault
+  name: vault-csi-provider
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    app: csi-secrets-store-provider-vault
-  name: csi-secrets-store-provider-vault
+    app: vault-csi-provider
+  name: vault-csi-provider
 spec:
   updateStrategy:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: csi-secrets-store-provider-vault
+      app: vault-csi-provider
   template:
     metadata:
       labels:
-        app: csi-secrets-store-provider-vault
+        app: vault-csi-provider
     spec:
-      serviceAccountName: secrets-store-csi-driver-provider-vault
+      serviceAccountName: vault-csi-provider
       tolerations:
       containers:
         - name: provider-vault-installer

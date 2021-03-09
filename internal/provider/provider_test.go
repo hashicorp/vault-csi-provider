@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/config"
+	"github.com/hashicorp/vault-csi-provider/internal/config"
 	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

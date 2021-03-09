@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	vaultclient "github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/client"
-	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/config"
+	vaultclient "github.com/hashicorp/vault-csi-provider/internal/client"
+	"github.com/hashicorp/vault-csi-provider/internal/config"
 	"github.com/hashicorp/vault/api"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
