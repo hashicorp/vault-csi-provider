@@ -55,18 +55,6 @@ func realMain(logger hclog.Logger) error {
 		return err
 	}
 
-	// Create health handler
-	mux := http.NewServeMux()
-	ms := http.Server{
-		Addr:    *healthAddr,
-		Handler: mux,
-	}
-	defer ms.Shutdown(context.Background())
-
-	mux.HandleFunc("/health/ready", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
 	logger.Info("Creating new gRPC server")
 	serverLogger := logger.Named("server")
 	server := grpc.NewServer(
@@ -99,6 +87,18 @@ func realMain(logger hclog.Logger) error {
 		Logger: serverLogger,
 	}
 	pb.RegisterCSIDriverProviderServer(server, s)
+
+	// Create health handler
+	mux := http.NewServeMux()
+	ms := http.Server{
+		Addr:    *healthAddr,
+		Handler: mux,
+	}
+	defer ms.Shutdown(context.Background())
+
+	mux.HandleFunc("/health/ready", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 
 	// Start health handler
 	go func() {
