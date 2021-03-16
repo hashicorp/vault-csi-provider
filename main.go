@@ -67,12 +67,6 @@ func realMain(logger hclog.Logger) error {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	go func() {
-		if err := ms.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("Error with health handler", "error", err)
-		}
-	}()
-
 	logger.Info("Creating new gRPC server")
 	serverLogger := logger.Named("server")
 	server := grpc.NewServer(
@@ -105,6 +99,13 @@ func realMain(logger hclog.Logger) error {
 		Logger: serverLogger,
 	}
 	pb.RegisterCSIDriverProviderServer(server, s)
+
+	// Start health handler
+	go func() {
+		if err := ms.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("Error with health handler", "error", err)
+		}
+	}()
 
 	err = server.Serve(listener)
 	if err != nil {
