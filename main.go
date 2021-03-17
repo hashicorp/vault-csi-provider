@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,6 +23,7 @@ import (
 var (
 	endpoint    = pflag.String("endpoint", "/tmp/vault.sock", "path to socket on which to listen for driver gRPC calls")
 	debug       = pflag.Bool("debug", false, "sets log to debug level")
+	healthAddr  = flag.String("health_addr", ":8080", "configure http listener for reporting health")
 	selfVersion = pflag.Bool("version", false, "prints the version information")
 )
 
@@ -84,6 +87,25 @@ func realMain(logger hclog.Logger) error {
 		Logger: serverLogger,
 	}
 	pb.RegisterCSIDriverProviderServer(server, s)
+
+	// Create health handler
+	mux := http.NewServeMux()
+	ms := http.Server{
+		Addr:    *healthAddr,
+		Handler: mux,
+	}
+	defer ms.Shutdown(context.Background())
+
+	mux.HandleFunc("/health/ready", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Start health handler
+	go func() {
+		if err := ms.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("Error with health handler", "error", err)
+		}
+	}()
 
 	err = server.Serve(listener)
 	if err != nil {
