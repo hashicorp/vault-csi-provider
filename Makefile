@@ -85,9 +85,9 @@ e2e-setup: e2e-container
 
 e2e-teardown:
 	kubectl delete --namespace=csi --ignore-not-found -f test/bats/configs/secrets-store-csi-driver-provider-vault.yaml
-	helm uninstall --namespace=csi vault
-	helm uninstall --namespace=csi vault-bootstrap
-	helm uninstall --namespace=csi secrets-store-csi-driver
+	helm uninstall --namespace=csi vault || true
+	helm uninstall --namespace=csi vault-bootstrap || true
+	helm uninstall --namespace=csi secrets-store-csi-driver || true
 	kubectl delete --ignore-not-found namespace csi
 
 e2e-test:
