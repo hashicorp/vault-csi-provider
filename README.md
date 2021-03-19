@@ -62,7 +62,7 @@ kubectl get daemonset -l app=secrets-store-csi-driver -o jsonpath="{.items[0].sp
 For linux nodes
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/hashicorp/secrets-store-csi-driver-provider-vault/master/deployment/provider-vault-installer.yaml
+kubectl apply -f https://raw.githubusercontent.com/hashicorp/vault-csi-provider/master/deployment/provider-vault-installer.yaml
 ```
 
 To validate the provider's installer is running as expected, run the following commands:

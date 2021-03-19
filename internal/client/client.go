@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/config"
+	"github.com/hashicorp/vault-csi-provider/internal/config"
 	"github.com/hashicorp/vault/api"
 )
 

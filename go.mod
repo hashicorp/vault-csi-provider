@@ -1,4 +1,4 @@
-module github.com/hashicorp/secrets-store-csi-driver-provider-vault
+module github.com/hashicorp/vault-csi-provider
 
 go 1.12
 

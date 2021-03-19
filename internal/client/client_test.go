@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/secrets-store-csi-driver-provider-vault/internal/config"
+	"github.com/hashicorp/vault-csi-provider/internal/config"
 	"github.com/stretchr/testify/require"
 )
 

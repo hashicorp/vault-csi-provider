@@ -8,7 +8,7 @@ references:
 
   paths:
     test-results: &TEST_RESULTS_DIR /tmp/test-results
-    working-directory: &WORKING_DIRECTORY /go/src/github.com/hashicorp/secrets-store-csi-driver-provider-vault
+    working-directory: &WORKING_DIRECTORY /go/src/github.com/hashicorp/vault-csi-provider
 
   environment: &ENVIRONMENT
     TEST_RESULTS_DIR: *TEST_RESULTS_DIR

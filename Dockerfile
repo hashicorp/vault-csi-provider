@@ -1,9 +1,9 @@
-FROM docker.mirror.hashicorp.services/alpine:3.10
+FROM docker.mirror.hashicorp.services/alpine:3.13
 
 ARG VERSION
 ARG ARCH="amd64"
 ARG OS="linux"
 
-COPY ./_output/secrets-store-csi-driver-provider-vault_${OS}_${ARCH}_${VERSION} /bin/secrets-store-csi-driver-provider-vault
+COPY ./_output/vault-csi-provider_${OS}_${ARCH}_${VERSION} /bin/vault-csi-provider
 
-ENTRYPOINT ["/bin/secrets-store-csi-driver-provider-vault"]
+ENTRYPOINT ["/bin/vault-csi-provider"]

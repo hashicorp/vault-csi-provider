@@ -1,6 +1,6 @@
 # Using Secrets Store CSI and Vault Provider to Enable NGINX Ingress Controller with TLS
 
-This guide demonstrates steps required to setup Secrets Store CSI driver to enable applications to work with NGINX Ingress Controller with TLS stored in an external Secrets store. 
+This guide demonstrates steps required to setup Secrets Store CSI driver to enable applications to work with NGINX Ingress Controller with TLS stored in an external Secrets store.
 For more information on securing an Ingress with TLS, refer to: https://kubernetes.io/docs/concepts/services-networking/ingress/#tls
 
 # Generate a TLS Cert
@@ -35,7 +35,7 @@ helm install stable/nginx-ingress --generate-name \
 
 ## Setup Development Vault Cluster
 
-Follow this [guide](https://github.com/hashicorp/secrets-store-csi-driver-provider-vault/blob/master/docs/vault-setup.md#setting-up-a-development-vault-cluster) to setup development vault cluster that will be used to store the secrets.
+Follow this [guide](https://github.com/hashicorp/vault-csi-provider/blob/master/docs/vault-setup.md#setting-up-a-development-vault-cluster) to setup development vault cluster that will be used to store the secrets.
 
 
 **Write the certificate in the Vault key-value store**
@@ -89,7 +89,7 @@ spec:
   secretObjects:                                    # secretObjects defines the desired state of synced K8s secret objects
   - secretName: ingress-tls-csi
     type: kubernetes.io/tls
-    data: 
+    data:
     - objectName: tlskey
       key: tls.key
     - objectName: tlscrt
@@ -157,15 +157,15 @@ kubectl apply -f sample/ingress-controller-tls/ingress.yaml -n ingress-test
 ## Get the External IP of the Ingress Controller
 
 ```bash
-kubectl get service -l app=nginx-ingress --namespace ingress-test 
+kubectl get service -l app=nginx-ingress --namespace ingress-test
 NAME                                       TYPE           CLUSTER-IP     EXTERNAL-IP      PORT(S)                      AGE
 nginx-ingress-1588032400-controller        LoadBalancer   10.0.255.157   52.xx.xx.xx      80:31293/TCP,443:31265/TCP   19m
 nginx-ingress-1588032400-default-backend   ClusterIP      10.0.223.214   <none>           80/TCP                       19m
 ```
 
 ## Test Ingress with TLS
-Using `curl` to verify ingress configuration using TLS. 
-Replace the public IP with the external IP of the ingress controller service from the previous step.  
+Using `curl` to verify ingress configuration using TLS.
+Replace the public IP with the external IP of the ingress controller service from the previous step.
 
 ```bash
 curl -v -k --resolve demo.test.com:443:52.xx.xx.xx https://demo.test.com

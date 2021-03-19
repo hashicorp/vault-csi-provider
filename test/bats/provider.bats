@@ -92,7 +92,7 @@ teardown(){
         echo "DESCRIBE NGINX PODS"
         kubectl describe pod -l app=nginx --all-namespaces=true
         echo "PROVIDER LOGS"
-        kubectl --namespace=csi logs -l app=secrets-store-csi-driver-provider-vault --tail=50
+        kubectl --namespace=csi logs -l app=vault-csi-provider --tail=50
     fi
 
     # Teardown Vault configuration.
