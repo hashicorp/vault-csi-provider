@@ -33,21 +33,21 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    app: csi-secrets-store-provider-vault
-  name: csi-secrets-store-provider-vault
+    app: vault-csi-provider
+  name: vault-csi-provider
   namespace: csi
 spec:
   updateStrategy:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: csi-secrets-store-provider-vault
+      app: vault-csi-provider
   template:
     metadata:
       labels:
-        app: csi-secrets-store-provider-vault
+        app: vault-csi-provider
     spec:
-      serviceAccountName: secrets-store-csi-driver-provider-vault
+      serviceAccountName: vault-csi-provider
       tolerations:
       containers:
         - name: provider-vault-installer
@@ -55,7 +55,7 @@ spec:
           imagePullPolicy: Always
           args:
             - --endpoint=/provider/vault.sock
-            - --debug=true
+            - --debug=false
           resources:
             requests:
               cpu: 50m
