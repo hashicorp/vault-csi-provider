@@ -5,14 +5,6 @@ Vault and use the Secrets Store CSI driver interface to mount them into Kubernet
 
 **This is an experimental project. This project isn't production ready.**
 
-## Attribution
-
-This project is forked from and initially developed by our awesome partners at Microsoft ([https://github.com/deislabs/secrets-store-csi-driver]). Thank you to [Rita](https://github.com/deislabs/secrets-store-csi-driver/commits?author=ritazh) and [Mishra](https://github.com/deislabs/secrets-store-csi-driver/commits?author=anubhavmishra) for pushing this great project forward.
-
-## Demo
-
-![Secret Store CSI Driver Vault Provider Demo](./images/secret-store-csi-driver-vault-provider-demo.gif "Secret Store CSI Driver Vault Provider Demo")
-
 ## Prerequisites
 
 The guide assumes the following:
@@ -68,15 +60,15 @@ kubectl apply -f https://raw.githubusercontent.com/hashicorp/vault-csi-provider/
 To validate the provider's installer is running as expected, run the following commands:
 
 ```bash
-kubectl get pods -l app=csi-secrets-store-provider-vault
+kubectl get pods -l app=vault-csi-provider
 ```
 
 You should see the provider pods running on each agent node:
 
 ```bash
-NAME                                     READY   STATUS    RESTARTS   AGE
-csi-secrets-store-provider-vault-4ngf4   1/1     Running   0          8s
-csi-secrets-store-provider-vault-bxr5k   1/1     Running   0          8s
+NAME                      READY   STATUS    RESTARTS   AGE
+vault-csi-provider-4ngf4  1/1     Running   0          8s
+vault-csi-provider-bxr5k  1/1     Running   0          8s
 ```
 
 ### Create a SecretProviderClass Resource
@@ -92,14 +84,13 @@ spec:
   provider: vault
   parameters:
     roleName: "example-role"                    # Vault role created in prerequisite steps
-    vaultAddress: "http://10.0.38.189:8200"     # Kubernetes Vault service endpoint
-    vaultSkipTLSVerify: "true"
-    objects:  |
-      array:
-        - |
-          objectPath: "v1/secret/foo"           # secret path in the Vault Key-Value store e.g. vault kv put secret/foo bar=hello
-          objectName: "bar"
-          objectVersion: ""
+    vaultAddress: "http://10.0.38.189:8200"
+    # `secretPath` is the secret path in Vault
+    # `secretKey` is the key from within secret/foo to extract
+    objects: |
+      - objectName: "foobar"
+        secretPath: "secret/foo"
+        secretKey: "bar"
 ```
 
 > NOTE: Make sure the `vaultAddress` is pointing to the Kubernetes `vault` service that is running in your cluster from the previous [Prerequisites](#Prerequisites) section.
@@ -159,15 +150,13 @@ kubectl exec -it nginx-secrets-store-inline cat /mnt/secrets-store/bar
 hello
 ```
 
-> **Breaking change in Vault provider v0.0.5** NOTE: The name of the secret file is now equal to `objectName` (e.g `bar`), it used to be the `objectPath` (e.g `foo`). This breaking change enables to access multiple values within a single key (e.g both `bar` and `baz` within the `/foo` key).
-
 ## Troubleshooting
 
-To troubleshoot issues with the csi driver and the provider, you can look at logs from the `secrets-store` container of the csi driver pod running on the same node as your application pod:
+To troubleshoot issues with the CSI driver and the provider, you can look at logs from the Vault CSI provider pod running on the same node as your application pod:
 
   ```bash
   kubectl get pod -o wide
-  # find the secrets store csi driver pod running on the same node as your application pod
+  # find the Vault CSI provider pod running on the same node as your application pod
 
-  kubectl logs csi-secrets-store-secrets-store-csi-driver-7x44t secrets-store
+  kubectl logs vault-csi-provider-7x44t
   ```
