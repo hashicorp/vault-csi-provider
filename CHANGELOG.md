@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.1.0 (March 24th, 2021)
+
 CHANGES:
 
 * All secret engines are now supported [[GH-63](https://github.com/hashicorp/vault-csi-provider/pull/63)]
