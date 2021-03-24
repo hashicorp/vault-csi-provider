@@ -18,8 +18,6 @@ CHANGES:
   * auth/kubernetes mounts in Vault will now need to bind ACL policies to the requesting pods'
     service accounts instead of the provider's service account.
   * `spec.parameters.kubernetesServiceAccountPath` is now ignored and will log a warning if set
-  * Min k8s version
-  * API to require enabled
 * The provider now supports mTLS [[GH-65](https://github.com/hashicorp/vault-csi-provider/pull/65)]
   * `spec.parameters.vaultCAPem` is now ignored and will log a warning if set. **This is a breaking change**
   * `spec.parameters.vaultTLSClientCertPath` and `spec.parameters.vaultTLSClientKeyPath` are newly available options
