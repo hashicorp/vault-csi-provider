@@ -100,3 +100,7 @@ clean:
 
 mod:
 	@go mod tidy
+
+promote-staging-manifest: #promote staging manifests to release dir
+	@rm -rf deployment
+	@cp -r manifest_staging/deployment .
