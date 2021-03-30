@@ -10,15 +10,16 @@ LDFLAGS?="-X 'github.com/hashicorp/vault-csi-provider/internal/version.BuildVers
 	-extldflags "-static""
 GOOS?=linux
 GOARCH?=amd64
-GOLANG_IMAGE?=docker.mirror.hashicorp.services/golang:1.15.7
+GOLANG_IMAGE?=docker.mirror.hashicorp.services/golang:1.16.2
+K8S_VERSION?=v1.20.2
 CI_TEST_ARGS=
-CSI_DRIVER_VERSION=0.0.19
-VAULT_HELM_VERSION=0.9.1
+CSI_DRIVER_VERSION=0.0.20
+VAULT_HELM_VERSION=0.10.0
 ifdef CI
 override CI_TEST_ARGS:=--junitfile=$(TEST_RESULTS_DIR)/go-test/results.xml --jsonfile=$(TEST_RESULTS_DIR)/go-test/results.json
 endif
 
-.PHONY: all test lint build build-in-docker image e2e-container docker-push e2e-setup e2e-teardown e2e-test clean setup mod
+.PHONY: all test lint build build-in-docker image e2e-container docker-push e2e-setup e2e-teardown e2e-test clean setup mod setup-kind
 
 GO111MODULE?=on
 export GO111MODULE
@@ -66,6 +67,9 @@ docker-push:
 	docker push $(IMAGE_TAG)
 	docker tag $(IMAGE_TAG) $(IMAGE_TAG_LATEST)
 	docker push $(IMAGE_TAG_LATEST)
+
+setup-kind:
+	kind create cluster --image kindest/node:${K8S_VERSION} --config=test/bats/configs/kind-config.yaml
 
 e2e-setup: e2e-container
 	kubectl create namespace csi
