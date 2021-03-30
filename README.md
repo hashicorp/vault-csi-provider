@@ -16,7 +16,7 @@ releases, but cannot guarantee a stable API.**
 * [Secrets store CSI driver](https://secrets-store-csi-driver.sigs.k8s.io/getting-started/installation.html) installed
 * `TokenRequest` endpoint available, which requires setting the flags
   `--service-account-signing-key-file` and `--service-account-issuer` for
-  `kube-apiserver`.
+  `kube-apiserver`. Set by default from 1.20+ and earlier in most managed services.
 
 ### Using helm
 
