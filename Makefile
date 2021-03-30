@@ -69,7 +69,7 @@ docker-push:
 	docker push $(IMAGE_TAG_LATEST)
 
 setup-kind:
-	kind create cluster --image kindest/node:${K8S_VERSION} --config=test/bats/configs/kind-config.yaml
+	kind create cluster --image kindest/node:${K8S_VERSION}
 
 e2e-setup: e2e-container
 	kubectl create namespace csi
