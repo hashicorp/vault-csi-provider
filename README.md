@@ -61,4 +61,4 @@ provider pod running on the same node as your application pod:
   ```
 
 Pass `--debug=true` to the provider to get more detailed logs. When installing
-via helm, you can achieve this with `--set "csi.debug=true"`
+via helm, you can achieve this with `--set "csi.debug=true"`.
