@@ -76,21 +76,18 @@ e2e-setup: e2e-container
 	helm install secrets-store-csi-driver https://github.com/kubernetes-sigs/secrets-store-csi-driver/blob/v$(CSI_DRIVER_VERSION)/charts/secrets-store-csi-driver-$(CSI_DRIVER_VERSION).tgz?raw=true \
 		--wait --timeout=5m \
 		--namespace=csi \
-		--set linux.image.pullPolicy="IfNotPresent" \
-		--set grpcSupportedProviders="azure;gcp;vault"
+		--set linux.image.pullPolicy="IfNotPresent"
 	helm install vault-bootstrap test/bats/configs/vault \
 		--namespace=csi
 	helm install vault https://github.com/hashicorp/vault-helm/archive/v$(VAULT_HELM_VERSION).tar.gz \
 		--wait --timeout=5m \
 		--namespace=csi \
 		--values=test/bats/configs/vault/vault.values.yaml
-	kubectl apply --namespace=csi -f test/bats/configs/vault-csi-provider.yaml
 	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app.kubernetes.io/name=vault
-	kubectl exec -i --namespace=csi vault-0 -- /bin/sh /vault/userconfig/vault-bootstrap/bootstrap.sh
-	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app=vault-csi-provider
+	kubectl exec -i --namespace=csi vault-0 -- /bin/sh /mnt/bootstrap/bootstrap.sh
+	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app.kubernetes.io/name=vault-csi-provider
 
 e2e-teardown:
-	kubectl delete --namespace=csi --ignore-not-found -f test/bats/configs/vault-csi-provider.yaml
 	helm uninstall --namespace=csi vault || true
 	helm uninstall --namespace=csi vault-bootstrap || true
 	helm uninstall --namespace=csi secrets-store-csi-driver || true

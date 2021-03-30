@@ -8,15 +8,24 @@ injector:
 server:
   image:
     repository: docker.mirror.hashicorp.services/vault
-  extraVolumes:
-  - type: secret
-    name: vault-server-tls
-  - type: configMap
-    name: vault-bootstrap
+  volumes:
+  - name: vault-server-tls
+    secret:
+      secretName: vault-server-tls
+  - name: vault-bootstrap
+    configMap:
+      name: vault-bootstrap
+  volumeMounts:
+  - name: vault-server-tls
+    mountPath: /mnt/tls
+    readOnly: true
+  - name: vault-bootstrap
+    mountPath: /mnt/bootstrap
+    readOnly: true
 
   extraEnvironmentVars:
     # Ensure that running vault commands in the pod uses the correct CA.
-    VAULT_CACERT: /vault/userconfig/vault-server-tls/ca.crt
+    VAULT_CACERT: /mnt/tls/ca.crt
 
   standalone:
     enabled: true
@@ -24,12 +33,24 @@ server:
       listener "tcp" {
         address = "[::]:8200"
         cluster_address = "[::]:8201"
-        tls_cert_file = "/vault/userconfig/vault-server-tls/server.crt"
-        tls_key_file = "/vault/userconfig/vault-server-tls/server.key"
-        tls_client_ca_file = "/vault/userconfig/vault-server-tls/ca.crt"
+        tls_cert_file = "/mnt/tls/server.crt"
+        tls_key_file = "/mnt/tls/server.key"
+        tls_client_ca_file = "/mnt/tls/ca.crt"
       }
       storage "inmem" {
       }
 
   readinessProbe:
     path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+
+csi:
+  enabled: true
+
+  volumes:
+  - name: vault-client-tls
+    secret:
+      secretName: vault-client-tls
+  volumeMounts:
+  - name: vault-client-tls
+    mountPath: /mnt/tls
+    readOnly: true
