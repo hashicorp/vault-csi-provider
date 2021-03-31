@@ -10,15 +10,16 @@ LDFLAGS?="-X 'github.com/hashicorp/vault-csi-provider/internal/version.BuildVers
 	-extldflags "-static""
 GOOS?=linux
 GOARCH?=amd64
-GOLANG_IMAGE?=docker.mirror.hashicorp.services/golang:1.15.7
+GOLANG_IMAGE?=docker.mirror.hashicorp.services/golang:1.16.2
+K8S_VERSION?=v1.20.2
 CI_TEST_ARGS=
-CSI_DRIVER_VERSION=0.0.19
-VAULT_HELM_VERSION=0.9.1
+CSI_DRIVER_VERSION=0.0.20
+VAULT_HELM_VERSION=0.10.0
 ifdef CI
 override CI_TEST_ARGS:=--junitfile=$(TEST_RESULTS_DIR)/go-test/results.xml --jsonfile=$(TEST_RESULTS_DIR)/go-test/results.json
 endif
 
-.PHONY: all test lint build build-in-docker image e2e-container docker-push e2e-setup e2e-teardown e2e-test clean setup mod
+.PHONY: all test lint build build-in-docker image e2e-container docker-push e2e-setup e2e-teardown e2e-test clean setup mod setup-kind
 
 GO111MODULE?=on
 export GO111MODULE
@@ -67,26 +68,26 @@ docker-push:
 	docker tag $(IMAGE_TAG) $(IMAGE_TAG_LATEST)
 	docker push $(IMAGE_TAG_LATEST)
 
+setup-kind:
+	kind create cluster --image kindest/node:${K8S_VERSION}
+
 e2e-setup: e2e-container
 	kubectl create namespace csi
 	helm install secrets-store-csi-driver https://github.com/kubernetes-sigs/secrets-store-csi-driver/blob/v$(CSI_DRIVER_VERSION)/charts/secrets-store-csi-driver-$(CSI_DRIVER_VERSION).tgz?raw=true \
 		--wait --timeout=5m \
 		--namespace=csi \
-		--set linux.image.pullPolicy="IfNotPresent" \
-		--set grpcSupportedProviders="azure;gcp;vault"
+		--set linux.image.pullPolicy="IfNotPresent"
 	helm install vault-bootstrap test/bats/configs/vault \
 		--namespace=csi
 	helm install vault https://github.com/hashicorp/vault-helm/archive/v$(VAULT_HELM_VERSION).tar.gz \
 		--wait --timeout=5m \
 		--namespace=csi \
 		--values=test/bats/configs/vault/vault.values.yaml
-	kubectl apply --namespace=csi -f test/bats/configs/vault-csi-provider.yaml
 	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app.kubernetes.io/name=vault
-	kubectl exec -i --namespace=csi vault-0 -- /bin/sh /vault/userconfig/vault-bootstrap/bootstrap.sh
-	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app=vault-csi-provider
+	kubectl exec -i --namespace=csi vault-0 -- /bin/sh /mnt/bootstrap/bootstrap.sh
+	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app.kubernetes.io/name=vault-csi-provider
 
 e2e-teardown:
-	kubectl delete --namespace=csi --ignore-not-found -f test/bats/configs/vault-csi-provider.yaml
 	helm uninstall --namespace=csi vault || true
 	helm uninstall --namespace=csi vault-bootstrap || true
 	helm uninstall --namespace=csi secrets-store-csi-driver || true
