@@ -114,6 +114,7 @@ func TestParseConfig(t *testing.T) {
 	defaultParams := Parameters{
 		VaultAddress:             defaultVaultAddress,
 		VaultKubernetesMountPath: defaultVaultKubernetesMountPath,
+		VaultNamespace:           "",
 	}
 	for _, tc := range []struct {
 		name       string
@@ -150,6 +151,7 @@ func TestParseConfig(t *testing.T) {
 				"roleName":                     "example-role",
 				"vaultSkipTLSVerify":           "true",
 				"vaultAddress":                 "my-vault-address",
+				"vaultNamespace":               "my-vault-namespace",
 				"vaultKubernetesMountPath":     "my-mount-path",
 				"KubernetesServiceAccountPath": "my-account-path",
 				"objects":                      objects,
@@ -161,6 +163,7 @@ func TestParseConfig(t *testing.T) {
 					expected := defaultParams
 					expected.VaultRoleName = roleName
 					expected.VaultAddress = "my-vault-address"
+					expected.VaultNamespace = "my-vault-namespace"
 					expected.VaultKubernetesMountPath = "my-mount-path"
 					expected.VaultTLSConfig.SkipVerify = true
 					expected.Secrets = []Secret{

@@ -254,3 +254,25 @@ func TestKeyFromData(t *testing.T) {
 		}
 	}
 }
+
+func TestSetNamespace(t *testing.T) {
+	type expected struct {
+		header string
+		value  string
+	}
+	client, err := api.NewClient(nil)
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		name       string
+		parameters string
+		expected   expected
+	}{
+		{
+			name:                      "base case",
+			parameters.VaultNamespace: "",
+			expected:                  expected{"X-VAULT-NAMESPACE", ""},
+		},
+	} {
+
+	}
+}

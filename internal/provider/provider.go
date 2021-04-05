@@ -211,6 +211,9 @@ func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg confi
 		return nil, err
 	}
 
+	// Set Vault namespace if configured
+	client.SetNamespace(cfg.VaultNamespace)
+
 	// Authenticate to vault using the jwt token
 	_, err = p.login(ctx, client, cfg.Parameters)
 	if err != nil {

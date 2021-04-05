@@ -15,6 +15,7 @@ setup(){
     # 1. Configure Vault.
     # 1. a) Vault policies
     cat $CONFIGS/vault-policy-db.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write db-policy -
+    cat $CONFIGS/vault-policy-namespace-db.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write db-policy -
     cat $CONFIGS/vault-policy-kv.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write kv-policy -
     cat $CONFIGS/vault-policy-pki.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write pki-policy -
 
@@ -30,7 +31,18 @@ setup(){
         kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
         kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
         issuer="https://kubernetes.default.svc.cluster.local"'
+    kubectl --namespace=csi exec vault-0 -- sh -c 'vault namespace create acceptance
+        kubectl --namespace=csi exec vault-0 -- sh -c 'vault write acceptance/auth/kubernetes/config \
+        token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+        kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
+        kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+        issuer="https://kubernetes.default.svc.cluster.local"'
     kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/db-role \
+        bound_service_account_names=nginx-db \
+        bound_service_account_namespaces=test \
+        policies=db-policy \
+        ttl=20m
+    kubectl --namespace=csi exec vault-0 -- vault write acceptance/auth/kubernetes/role/db-role \
         bound_service_account_names=nginx-db \
         bound_service_account_namespaces=test \
         policies=db-policy \
@@ -72,6 +84,7 @@ setup(){
     kubectl create namespace test
     kubectl --namespace=test apply -f $CONFIGS/vault-all-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-db-secretproviderclass.yaml
+    kubectl --namespace=test apply -f $CONFIGS/vault-namespace-db-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-sync-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-sync-multiple-secretproviderclass.yaml
@@ -273,4 +286,21 @@ teardown(){
 
     wait_for_success "kubectl --namespace=test describe pod nginx-kv | grep 'FailedMount.*failed to mount secrets store objects for pod test/nginx-kv'"
     wait_for_success "kubectl --namespace=test describe pod nginx-kv | grep 'service account name not authorized'"
+}
+
+@test "9 Vault Enterprise namespace"
+    setup_postgres
+
+    # Now deploy a pod that will generate some dynamic credentials.
+    helm --namespace=test install nginx $CONFIGS/nginx \
+        --set engine=namespace-db --set sa=db \
+        --wait --timeout=5m
+
+    # Read the creds out of the pod and verify they work for a query.
+    DYNAMIC_USERNAME=$(kubectl --namespace=test exec nginx-db -- cat /mnt/secrets-store/dbUsername)
+    DYNAMIC_PASSWORD=$(kubectl --namespace=test exec nginx-db -- cat /mnt/secrets-store/dbPassword)
+    result=$(kubectl --namespace=test exec postgres -- psql postgres://${DYNAMIC_USERNAME}:${DYNAMIC_PASSWORD}@127.0.0.1:5432/db --command="SELECT usename FROM pg_catalog.pg_user" --csv | sed -n '3 p')
+
+    [[ "$result" != "" ]]
+    [[ "$result" == "${DYNAMIC_USERNAME}" ]]
 }

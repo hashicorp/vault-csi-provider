@@ -39,6 +39,7 @@ type Parameters struct {
 	VaultAddress             string
 	VaultRoleName            string
 	VaultKubernetesMountPath string
+	VaultNamespace           string
 	VaultTLSConfig           TLSConfig
 	Secrets                  []Secret
 	PodInfo                  PodInfo
@@ -102,6 +103,7 @@ func parseParameters(logger hclog.Logger, parametersStr string) (Parameters, err
 	var parameters Parameters
 	parameters.VaultRoleName = params["roleName"]
 	parameters.VaultAddress = params["vaultAddress"]
+	parameters.VaultNamespace = params["vaultNamespace"]
 	parameters.VaultTLSConfig.CACertPath = params["vaultCACertPath"]
 	parameters.VaultTLSConfig.CADirectory = params["vaultCADirectory"]
 	parameters.VaultTLSConfig.TLSServerName = params["vaultTLSServerName"]
