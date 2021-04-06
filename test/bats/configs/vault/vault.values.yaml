@@ -7,8 +7,7 @@ injector:
 
 server:
   image:
-    repository: hashicorp/vault-enterprise
-    #docker.mirror.hashicorp.services/vault-enterprise
+    repository: docker.mirror.hashicorp.services/hashicorp/vault-enterprise
     tag: 1.7.0_ent
   volumes:
   - name: vault-server-tls
