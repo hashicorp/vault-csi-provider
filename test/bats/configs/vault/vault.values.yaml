@@ -46,6 +46,12 @@ server:
 
 csi:
   enabled: true
+  debug: true
+
+  image:
+    repository: "e2e/vault-csi-provider"
+    tag: "latest"
+    pullPolicy: Never
 
   volumes:
   - name: vault-client-tls

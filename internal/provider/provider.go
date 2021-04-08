@@ -212,7 +212,10 @@ func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg confi
 	}
 
 	// Set Vault namespace if configured
-	client.SetNamespace(cfg.VaultNamespace)
+	if cfg.VaultNamespace != "" {
+		p.logger.Debug("setting Vault namespace", "namespace", cfg.VaultNamespace)
+		client.SetNamespace(cfg.VaultNamespace)
+	}
 
 	// Authenticate to vault using the jwt token
 	_, err = p.login(ctx, client, cfg.Parameters)
