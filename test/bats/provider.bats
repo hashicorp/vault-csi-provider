@@ -34,7 +34,7 @@ setup(){
         kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
         issuer="https://kubernetes.default.svc.cluster.local"'
     kubectl --namespace=csi exec vault-0 -- vault auth enable -namespace=acceptance kubernetes
-    kubectl --namespace=csi exec vault-0 -- sh -c 'vault write acceptance/auth/kubernetes/config \
+    kubectl --namespace=csi exec vault-0 -- sh -c 'vault write -namespace=acceptance auth/kubernetes/config \
         token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
         kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
         kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
