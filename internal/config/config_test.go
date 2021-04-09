@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v2"
-	"gotest.tools/assert"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -54,7 +54,7 @@ func TestParseParametersFromYaml(t *testing.T) {
 	params, err := parseParameters(hclog.NewNullLogger(), string(paramsBytes))
 	require.NoError(t, err)
 
-	assert.DeepEqual(t, Parameters{
+	require.True(t, reflect.DeepEqual(Parameters{
 		VaultAddress:             defaultVaultAddress,
 		VaultKubernetesMountPath: defaultVaultKubernetesMountPath,
 		Secrets: []Secret{
@@ -78,7 +78,7 @@ func TestParseParametersFromYaml(t *testing.T) {
 				Method: "PUT",
 			},
 		},
-	}, params)
+	}, params))
 }
 
 func TestParseParameters(t *testing.T) {
@@ -105,7 +105,7 @@ func TestParseParameters(t *testing.T) {
 			ServiceAccountName: "default",
 		},
 	}
-	assert.DeepEqual(t, expected, actual)
+	require.True(t, reflect.DeepEqual(expected, actual))
 }
 
 func TestParseConfig(t *testing.T) {
@@ -178,7 +178,7 @@ func TestParseConfig(t *testing.T) {
 		require.NoError(t, err)
 		cfg, err := Parse(hclog.NewNullLogger(), string(parametersStr), tc.targetPath, "420")
 		require.NoError(t, err, tc.name)
-		assert.DeepEqual(t, tc.expected, cfg)
+		require.True(t, reflect.DeepEqual(tc.expected, cfg))
 	}
 }
 
