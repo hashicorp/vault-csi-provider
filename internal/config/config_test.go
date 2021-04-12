@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/hashicorp/go-hclog"
@@ -54,7 +53,7 @@ func TestParseParametersFromYaml(t *testing.T) {
 	params, err := parseParameters(hclog.NewNullLogger(), string(paramsBytes))
 	require.NoError(t, err)
 
-	require.True(t, reflect.DeepEqual(Parameters{
+	require.Equal(t, Parameters{
 		VaultAddress:             defaultVaultAddress,
 		VaultKubernetesMountPath: defaultVaultKubernetesMountPath,
 		Secrets: []Secret{
@@ -78,7 +77,7 @@ func TestParseParametersFromYaml(t *testing.T) {
 				Method: "PUT",
 			},
 		},
-	}, params))
+	}, params)
 }
 
 func TestParseParameters(t *testing.T) {
@@ -105,7 +104,7 @@ func TestParseParameters(t *testing.T) {
 			ServiceAccountName: "default",
 		},
 	}
-	require.True(t, reflect.DeepEqual(expected, actual))
+	require.Equal(t, expected, actual)
 }
 
 func TestParseConfig(t *testing.T) {
@@ -178,7 +177,7 @@ func TestParseConfig(t *testing.T) {
 		require.NoError(t, err)
 		cfg, err := Parse(hclog.NewNullLogger(), string(parametersStr), tc.targetPath, "420")
 		require.NoError(t, err, tc.name)
-		require.True(t, reflect.DeepEqual(tc.expected, cfg))
+		require.Equal(t, tc.expected, cfg)
 	}
 }
 
