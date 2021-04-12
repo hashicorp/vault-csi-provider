@@ -7,7 +7,8 @@ injector:
 
 server:
   image:
-    repository: docker.mirror.hashicorp.services/vault
+    repository: docker.mirror.hashicorp.services/hashicorp/vault-enterprise
+    tag: 1.7.0_ent
   volumes:
   - name: vault-server-tls
     secret:
@@ -45,6 +46,12 @@ server:
 
 csi:
   enabled: true
+  debug: true
+
+  image:
+    repository: "e2e/vault-csi-provider"
+    tag: "latest"
+    pullPolicy: Never
 
   volumes:
   - name: vault-client-tls

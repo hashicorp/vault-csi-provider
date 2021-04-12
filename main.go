@@ -14,17 +14,16 @@ import (
 	"github.com/hashicorp/go-hclog"
 	providerserver "github.com/hashicorp/vault-csi-provider/internal/server"
 	"github.com/hashicorp/vault-csi-provider/internal/version"
-	"github.com/spf13/pflag"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
 var (
-	endpoint    = pflag.String("endpoint", "/tmp/vault.sock", "path to socket on which to listen for driver gRPC calls")
-	debug       = pflag.Bool("debug", false, "sets log to debug level")
+	endpoint    = flag.String("endpoint", "/tmp/vault.sock", "path to socket on which to listen for driver gRPC calls")
+	debug       = flag.Bool("debug", false, "sets log to debug level")
 	healthAddr  = flag.String("health_addr", ":8080", "configure http listener for reporting health")
-	selfVersion = pflag.Bool("version", false, "prints the version information")
+	selfVersion = flag.Bool("version", false, "prints the version information")
 )
 
 func main() {
@@ -37,7 +36,7 @@ func main() {
 }
 
 func realMain(logger hclog.Logger) error {
-	pflag.Parse()
+	flag.Parse()
 
 	// set log level
 	logger.SetLevel(hclog.Info)

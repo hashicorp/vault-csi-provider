@@ -8,8 +8,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v2"
-	"gotest.tools/assert"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -54,7 +53,7 @@ func TestParseParametersFromYaml(t *testing.T) {
 	params, err := parseParameters(hclog.NewNullLogger(), string(paramsBytes))
 	require.NoError(t, err)
 
-	assert.DeepEqual(t, Parameters{
+	require.Equal(t, Parameters{
 		VaultAddress:             defaultVaultAddress,
 		VaultKubernetesMountPath: defaultVaultKubernetesMountPath,
 		Secrets: []Secret{
@@ -105,7 +104,7 @@ func TestParseParameters(t *testing.T) {
 			ServiceAccountName: "default",
 		},
 	}
-	assert.DeepEqual(t, expected, actual)
+	require.Equal(t, expected, actual)
 }
 
 func TestParseConfig(t *testing.T) {
@@ -114,6 +113,7 @@ func TestParseConfig(t *testing.T) {
 	defaultParams := Parameters{
 		VaultAddress:             defaultVaultAddress,
 		VaultKubernetesMountPath: defaultVaultKubernetesMountPath,
+		VaultNamespace:           "",
 	}
 	for _, tc := range []struct {
 		name       string
@@ -150,6 +150,7 @@ func TestParseConfig(t *testing.T) {
 				"roleName":                     "example-role",
 				"vaultSkipTLSVerify":           "true",
 				"vaultAddress":                 "my-vault-address",
+				"vaultNamespace":               "my-vault-namespace",
 				"vaultKubernetesMountPath":     "my-mount-path",
 				"KubernetesServiceAccountPath": "my-account-path",
 				"objects":                      objects,
@@ -161,6 +162,7 @@ func TestParseConfig(t *testing.T) {
 					expected := defaultParams
 					expected.VaultRoleName = roleName
 					expected.VaultAddress = "my-vault-address"
+					expected.VaultNamespace = "my-vault-namespace"
 					expected.VaultKubernetesMountPath = "my-mount-path"
 					expected.VaultTLSConfig.SkipVerify = true
 					expected.Secrets = []Secret{
@@ -175,7 +177,7 @@ func TestParseConfig(t *testing.T) {
 		require.NoError(t, err)
 		cfg, err := Parse(hclog.NewNullLogger(), string(parametersStr), tc.targetPath, "420")
 		require.NoError(t, err, tc.name)
-		assert.DeepEqual(t, tc.expected, cfg)
+		require.Equal(t, tc.expected, cfg)
 	}
 }
 

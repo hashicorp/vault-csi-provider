@@ -2,12 +2,12 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"strconv"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -39,6 +39,7 @@ type Parameters struct {
 	VaultAddress             string
 	VaultRoleName            string
 	VaultKubernetesMountPath string
+	VaultNamespace           string
 	VaultTLSConfig           TLSConfig
 	Secrets                  []Secret
 	PodInfo                  PodInfo
@@ -102,6 +103,7 @@ func parseParameters(logger hclog.Logger, parametersStr string) (Parameters, err
 	var parameters Parameters
 	parameters.VaultRoleName = params["roleName"]
 	parameters.VaultAddress = params["vaultAddress"]
+	parameters.VaultNamespace = params["vaultNamespace"]
 	parameters.VaultTLSConfig.CACertPath = params["vaultCACertPath"]
 	parameters.VaultTLSConfig.CADirectory = params["vaultCADirectory"]
 	parameters.VaultTLSConfig.TLSServerName = params["vaultTLSServerName"]
@@ -151,7 +153,7 @@ func (c *Config) validate() error {
 		return errors.New("missing target path field")
 	}
 	if c.Parameters.VaultRoleName == "" {
-		return errors.Errorf("missing 'roleName' in SecretProviderClass definition")
+		return errors.New("missing 'roleName' in SecretProviderClass definition")
 	}
 	if len(c.Parameters.Secrets) == 0 {
 		return errors.New("no secrets configured - the provider will not read any secret material")

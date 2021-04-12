@@ -13,10 +13,13 @@ CONFIGS=test/bats/configs
 setup(){
     { # Braces used to redirect all setup logs.
     # 1. Configure Vault.
+    kubectl --namespace=csi exec vault-0 -- vault namespace create acceptance
+
     # 1. a) Vault policies
     cat $CONFIGS/vault-policy-db.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write db-policy -
     cat $CONFIGS/vault-policy-kv.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write kv-policy -
     cat $CONFIGS/vault-policy-pki.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write pki-policy -
+    cat $CONFIGS/vault-policy-kv-namespace.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write -namespace=acceptance kv-namespace-policy -
 
     # 1. b) Setup kubernetes auth engine.
     kubectl --namespace=csi exec vault-0 -- vault auth enable kubernetes
@@ -30,6 +33,12 @@ setup(){
         kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
         kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
         issuer="https://kubernetes.default.svc.cluster.local"'
+    kubectl --namespace=csi exec vault-0 -- vault auth enable -namespace=acceptance kubernetes
+    kubectl --namespace=csi exec vault-0 -- sh -c 'vault write -namespace=acceptance auth/kubernetes/config \
+        token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+        kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
+        kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+        issuer="https://kubernetes.default.svc.cluster.local"'
     kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/db-role \
         bound_service_account_names=nginx-db \
         bound_service_account_namespaces=test \
@@ -39,6 +48,11 @@ setup(){
         bound_service_account_names=nginx-kv \
         bound_service_account_namespaces=test \
         policies=kv-policy \
+        ttl=20m
+    kubectl --namespace=csi exec vault-0 -- vault write -namespace=acceptance auth/kubernetes/role/kv-namespace-role \
+        bound_service_account_names=nginx-kv-namespace \
+        bound_service_account_namespaces=test \
+        policies=kv-namespace-policy \
         ttl=20m
     kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/pki-role \
         bound_service_account_names=nginx-pki \
@@ -67,11 +81,14 @@ setup(){
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv2 bar2=hello2
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv-sync1 bar1=hello-sync1
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv-sync2 bar2=hello-sync2
+    kubectl --namespace=csi exec vault-0 -- vault secrets enable -namespace=acceptance -path=secret -version=2 kv
+    kubectl --namespace=csi exec vault-0 -- vault kv put -namespace=acceptance secret/kv1-namespace greeting=hello-namespaces
 
     # 2. Create shared k8s resources.
     kubectl create namespace test
     kubectl --namespace=test apply -f $CONFIGS/vault-all-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-db-secretproviderclass.yaml
+    kubectl --namespace=test apply -f $CONFIGS/vault-kv-namespace-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-sync-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-sync-multiple-secretproviderclass.yaml
@@ -98,6 +115,7 @@ teardown(){
     fi
 
     # Teardown Vault configuration.
+    kubectl --namespace=csi exec vault-0 -- vault namespace delete acceptance
     kubectl --namespace=csi exec vault-0 -- vault auth disable kubernetes
     kubectl --namespace=csi exec vault-0 -- vault secrets disable secret
     kubectl --namespace=csi exec vault-0 -- vault secrets disable pki
@@ -273,4 +291,13 @@ teardown(){
 
     wait_for_success "kubectl --namespace=test describe pod nginx-kv | grep 'FailedMount.*failed to mount secrets store objects for pod test/nginx-kv'"
     wait_for_success "kubectl --namespace=test describe pod nginx-kv | grep 'service account name not authorized'"
+}
+
+@test "9 Vault Enterprise namespace" {
+    helm --namespace=test install nginx $CONFIGS/nginx \
+        --set engine=kv-namespace --set sa=kv-namespace \
+        --wait --timeout=5m
+
+    result=$(kubectl --namespace=test exec nginx-kv-namespace -- cat /mnt/secrets-store/secret-1)
+    [[ "$result" == "hello-namespaces" ]]
 }

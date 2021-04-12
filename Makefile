@@ -57,7 +57,7 @@ build-in-docker: clean
 		make build
 
 image: build-in-docker
-	docker build --build-arg VERSION=$(IMAGE_VERSION) -t $(IMAGE_TAG) .
+	docker build --no-cache --build-arg VERSION=$(IMAGE_VERSION) -t $(IMAGE_TAG) .
 
 e2e-container:
 	REGISTRY_NAME="e2e" IMAGE_VERSION="latest" make image
