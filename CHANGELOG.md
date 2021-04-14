@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.1.1 (April 14th, 2021)
+
 FEATURES:
 
 * Support for Vault namespaces, via `vaultNamespace` option in SecretProviderClass parameters [[GH-84](https://github.com/hashicorp/vault-csi-provider/pull/84)]

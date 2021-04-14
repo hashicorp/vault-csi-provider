@@ -71,7 +71,7 @@ docker-push:
 setup-kind:
 	kind create cluster --image kindest/node:${K8S_VERSION}
 
-e2e-setup: e2e-container
+e2e-setup:
 	kubectl create namespace csi
 	helm install secrets-store-csi-driver https://github.com/kubernetes-sigs/secrets-store-csi-driver/blob/v$(CSI_DRIVER_VERSION)/charts/secrets-store-csi-driver-$(CSI_DRIVER_VERSION).tgz?raw=true \
 		--wait --timeout=5m \
