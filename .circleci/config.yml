@@ -95,6 +95,7 @@ jobs:
       - run:
           name: Run e2e tests
           command: |
+            make e2e-container
             make e2e-setup
             DISPLAY_SETUP_TEARDOWN_LOGS=true make e2e-test
 
