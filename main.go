@@ -20,10 +20,11 @@ import (
 )
 
 var (
-	endpoint    = flag.String("endpoint", "/tmp/vault.sock", "path to socket on which to listen for driver gRPC calls")
-	debug       = flag.Bool("debug", false, "sets log to debug level")
-	healthAddr  = flag.String("health_addr", ":8080", "configure http listener for reporting health")
-	selfVersion = flag.Bool("version", false, "prints the version information")
+	endpoint     = flag.String("endpoint", "/tmp/vault.sock", "path to socket on which to listen for driver gRPC calls")
+	debug        = flag.Bool("debug", false, "sets log to debug level")
+	healthAddr   = flag.String("health_addr", ":8080", "configure http listener for reporting health")
+	selfVersion  = flag.Bool("version", false, "prints the version information")
+	writeSecrets = flag.Bool("write_secrets", true, "write secrets directly to filesystem (true), or send secrets to csi-driver in grpc response (false)")
 )
 
 func main() {
@@ -83,7 +84,8 @@ func realMain(logger hclog.Logger) error {
 	logger.Info(fmt.Sprintf("Listening on %s", *endpoint))
 
 	s := &providerserver.Server{
-		Logger: serverLogger,
+		Logger:       serverLogger,
+		WriteSecrets: *writeSecrets,
 	}
 	pb.RegisterCSIDriverProviderServer(server, s)
 
