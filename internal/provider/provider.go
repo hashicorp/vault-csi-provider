@@ -223,6 +223,7 @@ func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg confi
 		return nil, err
 	}
 
+	// if writeSecrets {
 	for _, secret := range cfg.Parameters.Secrets {
 		content, err := p.getSecret(ctx, client, secret)
 		if err != nil {
@@ -234,6 +235,8 @@ func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg confi
 			return nil, err
 		}
 	}
+
+	// }
 
 	return versions, nil
 }

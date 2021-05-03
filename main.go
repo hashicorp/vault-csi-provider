@@ -24,7 +24,7 @@ var (
 	debug        = flag.Bool("debug", false, "sets log to debug level")
 	healthAddr   = flag.String("health_addr", ":8080", "configure http listener for reporting health")
 	selfVersion  = flag.Bool("version", false, "prints the version information")
-	writeSecrets = flag.Bool("write_secrets", true, "write secrets directly to filesystem (true), or send secrets to csi-driver in grpc response (false)")
+	writeSecrets = flag.Bool("write_secrets", true, "write secrets directly to filesystem (true), or send secrets to csi-driver in grpc response (false)") // change here
 )
 
 func main() {
@@ -85,7 +85,7 @@ func realMain(logger hclog.Logger) error {
 
 	s := &providerserver.Server{
 		Logger:       serverLogger,
-		WriteSecrets: *writeSecrets,
+		WriteSecrets: *writeSecrets, // change here
 	}
 	pb.RegisterCSIDriverProviderServer(server, s)
 

@@ -11,9 +11,9 @@ require (
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/sys v0.0.0-20210119212857-b64e53b001e4 // indirect
 	google.golang.org/grpc v1.29.1
-	gopkg.in/yaml.v3 v3.0.0-20200605160147-a5ece683394c
-	k8s.io/api v0.20.0
-	k8s.io/apimachinery v0.20.0
-	k8s.io/client-go v0.20.0
-	sigs.k8s.io/secrets-store-csi-driver v0.0.20
+	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
+	k8s.io/api v0.20.2
+	k8s.io/apimachinery v0.20.2
+	k8s.io/client-go v0.20.2
+	sigs.k8s.io/secrets-store-csi-driver v0.0.21
 )

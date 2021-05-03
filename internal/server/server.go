@@ -40,7 +40,9 @@ func (p *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResp
 		ov = append(ov, &pb.ObjectVersion{Id: k, Version: v})
 	}
 
-	return &pb.MountResponse{ObjectVersion: ov}, nil
+	var files []*pb.File
+	return &pb.MountResponse{ObjectVersion: ov, Files: files}, nil
+	// return &pb.MountResponse{ObjectVersion: ov}, nil
 }
 
 func (p *Server) handleMountRequest(ctx context.Context, parametersStr, targetPath, permissionStr string) (map[string]string, error) {
