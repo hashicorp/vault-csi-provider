@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
 // provider implements the secrets-store-csi-driver provider interface
@@ -176,6 +177,10 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 		req, err := generateRequest(client, secretConfig)
 		p.logger.Debug("Requesting secret", "secretConfig", secretConfig, "method", req.Method, "path", req.URL.Path, "params", req.Params)
 
+		if err != nil { // change here
+			return "", fmt.Errorf("could not generate request: %v", err)
+		}
+
 		secret, err = vaultclient.Do(ctx, client, req)
 		if err != nil {
 			return "", fmt.Errorf("couldn't read secret %q: %w", secretConfig.ObjectName, err)
@@ -202,9 +207,15 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 	return keyFromData(secret.Data, secretConfig.SecretKey)
 }
 
+type MountSecretsStoreObjectContentResponse struct { // change here --> can likley handle this following better practice
+	Versions map[string]string
+	Files    []*pb.File
+}
+
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
-func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg config.Config) (map[string]string, error) {
+func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg config.Config, writeSecrets bool) (*MountSecretsStoreObjectContentResponse, error) {
 	versions := make(map[string]string)
+	mountSecretsStoreObjectContentResponse := &MountSecretsStoreObjectContentResponse{Versions: versions}
 
 	client, err := vaultclient.New(cfg.Parameters.VaultAddress, cfg.Parameters.VaultTLSConfig)
 	if err != nil {
@@ -223,22 +234,27 @@ func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg confi
 		return nil, err
 	}
 
-	// if writeSecrets {
+	var files []*pb.File
 	for _, secret := range cfg.Parameters.Secrets {
 		content, err := p.getSecret(ctx, client, secret)
 		if err != nil {
 			return nil, err
 		}
 		versions[fmt.Sprintf("%s:%s:%s", secret.ObjectName, secret.SecretPath, secret.Method)] = "0"
-		err = writeSecret(p.logger, cfg.TargetPath, secret.ObjectName, content, cfg.FilePermission)
-		if err != nil {
-			return nil, err
+
+		if writeSecrets { // change here
+			err = writeSecret(p.logger, cfg.TargetPath, secret.ObjectName, content, cfg.FilePermission)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			files = append(files, &pb.File{Path: secret.SecretPath, Mode: int32(cfg.FilePermission), Contents: []byte(content)})
 		}
 	}
+	mountSecretsStoreObjectContentResponse.Files = files
 
-	// }
-
-	return versions, nil
+	return mountSecretsStoreObjectContentResponse, nil // change here
+	// return versions, nil
 }
 
 func writeSecret(logger hclog.Logger, directory string, file string, content string, permission os.FileMode) error {
