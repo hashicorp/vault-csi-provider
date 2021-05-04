@@ -207,7 +207,7 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 	return keyFromData(secret.Data, secretConfig.SecretKey)
 }
 
-type MountSecretsStoreObjectContentResponse struct { // change here --> can likley handle this following better practice
+type MountSecretsStoreObjectContentResponse struct { // change here --> get opinion on this
 	Versions map[string]string
 	Files    []*pb.File
 }
@@ -248,7 +248,7 @@ func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg confi
 				return nil, err
 			}
 		} else {
-			files = append(files, &pb.File{Path: secret.SecretPath, Mode: int32(cfg.FilePermission), Contents: []byte(content)})
+			files = append(files, &pb.File{Path: secret.ObjectName, Mode: int32(cfg.FilePermission), Contents: []byte(content)})
 		}
 	}
 	mountSecretsStoreObjectContentResponse.Files = files
