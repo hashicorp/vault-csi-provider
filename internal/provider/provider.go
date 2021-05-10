@@ -177,7 +177,7 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 		req, err := generateRequest(client, secretConfig)
 		p.logger.Debug("Requesting secret", "secretConfig", secretConfig, "method", req.Method, "path", req.URL.Path, "params", req.Params)
 
-		if err != nil { // change here
+		if err != nil {
 			return "", fmt.Errorf("could not generate request: %v", err)
 		}
 
