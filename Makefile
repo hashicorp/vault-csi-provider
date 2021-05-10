@@ -10,7 +10,7 @@ LDFLAGS?="-X 'github.com/hashicorp/vault-csi-provider/internal/version.BuildVers
 	-extldflags "-static""
 GOOS?=linux
 GOARCH?=amd64
-GOLANG_IMAGE?=docker.mirror.hashicorp.services/golang:1.16.4
+GOLANG_IMAGE?=docker.mirror.hashicorp.services/golang:1.16.2
 K8S_VERSION?=v1.20.2
 CI_TEST_ARGS=
 CSI_DRIVER_VERSION=0.0.21
