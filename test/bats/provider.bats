@@ -174,7 +174,7 @@ teardown(){
     [[ "${result//$'\r'}" == "true" ]]
 
     # There isn't really an event we can wait for to ensure this has happened.
-    for i in {0..10000}; do
+    for i in {0..60}; do
         result="$(kubectl --namespace=test get secret kvsecret -o json | jq '.metadata.ownerReferences | length')"
         if [[ "$result" -eq 1 ]]; then
             break
