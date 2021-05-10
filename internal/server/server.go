@@ -18,7 +18,7 @@ var (
 // Server implements the secrets-store-csi-driver provider gRPC service interface.
 type Server struct {
 	Logger       hclog.Logger
-	WriteSecrets bool // change here
+	WriteSecrets bool
 }
 
 func (p *Server) Version(context.Context, *pb.VersionRequest) (*pb.VersionResponse, error) {
@@ -30,28 +30,13 @@ func (p *Server) Version(context.Context, *pb.VersionRequest) (*pb.VersionRespon
 }
 
 func (p *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResponse, error) {
-	resp, err := p.handleMountRequest(ctx, req.Attributes, req.TargetPath, req.Permission)
-	if err != nil {
-		return nil, err
-	}
-
-	var ov []*pb.ObjectVersion
-	for k, v := range resp.Versions {
-		ov = append(ov, &pb.ObjectVersion{Id: k, Version: v})
-	}
-
-	return &pb.MountResponse{ObjectVersion: ov, Files: resp.Files}, nil // change here
-	// return &pb.MountResponse{ObjectVersion: ov}, nil // old
-}
-
-func (p *Server) handleMountRequest(ctx context.Context, parametersStr, targetPath, permissionStr string) (*provider.MountSecretsStoreObjectContentResponse, error) {
-	cfg, err := config.Parse(p.Logger.Named("config"), parametersStr, targetPath, permissionStr)
+	cfg, err := config.Parse(p.Logger.Named("config"), req.Attributes, req.TargetPath, req.Permission)
 	if err != nil {
 		return nil, err
 	}
 
 	provider := provider.NewProvider(p.Logger.Named("provider"))
-	resp, err := provider.MountSecretsStoreObjectContent(ctx, cfg, p.WriteSecrets) // change here
+	resp, err := provider.MountSecretsStoreObjectContent(ctx, cfg, p.WriteSecrets)
 	if err != nil {
 		return nil, fmt.Errorf("error making mount request: %w", err)
 	}

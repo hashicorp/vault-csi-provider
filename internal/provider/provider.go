@@ -207,15 +207,9 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 	return keyFromData(secret.Data, secretConfig.SecretKey)
 }
 
-type MountSecretsStoreObjectContentResponse struct { // change here --> get opinion on this
-	Versions map[string]string
-	Files    []*pb.File
-}
-
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
-func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg config.Config, writeSecrets bool) (*MountSecretsStoreObjectContentResponse, error) {
+func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg config.Config, writeSecrets bool) (*pb.MountResponse, error) {
 	versions := make(map[string]string)
-	mountSecretsStoreObjectContentResponse := &MountSecretsStoreObjectContentResponse{Versions: versions}
 
 	client, err := vaultclient.New(cfg.Parameters.VaultAddress, cfg.Parameters.VaultTLSConfig)
 	if err != nil {
@@ -242,19 +236,26 @@ func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg confi
 		}
 		versions[fmt.Sprintf("%s:%s:%s", secret.ObjectName, secret.SecretPath, secret.Method)] = "0"
 
-		if writeSecrets { // change here
+		if writeSecrets {
 			err = writeSecret(p.logger, cfg.TargetPath, secret.ObjectName, content, cfg.FilePermission)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			files = append(files, &pb.File{Path: secret.ObjectName, Mode: int32(cfg.FilePermission), Contents: []byte(content)})
+			p.logger.Info("secret sent to the secrets-store csi driver", "directory", cfg.TargetPath, "file", secret.ObjectName)
 		}
 	}
-	mountSecretsStoreObjectContentResponse.Files = files
 
-	return mountSecretsStoreObjectContentResponse, nil // change here
-	// return versions, nil
+	var ov []*pb.ObjectVersion
+	for k, v := range versions {
+		ov = append(ov, &pb.ObjectVersion{Id: k, Version: v})
+	}
+
+	return &pb.MountResponse{
+		ObjectVersion: ov,
+		Files:         files,
+	}, nil
 }
 
 func writeSecret(logger hclog.Logger, directory string, file string, content string, permission os.FileMode) error {
