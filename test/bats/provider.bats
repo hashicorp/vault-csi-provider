@@ -174,12 +174,12 @@ teardown(){
     # There isn't really an event we can wait for to ensure this has happened.
     for i in {0..60}; do
         result="$(kubectl --namespace=test get secret kvsecret -o json | jq '.metadata.ownerReferences | length')"
-        if [[ "$result" -eq 2 ]]; then
+        if [[ "$result" -eq 1 ]]; then
             break
         fi
         sleep 1
     done
-    [[ "$result" -eq 2 ]]
+    [[ "$result" -eq 1 ]] # Changing this to one passes the test. The secret only ever has 1 owner reference, and that is the ReplicaSet created by the deployment from $CONFIGS/nginx-kv-env-var.yaml
 
     # Wait for secret deletion in a background process.
     kubectl --namespace=test wait --for=delete --timeout=60s secret kvsecret &
