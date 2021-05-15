@@ -35,8 +35,8 @@ spec:
           common_name: "internal.example.com"
         method: "PUT"
 `
-  defaultVaultAddress = "http://127.0.0.1:8200"
-  defaultVaultKubernetesMountPath = "kubernetes"
+	defaultVaultAddress             = "http://127.0.0.1:8200"
+	defaultVaultKubernetesMountPath = "kubernetes"
 )
 
 func TestParseParametersFromYaml(t *testing.T) {
