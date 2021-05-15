@@ -18,8 +18,8 @@ var (
 // Server implements the secrets-store-csi-driver provider gRPC service interface.
 type Server struct {
 	Logger     hclog.Logger
-  VaultAddr  string
-  VaultMount string
+	VaultAddr  string
+	VaultMount string
 }
 
 func (p *Server) Version(context.Context, *pb.VersionRequest) (*pb.VersionResponse, error) {
