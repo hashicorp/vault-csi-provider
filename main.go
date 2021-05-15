@@ -24,6 +24,8 @@ var (
 	debug       = flag.Bool("debug", false, "sets log to debug level")
 	healthAddr  = flag.String("health_addr", ":8080", "configure http listener for reporting health")
 	selfVersion = flag.Bool("version", false, "prints the version information")
+	vaultAddr   = flag.String("vault_addr", "https://127.0.0.1:8200", "default address for connecting to Vault")
+	vaultMount  = flag.String("vault_mount", "kubernetes", "default Vault mount path for Kubernetes authentication")
 )
 
 func main() {
@@ -83,7 +85,9 @@ func realMain(logger hclog.Logger) error {
 	logger.Info(fmt.Sprintf("Listening on %s", *endpoint))
 
 	s := &providerserver.Server{
-		Logger: serverLogger,
+		Logger:     serverLogger,
+		VaultAddr:  *vaultAddr,
+		VaultMount: *vaultMount,
 	}
 	pb.RegisterCSIDriverProviderServer(server, s)
 

@@ -11,11 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-const (
-	defaultVaultAddress             string = "https://127.0.0.1:8200"
-	defaultVaultKubernetesMountPath string = "kubernetes"
-)
-
 // Config represents all of the provider's configurable behaviour from the MountRequest proto message:
 // * Parameters from the `Attributes` field.
 // * Plus the rest of the proto fields we consume.
@@ -69,13 +64,13 @@ type Secret struct {
 	SecretArgs map[string]interface{} `yaml:"secretArgs,omitempty"`
 }
 
-func Parse(logger hclog.Logger, parametersStr, targetPath, permissionStr string) (Config, error) {
+func Parse(logger hclog.Logger, parametersStr, targetPath, permissionStr string, defaultVaultAddr string, defaultVaultKubernetesMountPath string) (Config, error) {
 	config := Config{
 		TargetPath: targetPath,
 	}
 
 	var err error
-	config.Parameters, err = parseParameters(logger, parametersStr)
+	config.Parameters, err = parseParameters(logger, parametersStr, defaultVaultAddr, defaultVaultKubernetesMountPath)
 	if err != nil {
 		return Config{}, err
 	}
@@ -93,7 +88,7 @@ func Parse(logger hclog.Logger, parametersStr, targetPath, permissionStr string)
 	return config, nil
 }
 
-func parseParameters(logger hclog.Logger, parametersStr string) (Parameters, error) {
+func parseParameters(logger hclog.Logger, parametersStr string, defaultVaultAddress string, defaultVaultKubernetesMountPath string) (Parameters, error) {
 	var params map[string]string
 	err := json.Unmarshal([]byte(parametersStr), &params)
 	if err != nil {
