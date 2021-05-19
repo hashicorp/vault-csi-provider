@@ -181,7 +181,8 @@ teardown(){
         fi
         sleep 1
     done
-    [[ "$result" -eq 1 ]] # Changing this to one passes the test. The secret only ever has 1 owner reference, and that is the ReplicaSet created by the deployment from $CONFIGS/nginx-kv-env-var.yaml
+    # The secret's owner is the ReplicaSet created by the deployment from $CONFIGS/nginx-kv-env-var.yaml
+    [[ "$result" -eq 1 ]] 
 
     # Wait for secret deletion in a background process.
     kubectl --namespace=test wait --for=delete --timeout=60s secret kvsecret &

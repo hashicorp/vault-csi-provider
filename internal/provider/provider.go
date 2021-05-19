@@ -208,7 +208,8 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 }
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
-func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg config.Config, writeSecrets bool) (*pb.MountResponse, error) {
+func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, writeSecrets bool) (*pb.MountResponse, error) {
+	// func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg config.Config, writeSecrets bool) (*pb.MountResponse, error) {
 	versions := make(map[string]string)
 
 	client, err := vaultclient.New(cfg.Parameters.VaultAddress, cfg.Parameters.VaultTLSConfig)
@@ -243,7 +244,7 @@ func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg confi
 			}
 		} else {
 			files = append(files, &pb.File{Path: secret.ObjectName, Mode: int32(cfg.FilePermission), Contents: []byte(content)})
-			p.logger.Info("secret sent to the secrets-store csi driver", "directory", cfg.TargetPath, "file", secret.ObjectName)
+			p.logger.Info("secret added to mount response", "directory", cfg.TargetPath, "file", secret.ObjectName)
 		}
 	}
 

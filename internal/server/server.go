@@ -36,7 +36,7 @@ func (p *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResp
 	}
 
 	provider := provider.NewProvider(p.Logger.Named("provider"))
-	resp, err := provider.MountSecretsStoreObjectContent(ctx, cfg, p.WriteSecrets)
+	resp, err := provider.HandleMountRequest(ctx, cfg, p.WriteSecrets)
 	if err != nil {
 		return nil, fmt.Errorf("error making mount request: %w", err)
 	}
