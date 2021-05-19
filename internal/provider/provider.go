@@ -209,7 +209,6 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
 func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, writeSecrets bool) (*pb.MountResponse, error) {
-	// func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg config.Config, writeSecrets bool) (*pb.MountResponse, error) {
 	versions := make(map[string]string)
 
 	client, err := vaultclient.New(cfg.Parameters.VaultAddress, cfg.Parameters.VaultTLSConfig)
