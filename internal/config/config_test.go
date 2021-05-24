@@ -50,6 +50,7 @@ func TestParseParametersFromYaml(t *testing.T) {
 	err := yaml.Unmarshal([]byte(certsSPCYaml), &secretProviderClass)
 	require.NoError(t, err)
 	paramsBytes, err := json.Marshal(secretProviderClass.Spec.Parameters)
+	require.NoError(t, err)
 
 	// This is now the form the provider receives the data in.
 	params, err := parseParameters(hclog.NewNullLogger(), string(paramsBytes), defaultVaultAddress, defaultVaultKubernetesMountPath)

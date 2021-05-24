@@ -142,7 +142,10 @@ func generateRequest(client *api.Client, secret config.Secret) (*api.Request, er
 		req.Params = queryParams
 	}
 	if secret.SecretArgs != nil {
-		req.SetJSONBody(secret.SecretArgs)
+		err := req.SetJSONBody(secret.SecretArgs)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return req, nil
@@ -174,6 +177,9 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 	key := cacheKey{secretPath: secretConfig.SecretPath, method: secretConfig.Method}
 	if secret, cached = p.cache[key]; !cached {
 		req, err := generateRequest(client, secretConfig)
+		if err != nil {
+			return "", err
+		}
 		p.logger.Debug("Requesting secret", "secretConfig", secretConfig, "method", req.Method, "path", req.URL.Path, "params", req.Params)
 
 		secret, err = vaultclient.Do(ctx, client, req)
