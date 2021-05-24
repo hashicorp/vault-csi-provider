@@ -1,5 +1,9 @@
 ## Unreleased
 
+FEATURES:
+
+* Support for changing the default Vault address and Kubernetes mount path via CLI flag to the vault-csi-provider binary
+
 ## 0.2.0 (April 14th, 2021)
 
 FEATURES:
