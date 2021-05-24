@@ -93,7 +93,12 @@ func realMain(logger hclog.Logger) error {
 		Addr:    *healthAddr,
 		Handler: mux,
 	}
-	defer ms.Shutdown(context.Background())
+	defer func() {
+		err := ms.Shutdown(context.Background())
+		if err != nil {
+			logger.Error("Error shutting down health handler", "err", err)
+		}
+	}()
 
 	mux.HandleFunc("/health/ready", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

@@ -32,7 +32,10 @@ lint:
 		--timeout 10m \
 		--enable gofmt \
 		--enable gosimple \
-		--enable govet
+		--enable govet \
+		--enable errcheck \
+		--enable ineffassign \
+		--enable unused
 
 test:
 	gotestsum --format=short-verbose $(CI_TEST_ARGS)
