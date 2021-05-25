@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.2.1 (May 25th, 2021)
+
 BUGS:
 
 * Added missing error handling when transforming SecretProviderClass config to a Vault request [[GH-97](https://github.com/hashicorp/vault-csi-provider/pull/97)]
