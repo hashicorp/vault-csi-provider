@@ -24,6 +24,8 @@ var (
 	debug        = flag.Bool("debug", false, "sets log to debug level")
 	healthAddr   = flag.String("health_addr", ":8080", "configure http listener for reporting health")
 	selfVersion  = flag.Bool("version", false, "prints the version information")
+	vaultAddr    = flag.String("vault-addr", "https://127.0.0.1:8200", "default address for connecting to Vault")
+	vaultMount   = flag.String("vault-mount", "kubernetes", "default Vault mount path for Kubernetes authentication")
 	writeSecrets = flag.Bool("write_secrets", true, "write secrets directly to filesystem (true), or send secrets to CSI driver in gRPC response (false)")
 )
 
@@ -85,6 +87,8 @@ func realMain(logger hclog.Logger) error {
 
 	s := &providerserver.Server{
 		Logger:       serverLogger,
+		VaultAddr:    *vaultAddr,
+		VaultMount:   *vaultMount,
 		WriteSecrets: *writeSecrets,
 	}
 	pb.RegisterCSIDriverProviderServer(server, s)

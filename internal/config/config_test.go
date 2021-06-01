@@ -35,6 +35,8 @@ spec:
           common_name: "internal.example.com"
         method: "PUT"
 `
+	defaultVaultAddress             = "http://127.0.0.1:8200"
+	defaultVaultKubernetesMountPath = "kubernetes"
 )
 
 func TestParseParametersFromYaml(t *testing.T) {
@@ -51,7 +53,7 @@ func TestParseParametersFromYaml(t *testing.T) {
 	require.NoError(t, err)
 
 	// This is now the form the provider receives the data in.
-	params, err := parseParameters(hclog.NewNullLogger(), string(paramsBytes))
+	params, err := parseParameters(hclog.NewNullLogger(), string(paramsBytes), defaultVaultAddress, defaultVaultKubernetesMountPath)
 	require.NoError(t, err)
 
 	require.Equal(t, Parameters{
@@ -85,7 +87,7 @@ func TestParseParameters(t *testing.T) {
 	// This file's contents are copied directly from a driver mount request.
 	parametersStr, err := ioutil.ReadFile(filepath.Join("testdata", "example-parameters-string.txt"))
 	require.NoError(t, err)
-	actual, err := parseParameters(hclog.NewNullLogger(), string(parametersStr))
+	actual, err := parseParameters(hclog.NewNullLogger(), string(parametersStr), defaultVaultAddress, defaultVaultKubernetesMountPath)
 	require.NoError(t, err)
 	expected := Parameters{
 		VaultRoleName: "example-role",
@@ -176,7 +178,7 @@ func TestParseConfig(t *testing.T) {
 	} {
 		parametersStr, err := json.Marshal(tc.parameters)
 		require.NoError(t, err)
-		cfg, err := Parse(hclog.NewNullLogger(), string(parametersStr), tc.targetPath, "420")
+		cfg, err := Parse(hclog.NewNullLogger(), string(parametersStr), tc.targetPath, "420", defaultVaultAddress, defaultVaultKubernetesMountPath)
 		require.NoError(t, err, tc.name)
 		require.Equal(t, tc.expected, cfg)
 	}
@@ -206,7 +208,7 @@ func TestParseConfig_Errors(t *testing.T) {
 	} {
 		parametersStr, err := json.Marshal(tc.parameters)
 		require.NoError(t, err)
-		_, err = Parse(hclog.NewNullLogger(), string(parametersStr), "/some/path", "420")
+		_, err = Parse(hclog.NewNullLogger(), string(parametersStr), "/some/path", "420", defaultVaultAddress, defaultVaultKubernetesMountPath)
 		require.Error(t, err, tc.name)
 	}
 }

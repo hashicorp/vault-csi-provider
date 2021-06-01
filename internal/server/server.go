@@ -18,6 +18,8 @@ var (
 // Server implements the secrets-store-csi-driver provider gRPC service interface.
 type Server struct {
 	Logger       hclog.Logger
+	VaultAddr    string
+	VaultMount   string
 	WriteSecrets bool
 }
 
@@ -30,7 +32,7 @@ func (p *Server) Version(context.Context, *pb.VersionRequest) (*pb.VersionRespon
 }
 
 func (p *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResponse, error) {
-	cfg, err := config.Parse(p.Logger.Named("config"), req.Attributes, req.TargetPath, req.Permission)
+	cfg, err := config.Parse(p.Logger.Named("config"), req.Attributes, req.TargetPath, req.Permission, p.VaultAddr, p.VaultMount)
 	if err != nil {
 		return nil, err
 	}
