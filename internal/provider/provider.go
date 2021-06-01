@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
 // provider implements the secrets-store-csi-driver provider interface
@@ -182,6 +183,10 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 		}
 		p.logger.Debug("Requesting secret", "secretConfig", secretConfig, "method", req.Method, "path", req.URL.Path, "params", req.Params)
 
+		if err != nil {
+			return "", fmt.Errorf("could not generate request: %v", err)
+		}
+
 		secret, err = vaultclient.Do(ctx, client, req)
 		if err != nil {
 			return "", fmt.Errorf("couldn't read secret %q: %w", secretConfig.ObjectName, err)
@@ -209,7 +214,7 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 }
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
-func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg config.Config) (map[string]string, error) {
+func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, writeSecrets bool) (*pb.MountResponse, error) {
 	versions := make(map[string]string)
 
 	client, err := vaultclient.New(cfg.Parameters.VaultAddress, cfg.Parameters.VaultTLSConfig)
@@ -229,19 +234,34 @@ func (p *provider) MountSecretsStoreObjectContent(ctx context.Context, cfg confi
 		return nil, err
 	}
 
+	var files []*pb.File
 	for _, secret := range cfg.Parameters.Secrets {
 		content, err := p.getSecret(ctx, client, secret)
 		if err != nil {
 			return nil, err
 		}
 		versions[fmt.Sprintf("%s:%s:%s", secret.ObjectName, secret.SecretPath, secret.Method)] = "0"
-		err = writeSecret(p.logger, cfg.TargetPath, secret.ObjectName, content, cfg.FilePermission)
-		if err != nil {
-			return nil, err
+
+		if writeSecrets {
+			err = writeSecret(p.logger, cfg.TargetPath, secret.ObjectName, content, cfg.FilePermission)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			files = append(files, &pb.File{Path: secret.ObjectName, Mode: int32(cfg.FilePermission), Contents: []byte(content)})
+			p.logger.Info("secret added to mount response", "directory", cfg.TargetPath, "file", secret.ObjectName)
 		}
 	}
 
-	return versions, nil
+	var ov []*pb.ObjectVersion
+	for k, v := range versions {
+		ov = append(ov, &pb.ObjectVersion{Id: k, Version: v})
+	}
+
+	return &pb.MountResponse{
+		ObjectVersion: ov,
+		Files:         files,
+	}, nil
 }
 
 func writeSecret(logger hclog.Logger, directory string, file string, content string, permission os.FileMode) error {

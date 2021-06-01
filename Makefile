@@ -13,7 +13,7 @@ GOARCH?=amd64
 GOLANG_IMAGE?=docker.mirror.hashicorp.services/golang:1.16.2
 K8S_VERSION?=v1.20.2
 CI_TEST_ARGS=
-CSI_DRIVER_VERSION=0.0.20
+CSI_DRIVER_VERSION=0.0.21
 VAULT_HELM_VERSION=0.10.0
 ifdef CI
 override CI_TEST_ARGS:=--junitfile=$(TEST_RESULTS_DIR)/go-test/results.xml --jsonfile=$(TEST_RESULTS_DIR)/go-test/results.json
