@@ -147,6 +147,8 @@ teardown(){
 @test "2 Sync with kubernetes secrets" {
     # Deploy some pods that should cause k8s secrets to be created.
     kubectl --namespace=test apply -f $CONFIGS/nginx-kv-env-var.yaml
+
+    # This line sometimes throws an error
     kubectl --namespace=test wait --for=condition=Ready --timeout=5m pod -l app=nginx
 
     POD=$(kubectl --namespace=test get pod -l app=nginx -o jsonpath="{.items[0].metadata.name}")
@@ -174,12 +176,13 @@ teardown(){
     # There isn't really an event we can wait for to ensure this has happened.
     for i in {0..60}; do
         result="$(kubectl --namespace=test get secret kvsecret -o json | jq '.metadata.ownerReferences | length')"
-        if [[ "$result" -eq 2 ]]; then
+        if [[ "$result" -eq 1 ]]; then
             break
         fi
         sleep 1
     done
-    [[ "$result" -eq 2 ]]
+    # The secret's owner is the ReplicaSet created by the deployment from $CONFIGS/nginx-kv-env-var.yaml
+    [[ "$result" -eq 1 ]] 
 
     # Wait for secret deletion in a background process.
     kubectl --namespace=test wait --for=delete --timeout=60s secret kvsecret &
