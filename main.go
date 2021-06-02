@@ -19,16 +19,6 @@ import (
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
-var (
-	endpoint     = flag.String("endpoint", "/tmp/vault.sock", "path to socket on which to listen for driver gRPC calls")
-	debug        = flag.Bool("debug", false, "sets log to debug level")
-	healthAddr   = flag.String("health_addr", ":8080", "configure http listener for reporting health")
-	selfVersion  = flag.Bool("version", false, "prints the version information")
-	vaultAddr    = flag.String("vault-addr", "https://127.0.0.1:8200", "default address for connecting to Vault")
-	vaultMount   = flag.String("vault-mount", "kubernetes", "default Vault mount path for Kubernetes authentication")
-	writeSecrets = flag.Bool("write_secrets", true, "write secrets directly to filesystem (true), or send secrets to CSI driver in gRPC response (false)")
-)
-
 func main() {
 	logger := hclog.Default()
 	err := realMain(logger)
@@ -39,6 +29,17 @@ func main() {
 }
 
 func realMain(logger hclog.Logger) error {
+	var (
+		endpoint     = flag.String("endpoint", "/tmp/vault.sock", "path to socket on which to listen for driver gRPC calls")
+		debug        = flag.Bool("debug", false, "sets log to debug level")
+		selfVersion  = flag.Bool("version", false, "prints the version information")
+		vaultAddr    = flag.String("vault-addr", "https://127.0.0.1:8200", "default address for connecting to Vault")
+		vaultMount   = flag.String("vault-mount", "kubernetes", "default Vault mount path for Kubernetes authentication")
+		writeSecrets = flag.Bool("write-secrets", true, "write secrets directly to filesystem (true), or send secrets to CSI driver in gRPC response (false)")
+		healthAddr   = new(string)
+	)
+	flag.StringVar(healthAddr, "health_addr", "", "deprecated, please use --health-addr")
+	flag.StringVar(healthAddr, "health-addr", ":8080", "configure http listener for reporting health")
 	flag.Parse()
 
 	// set log level
@@ -78,12 +79,11 @@ func realMain(logger hclog.Logger) error {
 		server.GracefulStop()
 	}()
 
-	listener, err := listen(logger)
+	listener, err := listen(logger, *endpoint)
 	if err != nil {
 		return err
 	}
 	defer listener.Close()
-	logger.Info(fmt.Sprintf("Listening on %s", *endpoint))
 
 	s := &providerserver.Server{
 		Logger:       serverLogger,
@@ -112,11 +112,13 @@ func realMain(logger hclog.Logger) error {
 
 	// Start health handler
 	go func() {
+		logger.Info("Starting health handler", "addr", *healthAddr)
 		if err := ms.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("Error with health handler", "error", err)
 		}
 	}()
 
+	logger.Info("Starting gRPC server")
 	err = server.Serve(listener)
 	if err != nil {
 		return fmt.Errorf("error running gRPC server: %w", err)
@@ -125,25 +127,25 @@ func realMain(logger hclog.Logger) error {
 	return nil
 }
 
-func listen(logger hclog.Logger) (net.Listener, error) {
+func listen(logger hclog.Logger, endpoint string) (net.Listener, error) {
 	// Because the unix socket is created in a host volume (i.e. persistent
 	// storage), it can persist from previous runs if the pod was not terminated
 	// cleanly. Check if we need to clean up before creating a listener.
-	_, err := os.Stat(*endpoint)
+	_, err := os.Stat(endpoint)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, fmt.Errorf("failed to check for existence of unix socket: %w", err)
 	} else if err == nil {
-		logger.Info("Cleaning up pre-existing file at unix socket location", "endpoint", *endpoint)
-		err = os.Remove(*endpoint)
+		logger.Info("Cleaning up pre-existing file at unix socket location", "endpoint", endpoint)
+		err = os.Remove(endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("failed to clean up pre-existing file at unix socket location: %w", err)
 		}
 	}
 
-	logger.Info("Opening unix socket", "endpoint", *endpoint)
-	listener, err := net.Listen("unix", *endpoint)
+	logger.Info("Opening unix socket", "endpoint", endpoint)
+	listener, err := net.Listen("unix", endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("failed to listen on unix socket at %s: %v", *endpoint, err)
+		return nil, fmt.Errorf("failed to listen on unix socket at %s: %v", endpoint, err)
 	}
 
 	return listener, nil

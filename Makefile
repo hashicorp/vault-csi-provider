@@ -14,7 +14,7 @@ GOLANG_IMAGE?=docker.mirror.hashicorp.services/golang:1.16.2
 K8S_VERSION?=v1.20.2
 CI_TEST_ARGS=
 CSI_DRIVER_VERSION=0.0.21
-VAULT_HELM_VERSION=0.10.0
+VAULT_HELM_VERSION=0.12.0
 ifdef CI
 override CI_TEST_ARGS:=--junitfile=$(TEST_RESULTS_DIR)/go-test/results.xml --jsonfile=$(TEST_RESULTS_DIR)/go-test/results.json
 endif
@@ -98,6 +98,22 @@ e2e-teardown:
 
 e2e-test:
 	bats test/bats/provider.bats
+
+# Check the current behaviour of --write-secrets flag and switch it.
+# If the flag is missing, switch to false because the default is true.
+e2e-switch-write-secrets:
+	@if [ "$(shell kubectl get pods -n csi -l app.kubernetes.io/name=vault-csi-provider -o json | jq -r '.items[0].spec.containers[0].args[] | match("--write_secrets=(true|false)").captures[0].string')" = "false" ]; then\
+		WRITE_SECRETS=true make e2e-set-write-secrets;\
+	else\
+		WRITE_SECRETS=false make e2e-set-write-secrets;\
+	fi
+
+e2e-set-write-secrets:
+	helm upgrade vault https://github.com/hashicorp/vault-helm/archive/v$(VAULT_HELM_VERSION).tar.gz \
+		--wait --timeout=5m \
+		--namespace=csi \
+		--values=test/bats/configs/vault/vault.values.yaml \
+		--set "csi.extraArgs={--write-secrets=$(WRITE_SECRETS)}";\
 
 clean:
 	-rm -rf _output
