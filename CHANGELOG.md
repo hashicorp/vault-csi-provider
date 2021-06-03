@@ -2,7 +2,13 @@
 
 FEATURES:
 
-* Support for changing the default Vault address and Kubernetes mount path via CLI flag to the vault-csi-provider binary
+* Support for changing the default Vault address and Kubernetes mount path via CLI flag to the vault-csi-provider binary [[GH-96](https://github.com/hashicorp/vault-csi-provider/pull/96)]
+* Support for sending secret contents to driver for writing via `--write-secrets=false` [[GH-89](https://github.com/hashicorp/vault-csi-provider/pull/89)]
+  * **Note:** `--write-secrets=false` will become the default from v0.4.0 and require secrets-store-csi-driver v0.0.21+
+
+CHANGES:
+
+* `--health_addr` flag is marked deprecated and replaced by `--health-addr`. Slated for removal in v0.5.0 [[GH-100](https://github.com/hashicorp/vault-csi-provider/pull/100)]
 
 BUGS:
 
