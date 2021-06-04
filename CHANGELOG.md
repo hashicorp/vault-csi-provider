@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.3.0 (June 4th, 2021)
+
 FEATURES:
 
 * Support for changing the default Vault address and Kubernetes mount path via CLI flag to the vault-csi-provider binary [[GH-96](https://github.com/hashicorp/vault-csi-provider/pull/96)]
