@@ -124,13 +124,3 @@ mod:
 promote-staging-manifest: #promote staging manifests to release dir
 	@rm -rf deployment
 	@cp -r manifest_staging/deployment .
-
-# This target is used in CI to cross compile vault-csi-provider for 4 different architectures
-# and publish (when XC_PUBLISH="--push") using docker buildx
-xc-prod-image:
-	docker buildx build --platform linux/amd64,linux/arm64,linux/386,linux/arm/v6 \
-	--build-arg VERSION=$(VERSION) \
-	--build-arg LOCATION=$(PUBLISH_LOCATION) \
-	$(XC_PUBLISH) \
-	-t $(IMAGE_TAG) \
-	-f Dockerfile .
