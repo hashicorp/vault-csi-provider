@@ -3,8 +3,8 @@ version: 2.1
 
 references:
   images:
-    go: &GOLANG_IMAGE docker.mirror.hashicorp.services/circleci/golang:1.16.2
-    ubuntu: &UBUNTU_IMAGE ubuntu-2004:202010-01
+    go: &GOLANG_IMAGE docker.mirror.hashicorp.services/circleci/golang:1.17.2
+    ubuntu: &UBUNTU_IMAGE ubuntu-latest
 
   paths:
     test-results: &TEST_RESULTS_DIR /tmp/test-results
@@ -13,10 +13,10 @@ references:
   environment: &ENVIRONMENT
     TEST_RESULTS_DIR: *TEST_RESULTS_DIR
     GOLANG_IMAGE: *GOLANG_IMAGE
-    GOLANGCI_LINT_VERSION: "v1.35.2"
-    K8S_VERSION: "v1.20.2"
-    HELM_VERSION: "v3.5.3"
-    KIND_VERSION: "v0.10.0"
+    GOLANGCI_LINT_VERSION: "v1.42.1"
+    K8S_VERSION: "v1.22.2"
+    HELM_VERSION: "v3.7.1"
+    KIND_VERSION: "v0.11.1"
 
 jobs:
   lint:
@@ -62,7 +62,12 @@ jobs:
     working_directory: *WORKING_DIRECTORY
     steps:
       - checkout
-      - run: mkdir -p $TEST_RESULTS_DIR/go-test && make test
+      - run:
+          name: unit tests
+          command: |
+            export CI_TEST_ARGS="--junitfile=${TEST_RESULTS_DIR}/go-test/results.xml --jsonfile=${TEST_RESULTS_DIR}/go-test/results.json"
+            mkdir -p $TEST_RESULTS_DIR/go-test
+            make test
 
       # Store the results so they display nicely in CircleCI.
       - store_artifacts:

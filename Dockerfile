@@ -1,4 +1,4 @@
-FROM docker.mirror.hashicorp.services/alpine:3.13
+FROM docker.mirror.hashicorp.services/alpine:3.14
 
 ARG VERSION
 ARG ARCH="amd64"
