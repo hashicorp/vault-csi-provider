@@ -4,7 +4,7 @@ version: 2.1
 references:
   images:
     go: &GOLANG_IMAGE docker.mirror.hashicorp.services/circleci/golang:1.17.2
-    ubuntu: &UBUNTU_IMAGE ubuntu-latest
+    ubuntu: &UBUNTU_IMAGE ubuntu-2004:202107-02
 
   paths:
     test-results: &TEST_RESULTS_DIR /tmp/test-results
