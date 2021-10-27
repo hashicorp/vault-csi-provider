@@ -13,7 +13,7 @@ import (
 
 const (
 	objects      = "-\n  secretPath: \"v1/secret/foo1\"\n  objectName: \"bar1\""
-	certsSPCYaml = `apiVersion: secrets-store.csi.x-k8s.io/v1alpha1
+	certsSPCYaml = `apiVersion: secrets-store.csi.x-k8s.io/v1
 kind: SecretProviderClass
 metadata:
   name: vault-foo
