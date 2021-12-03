@@ -213,6 +213,15 @@ func TestKeyFromData(t *testing.T) {
 		"foo": 10,
 		"baz": "zap",
 	}
+	dataWithJson := map[string]interface{}{
+		"data": map[string]interface{}{
+			"foo": map[string]interface{}{
+				"bar": "hop",
+				"baz": "zap",
+			},
+			"baz": "zap",
+		},
+	}
 	for _, tc := range []struct {
 		name        string
 		key         string
@@ -243,6 +252,12 @@ func TestKeyFromData(t *testing.T) {
 			key:         "foo",
 			data:        dataWithNonStringValue,
 			errExpected: true,
+		},
+		{
+			name:     "json data",
+			key:      "foo",
+			data:     dataWithJson,
+			expected: "{\"bar\":\"hop\",\"baz\":\"zap\"}",
 		},
 	} {
 		content, err := keyFromData(tc.data, tc.key)
