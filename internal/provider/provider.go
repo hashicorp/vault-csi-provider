@@ -166,9 +166,16 @@ func keyFromData(rootData map[string]interface{}, secretKey string) (string, err
 
 	content, ok := data[secretKey].(string)
 	if !ok {
+		bytes, err := json.Marshal(data[secretKey])
+		if err == nil {
+			// Only return a valid JSON
+			// This prevents conversions of integers into string
+			if strings.Contains(string(bytes), "{") {
+				return string(bytes), nil
+			}
+		}
 		return "", fmt.Errorf("failed to get secret content %q as string", secretKey)
 	}
-
 	return content, nil
 }
 
