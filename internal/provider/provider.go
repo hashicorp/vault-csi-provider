@@ -176,6 +176,7 @@ func keyFromData(rootData map[string]interface{}, secretKey string) (string, err
 		}
 		return "", fmt.Errorf("failed to get secret content %q as string", secretKey)
 	}
+
 	return content, nil
 }
 

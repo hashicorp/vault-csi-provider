@@ -254,10 +254,10 @@ func TestKeyFromData(t *testing.T) {
 			errExpected: true,
 		},
 		{
-			name:        "json data",
-			key:         "foo",
-			data:        dataWithJson,
-			expected:	 "{\"bar\":\"hop\",\"baz\":\"zap\"}",
+			name:     "json data",
+			key:      "foo",
+			data:     dataWithJson,
+			expected: "{\"bar\":\"hop\",\"baz\":\"zap\"}",
 		},
 	} {
 		content, err := keyFromData(tc.data, tc.key)
