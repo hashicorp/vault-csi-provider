@@ -46,14 +46,6 @@ jobs:
               exit 1
             fi
 
-  build:
-    docker:
-      - image: *GOLANG_IMAGE
-    working_directory: *WORKING_DIRECTORY
-    steps:
-      - checkout
-      - run: make build
-
   go-test:
     docker:
       - image: *GOLANG_IMAGE
@@ -114,15 +106,10 @@ workflows:
     jobs:
       - lint
       - gomod
-      - build:
-          requires:
-            - lint
-            - gomod
       - go-test:
           requires:
             - lint
             - gomod
       - integration-test:
           requires:
-            - build
             - go-test
