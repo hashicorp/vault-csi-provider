@@ -3,7 +3,8 @@ schema = "1"
 project "vault-csi-provider" {
   team = "vault"
   slack {
-    notification_channel = "C01A3A54G0L"
+    // #vault-releases channel
+    notification_channel = "CRF6FFKEW"
   }
   github {
     organization = "hashicorp"
