@@ -70,7 +70,7 @@ event "security-scan-containers" {
 }
 
 event "sign" {
-  depends = ["notarize-windows-amd64"]
+  depends = ["security-scan-containers"]
   action "sign" {
     organization = "hashicorp"
     repository = "crt-workflows-common"
@@ -83,7 +83,7 @@ event "sign" {
 }
 
 event "verify" {
-  depends = ["sign-linux-rpms"]
+  depends = ["sign"]
   action "verify" {
     organization = "hashicorp"
     repository = "crt-workflows-common"
