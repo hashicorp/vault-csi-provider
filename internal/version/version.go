@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 )
 
-const minDriverVersion = "v0.0.17"
+const minDriverVersion = "v0.0.21"
 
 var (
 	BuildDate    string
