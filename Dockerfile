@@ -3,7 +3,7 @@
 
 # devbuild compiles the binary
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/golang:latest AS devbuild
+FROM docker.mirror.hashicorp.services/golang:1.17.6 AS devbuild
 ENV CGO_ENABLED=0
 # Leave the GOPATH
 WORKDIR /build
@@ -12,13 +12,13 @@ RUN go build -o vault-csi-provider
 
 # dev runs the binary from devbuild
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/alpine:latest AS dev
+FROM docker.mirror.hashicorp.services/alpine:3.15.0 AS dev
 COPY --from=devbuild /build/vault-csi-provider /bin/
 ENTRYPOINT [ "/bin/vault-csi-provider" ]
 
 # Default release image.
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/alpine:latest AS default
+FROM docker.mirror.hashicorp.services/alpine:3.15.0 AS default
 
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
