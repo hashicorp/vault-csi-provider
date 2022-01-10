@@ -1,11 +1,6 @@
 name: build
 
-on:
-  push:
-    branches:
-      - master
-      - 'release/**'
-      - crt-release
+on: push
 
 env:
   PKG_NAME: "vault-csi-provider"
