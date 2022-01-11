@@ -61,12 +61,7 @@ jobs:
           GOARCH: ${{ matrix.arch }}
         run: |
           mkdir dist out
-          CGO_ENABLED=0 go build \
-            -ldflags "-X github.com/hashicorp/vault-csi-provider/internal/version.BuildVersion=$(make version) \
-              -X github.com/hashicorp/vault-csi-provider/internal/version.BuildDate=$(date +%Y-%m-%d-%H:%M) \
-              -X github.com/hashicorp/vault-csi-provider/internal/version.GoVersion=$(go version | cut -d' ' -f3)" \
-            -o dist/ \
-            .
+          make build
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_linux_${{ matrix.arch }}.zip dist/
       - uses: actions/upload-artifact@v2
         with:

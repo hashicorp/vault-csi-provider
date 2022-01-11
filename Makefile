@@ -18,7 +18,7 @@ CI_TEST_ARGS?=
 XC_PUBLISH?=
 PUBLISH_LOCATION?=https://releases.hashicorp.com
 
-.PHONY: all test lint image e2e-container e2e-setup e2e-teardown e2e-test clean setup mod setup-kind version
+.PHONY: default build test lint image e2e-container e2e-setup e2e-teardown e2e-test e2e-switch-write-secrets e2e-set-write-secrets mod setup-kind version promote-staging-manifest
 
 GO111MODULE?=on
 export GO111MODULE
@@ -35,6 +35,12 @@ lint:
 		--enable errcheck \
 		--enable ineffassign \
 		--enable unused
+
+build:
+	CGO_ENABLED=0 go build \
+		-ldflags $(LDFLAGS) \
+		-o dist/ \
+		.
 
 test:
 	gotestsum --format=short-verbose $(CI_TEST_ARGS)
@@ -94,9 +100,6 @@ e2e-set-write-secrets:
 		--namespace=csi \
 		--values=test/bats/configs/vault/vault.values.yaml \
 		--set "csi.extraArgs={--write-secrets=$(WRITE_SECRETS)}";\
-
-clean:
-	-rm -rf _output
 
 mod:
 	@go mod tidy
