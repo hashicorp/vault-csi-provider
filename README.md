@@ -55,5 +55,5 @@ provider pod running on the same node as your application pod:
   kubectl logs vault-csi-provider-7x44t
   ```
 
-Pass `--debug=true` to the provider to get more detailed logs. When installing
-via helm, you can achieve this with `--set "csi.debug=true"`.
+Pass `-debug=true` to the provider to get more detailed logs. When installing
+via helm, you can use `--set "csi.debug=true"`.
