@@ -1,5 +1,9 @@
 ## Unreleased
 
+FEATURES:
+
+* Support extracting JSON values using `secretKey` in the SecretProviderClass [[GH-126](https://github.com/hashicorp/vault-csi-provider/pull/126)]
+
 ## 0.3.0 (June 7th, 2021)
 
 FEATURES:
