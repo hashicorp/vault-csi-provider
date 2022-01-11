@@ -152,7 +152,7 @@ func generateRequest(client *api.Client, secret config.Secret) (*api.Request, er
 	return req, nil
 }
 
-func keyFromData(rootData map[string]interface{}, secretKey string) (string, error) {
+func keyFromData(rootData map[string]interface{}, secretKey string) ([]byte, error) {
 	// Automatically parse through to embedded .data.data map if it's present
 	// and the correct type (e.g. for kv v2).
 	var data map[string]interface{}
@@ -164,35 +164,48 @@ func keyFromData(rootData map[string]interface{}, secretKey string) (string, err
 		data = rootData
 	}
 
-	content, ok := data[secretKey].(string)
-	if !ok {
-		return "", fmt.Errorf("failed to get secret content %q as string", secretKey)
+	// Special-case the most common format of strings so the contents are
+	// returned plainly without quotes that json.Marshal would add.
+	if content, ok := data[secretKey].(string); ok {
+		return []byte(content), nil
 	}
 
-	return content, nil
+	// Arbitrary data can be returned in the data field of an API secret struct.
+	// It's already been Unmarshalled from the response, so in theory,
+	// marshalling should never realistically fail, but don't log the error just
+	// in case, as it could contain secret contents if it does somehow fail.
+	if content, err := json.Marshal(data[secretKey]); err == nil {
+		return content, nil
+	}
+
+	return nil, fmt.Errorf("failed to extract secret content as string or JSON from key %q", secretKey)
 }
 
-func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConfig config.Secret) (string, error) {
+func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConfig config.Secret) ([]byte, error) {
 	var secret *api.Secret
 	var cached bool
 	key := cacheKey{secretPath: secretConfig.SecretPath, method: secretConfig.Method}
 	if secret, cached = p.cache[key]; !cached {
 		req, err := generateRequest(client, secretConfig)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		p.logger.Debug("Requesting secret", "secretConfig", secretConfig, "method", req.Method, "path", req.URL.Path, "params", req.Params)
 
 		if err != nil {
-			return "", fmt.Errorf("could not generate request: %v", err)
+			return nil, fmt.Errorf("could not generate request: %v", err)
 		}
 
 		secret, err = vaultclient.Do(ctx, client, req)
 		if err != nil {
-			return "", fmt.Errorf("couldn't read secret %q: %w", secretConfig.ObjectName, err)
+			return nil, fmt.Errorf("couldn't read secret %q: %w", secretConfig.ObjectName, err)
 		}
 		if secret == nil || secret.Data == nil {
-			return "", fmt.Errorf("empty response from %q, warnings: %v", req.URL.Path, secret.Warnings)
+			return nil, fmt.Errorf("empty response from %q, warnings: %v", req.URL.Path, secret.Warnings)
+		}
+
+		for _, w := range secret.Warnings {
+			p.logger.Warn("warning in response from Vault API", "warning", w)
 		}
 
 		p.cache[key] = secret
@@ -202,12 +215,12 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 
 	// If no secretKey specified, we return the whole response as a JSON object.
 	if secretConfig.SecretKey == "" {
-		bytes, err := json.Marshal(secret)
+		content, err := json.Marshal(secret)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		return string(bytes), nil
+		return content, nil
 	}
 
 	return keyFromData(secret.Data, secretConfig.SecretKey)
@@ -248,7 +261,7 @@ func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, wr
 				return nil, err
 			}
 		} else {
-			files = append(files, &pb.File{Path: secret.ObjectName, Mode: int32(cfg.FilePermission), Contents: []byte(content)})
+			files = append(files, &pb.File{Path: secret.ObjectName, Mode: int32(cfg.FilePermission), Contents: content})
 			p.logger.Info("secret added to mount response", "directory", cfg.TargetPath, "file", secret.ObjectName)
 		}
 	}
@@ -264,8 +277,7 @@ func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, wr
 	}, nil
 }
 
-func writeSecret(logger hclog.Logger, directory string, file string, content string, permission os.FileMode) error {
-	objectContent := []byte(content)
+func writeSecret(logger hclog.Logger, directory string, file string, content []byte, permission os.FileMode) error {
 	if err := validateFilePath(file); err != nil {
 		return err
 	}
@@ -275,7 +287,7 @@ func writeSecret(logger hclog.Logger, directory string, file string, content str
 			return err
 		}
 	}
-	if err := ioutil.WriteFile(filepath.Join(directory, file), objectContent, permission); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(directory, file), content, permission); err != nil {
 		return fmt.Errorf("secrets-store csi driver failed to write %s at %s: %w", file, directory, err)
 	}
 	logger.Info("secrets-store csi driver wrote secret", "directory", directory, "file", file)

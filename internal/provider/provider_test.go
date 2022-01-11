@@ -91,7 +91,7 @@ func TestWriteSecret(t *testing.T) {
 			require.NoError(t, os.RemoveAll(root), tc.name)
 		}()
 
-		err = writeSecret(l, root, tc.file, "", tc.permission)
+		err = writeSecret(l, root, tc.file, nil, tc.permission)
 		if tc.invalid {
 			require.Error(t, err, tc.name)
 			assert.Contains(t, err.Error(), "must not contain any .. segments", tc.name)
@@ -213,44 +213,67 @@ func TestKeyFromData(t *testing.T) {
 		"foo": 10,
 		"baz": "zap",
 	}
+	dataWithJSON := map[string]interface{}{
+		"data": map[string]interface{}{
+			"foo": map[string]interface{}{
+				"bar": "hop",
+				"baz": "zap",
+				"cheeses": map[string]interface{}{
+					"brie":    9,
+					"cheddar": "8",
+				},
+			},
+			"baz": "zap",
+		},
+	}
+	dataWithArray := map[string]interface{}{
+		"values": []interface{}{6, "stilton", true},
+	}
 	for _, tc := range []struct {
-		name        string
-		key         string
-		data        map[string]interface{}
-		expected    string
-		errExpected bool
+		name     string
+		key      string
+		data     map[string]interface{}
+		expected []byte
 	}{
 		{
 			name:     "base case",
 			key:      "foo",
 			data:     data,
-			expected: "bar",
+			expected: []byte("bar"),
 		},
 		{
 			name:     "string data",
 			key:      "data",
 			data:     dataWithDataString,
-			expected: "hello",
+			expected: []byte("hello"),
 		},
 		{
 			name:     "kv v2 embedded data field",
 			key:      "foo",
 			data:     dataWithDataField,
-			expected: "bar",
+			expected: []byte("bar"),
 		},
 		{
-			name:        "kv v2 embedded data field",
-			key:         "foo",
-			data:        dataWithNonStringValue,
-			errExpected: true,
+			name:     "kv v2 embedded data field",
+			key:      "foo",
+			data:     dataWithNonStringValue,
+			expected: []byte("10"),
+		},
+		{
+			name:     "json data",
+			key:      "foo",
+			data:     dataWithJSON,
+			expected: []byte(`{"bar":"hop","baz":"zap","cheeses":{"brie":9,"cheddar":"8"}}`),
+		},
+		{
+			name:     "json array",
+			key:      "values",
+			data:     dataWithArray,
+			expected: []byte(`[6,"stilton",true]`),
 		},
 	} {
 		content, err := keyFromData(tc.data, tc.key)
-		if tc.errExpected {
-			require.Error(t, err, tc.name)
-		} else {
-			require.NoError(t, err, tc.name)
-			assert.Equal(t, tc.expected, content)
-		}
+		require.NoError(t, err, tc.name)
+		assert.Equal(t, tc.expected, content)
 	}
 }

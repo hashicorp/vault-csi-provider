@@ -5,6 +5,10 @@ CHANGES:
 * `-write-secrets` flag now defaults to `false`, delegating file writes to the driver. [[GH-127](https://github.com/hashicorp/vault-csi-provider/pull/127)]
   * **Note:** `-write-secrets` is deprecated and will be removed in the next major version.
 
+FEATURES:
+
+* Support extracting JSON values using `secretKey` in the SecretProviderClass [[GH-126](https://github.com/hashicorp/vault-csi-provider/pull/126)]
+
 ## 0.3.0 (June 7th, 2021)
 
 FEATURES:
