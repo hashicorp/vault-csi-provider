@@ -1,5 +1,10 @@
 ## Unreleased
 
+CHANGES:
+
+* `-write-secrets` flag now defaults to `false`, delegating file writes to the driver. [[GH-127](https://github.com/hashicorp/vault-csi-provider/pull/127)]
+  * **Note:** `-write-secrets` is deprecated and will be removed in the next major version.
+
 FEATURES:
 
 * Support extracting JSON values using `secretKey` in the SecretProviderClass [[GH-126](https://github.com/hashicorp/vault-csi-provider/pull/126)]
@@ -9,12 +14,12 @@ FEATURES:
 FEATURES:
 
 * Support for changing the default Vault address and Kubernetes mount path via CLI flag to the vault-csi-provider binary [[GH-96](https://github.com/hashicorp/vault-csi-provider/pull/96)]
-* Support for sending secret contents to driver for writing via `--write-secrets=false` [[GH-89](https://github.com/hashicorp/vault-csi-provider/pull/89)]
-  * **Note:** `--write-secrets=false` will become the default from v0.4.0 and require secrets-store-csi-driver v0.0.21+
+* Support for sending secret contents to driver for writing via `-write-secrets=false` [[GH-89](https://github.com/hashicorp/vault-csi-provider/pull/89)]
+  * **Note:** `-write-secrets=false` will become the default from v0.4.0 and require secrets-store-csi-driver v0.0.21+
 
 CHANGES:
 
-* `--health_addr` flag is marked deprecated and replaced by `--health-addr`. Slated for removal in v0.5.0 [[GH-100](https://github.com/hashicorp/vault-csi-provider/pull/100)]
+* `-health_addr` flag is marked deprecated and replaced by `-health-addr`. Slated for removal in v0.5.0 [[GH-100](https://github.com/hashicorp/vault-csi-provider/pull/100)]
 
 BUGS:
 
@@ -53,7 +58,7 @@ CHANGES:
 IMPROVEMENTS
 
 * The provider now uses the `hashicorp/vault/api` package to communicate with Vault [[GH-61](https://github.com/hashicorp/vault-csi-provider/pull/61)]
-* `--version` flag will now print the version of Go used to build the provider [[GH-62](https://github.com/hashicorp/vault-csi-provider/pull/62)]
+* `-version` flag will now print the version of Go used to build the provider [[GH-62](https://github.com/hashicorp/vault-csi-provider/pull/62)]
 * CircleCI linting, tests and integration tests added [[GH-60](https://github.com/hashicorp/vault-csi-provider/pull/60)]
 
 ## 0.0.7 (January 20th, 2021)

@@ -35,10 +35,10 @@ func realMain(logger hclog.Logger) error {
 		selfVersion  = flag.Bool("version", false, "prints the version information")
 		vaultAddr    = flag.String("vault-addr", "https://127.0.0.1:8200", "default address for connecting to Vault")
 		vaultMount   = flag.String("vault-mount", "kubernetes", "default Vault mount path for Kubernetes authentication")
-		writeSecrets = flag.Bool("write-secrets", true, "write secrets directly to filesystem (true), or send secrets to CSI driver in gRPC response (false)")
+		writeSecrets = flag.Bool("write-secrets", false, "deprecated, write secrets directly to filesystem (true), or send secrets to CSI driver in gRPC response (false)")
 		healthAddr   = new(string)
 	)
-	flag.StringVar(healthAddr, "health_addr", "", "deprecated, please use --health-addr")
+	flag.StringVar(healthAddr, "health_addr", "", "deprecated, please use -health-addr")
 	flag.StringVar(healthAddr, "health-addr", ":8080", "configure http listener for reporting health")
 	flag.Parse()
 
