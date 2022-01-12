@@ -51,7 +51,7 @@ spec:
       tolerations:
       containers:
         - name: provider-vault-installer
-          image: hashicorp/vault-csi-provider:0.3.0
+          image: hashicorp/vault-csi-provider:0.4.0
           imagePullPolicy: Always
           args:
             - -endpoint=/provider/vault.sock
@@ -66,9 +66,6 @@ spec:
           volumeMounts:
             - name: providervol
               mountPath: "/provider"
-            - name: mountpoint-dir
-              mountPath: /var/lib/kubelet/pods
-              mountPropagation: HostToContainer
           livenessProbe:
             httpGet:
               path: "/health/ready"
@@ -93,8 +90,5 @@ spec:
         - name: providervol
           hostPath:
             path: "/etc/kubernetes/secrets-store-csi-providers"
-        - name: mountpoint-dir
-          hostPath:
-            path: /var/lib/kubelet/pods
       nodeSelector:
         beta.kubernetes.io/os: linux

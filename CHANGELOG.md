@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.4.0 (January 12th, 2022)
+
 CHANGES:
 
 * `-write-secrets` flag now defaults to `false`, delegating file writes to the driver. [[GH-127](https://github.com/hashicorp/vault-csi-provider/pull/127)]
