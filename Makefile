@@ -8,15 +8,10 @@ BUILD_DATE=$$(date +%Y-%m-%d-%H:%M)
 LDFLAGS?="-X 'github.com/hashicorp/vault-csi-provider/internal/version.BuildVersion=$(VERSION)' \
 	-X 'github.com/hashicorp/vault-csi-provider/internal/version.BuildDate=$(BUILD_DATE)' \
 	-X 'github.com/hashicorp/vault-csi-provider/internal/version.GoVersion=$(shell go version)'"
-GOOS?=linux
-GOARCH?=amd64
-GOLANG_IMAGE?=docker.mirror.hashicorp.services/golang:1.17.2
 K8S_VERSION?=v1.22.2
 CSI_DRIVER_VERSION=1.0.0
 VAULT_HELM_VERSION=0.16.1
 CI_TEST_ARGS?=
-XC_PUBLISH?=
-PUBLISH_LOCATION?=https://releases.hashicorp.com
 
 .PHONY: default build test lint image e2e-container e2e-setup e2e-teardown e2e-test e2e-switch-write-secrets e2e-set-write-secrets mod setup-kind version promote-staging-manifest
 
