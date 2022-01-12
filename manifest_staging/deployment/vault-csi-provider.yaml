@@ -54,8 +54,8 @@ spec:
           image: hashicorp/vault-csi-provider:0.3.0
           imagePullPolicy: Always
           args:
-            - --endpoint=/provider/vault.sock
-            - --debug=false
+            - -endpoint=/provider/vault.sock
+            - -debug=false
           resources:
             requests:
               cpu: 50m
