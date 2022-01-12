@@ -1,29 +1,24 @@
 REGISTRY_NAME?=docker.io/hashicorp
 IMAGE_NAME=vault-csi-provider
-VERSION?=$(shell git tag | tail -1)
+# VERSION defines the next version to build/release
+VERSION?=0.4.0
 IMAGE_TAG=$(REGISTRY_NAME)/$(IMAGE_NAME):$(VERSION)
 IMAGE_TAG_LATEST=$(REGISTRY_NAME)/$(IMAGE_NAME):latest
 BUILD_DATE=$$(date +%Y-%m-%d-%H:%M)
 LDFLAGS?="-X 'github.com/hashicorp/vault-csi-provider/internal/version.BuildVersion=$(VERSION)' \
 	-X 'github.com/hashicorp/vault-csi-provider/internal/version.BuildDate=$(BUILD_DATE)' \
-	-X 'github.com/hashicorp/vault-csi-provider/internal/version.GoVersion=$(shell go version)' \
-	-extldflags "-static""
-GOOS?=linux
-GOARCH?=amd64
-GOLANG_IMAGE?=docker.mirror.hashicorp.services/golang:1.17.2
+	-X 'github.com/hashicorp/vault-csi-provider/internal/version.GoVersion=$(shell go version)'"
 K8S_VERSION?=v1.22.2
 CSI_DRIVER_VERSION=1.0.0
 VAULT_HELM_VERSION=0.16.1
 CI_TEST_ARGS?=
-XC_PUBLISH?=
-PUBLISH_LOCATION?=https://releases.hashicorp.com
 
-.PHONY: all test lint build build-in-docker image e2e-container docker-push e2e-setup e2e-teardown e2e-test clean setup mod setup-kind
+.PHONY: default build test lint image e2e-container e2e-setup e2e-teardown e2e-test e2e-switch-write-secrets e2e-set-write-secrets mod setup-kind version promote-staging-manifest
 
 GO111MODULE?=on
 export GO111MODULE
 
-all: build
+default: test
 
 lint:
 	golangci-lint run -v --concurrency 2 \
@@ -36,39 +31,25 @@ lint:
 		--enable ineffassign \
 		--enable unused
 
+build:
+	CGO_ENABLED=0 go build \
+		-ldflags $(LDFLAGS) \
+		-o dist/ \
+		.
+
 test:
 	gotestsum --format=short-verbose $(CI_TEST_ARGS)
 
-build: clean
-	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build \
-		-a -ldflags $(LDFLAGS) \
-		-o _output/vault-csi-provider_$(GOOS)_$(GOARCH)_$(VERSION) \
+image:
+	docker build \
+		--target dev \
+		--no-cache \
+		--tag $(IMAGE_TAG) \
 		.
-
-build-in-docker: clean
-	mkdir -m 777 _output
-	docker run --rm \
-		--volume `pwd`:`pwd` \
-		--workdir=`pwd` \
-		--env GOOS \
-		--env GOARCH \
-		--env LDFLAGS \
-		--env REGISTRY_NAME \
-		--env VERSION \
-		$(GOLANG_IMAGE) \
-		make build
-
-image: build-in-docker
-	docker build --no-cache --build-arg VERSION=$(VERSION) -t $(IMAGE_TAG) .
 
 e2e-container:
 	REGISTRY_NAME="e2e" VERSION="latest" make image
 	kind load docker-image e2e/vault-csi-provider:latest
-
-docker-push:
-	docker push $(IMAGE_TAG)
-	docker tag $(IMAGE_TAG) $(IMAGE_TAG_LATEST)
-	docker push $(IMAGE_TAG_LATEST)
 
 setup-kind:
 	kind create cluster --image kindest/node:${K8S_VERSION}
@@ -115,12 +96,12 @@ e2e-set-write-secrets:
 		--values=test/bats/configs/vault/vault.values.yaml \
 		--set "csi.extraArgs={-write-secrets=$(WRITE_SECRETS)}";\
 
-clean:
-	-rm -rf _output
-
 mod:
 	@go mod tidy
 
 promote-staging-manifest: #promote staging manifests to release dir
 	@rm -rf deployment
 	@cp -r manifest_staging/deployment .
+
+version:
+	@echo $(VERSION)
