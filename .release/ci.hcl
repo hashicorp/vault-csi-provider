@@ -9,7 +9,7 @@ project "vault-csi-provider" {
   github {
     organization = "hashicorp"
     repository = "vault-csi-provider"
-    release_branches = ["master"]
+    release_branches = ["main"]
   }
 }
 
