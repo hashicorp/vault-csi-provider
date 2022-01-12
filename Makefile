@@ -100,7 +100,7 @@ e2e-test:
 	bats test/bats/provider.bats
 
 # Check the current behaviour of -write-secrets flag and switch it.
-# If the flag is missing, switch to false because the default is true.
+# If the flag is missing, switch to true because the default is false.
 e2e-switch-write-secrets:
 	@if [ "$(shell kubectl get pods -n csi -l app.kubernetes.io/name=vault-csi-provider -o json | jq -r '.items[0].spec.containers[0].args[] | match("-write_secrets=(true|false)").captures[0].string')" = "true" ]; then\
 		WRITE_SECRETS=false make e2e-set-write-secrets;\
