@@ -1,7 +1,7 @@
 REGISTRY_NAME?=docker.io/hashicorp
 IMAGE_NAME=vault-csi-provider
 # VERSION defines the next version to build/release
-VERSION?=0.4.0
+VERSION?=1.0.0
 IMAGE_TAG=$(REGISTRY_NAME)/$(IMAGE_NAME):$(VERSION)
 IMAGE_TAG_LATEST=$(REGISTRY_NAME)/$(IMAGE_NAME):latest
 BUILD_DATE=$$(date +%Y-%m-%d-%H:%M)
@@ -13,7 +13,7 @@ CSI_DRIVER_VERSION=1.0.0
 VAULT_HELM_VERSION=0.16.1
 CI_TEST_ARGS?=
 
-.PHONY: default build test lint image e2e-container e2e-setup e2e-teardown e2e-test e2e-switch-write-secrets e2e-set-write-secrets mod setup-kind version promote-staging-manifest
+.PHONY: default build test lint image e2e-container e2e-setup e2e-teardown e2e-test mod setup-kind version promote-staging-manifest
 
 GO111MODULE?=on
 export GO111MODULE
@@ -79,22 +79,6 @@ e2e-teardown:
 
 e2e-test:
 	bats test/bats/provider.bats
-
-# Check the current behaviour of -write-secrets flag and switch it.
-# If the flag is missing, switch to true because the default is false.
-e2e-switch-write-secrets:
-	@if [ "$(shell kubectl get pods -n csi -l app.kubernetes.io/name=vault-csi-provider -o json | jq -r '.items[0].spec.containers[0].args[] | match("-write_secrets=(true|false)").captures[0].string')" = "true" ]; then\
-		WRITE_SECRETS=false make e2e-set-write-secrets;\
-	else\
-		WRITE_SECRETS=true make e2e-set-write-secrets;\
-	fi
-
-e2e-set-write-secrets:
-	helm upgrade vault https://github.com/hashicorp/vault-helm/archive/v$(VAULT_HELM_VERSION).tar.gz \
-		--wait --timeout=5m \
-		--namespace=csi \
-		--values=test/bats/configs/vault/vault.values.yaml \
-		--set "csi.extraArgs={-write-secrets=$(WRITE_SECRETS)}";\
 
 mod:
 	@go mod tidy

@@ -227,7 +227,7 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 }
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
-func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, writeSecrets bool) (*pb.MountResponse, error) {
+func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config) (*pb.MountResponse, error) {
 	versions := make(map[string]string)
 
 	client, err := vaultclient.New(cfg.Parameters.VaultAddress, cfg.Parameters.VaultTLSConfig)
@@ -255,15 +255,8 @@ func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, wr
 		}
 		versions[fmt.Sprintf("%s:%s:%s", secret.ObjectName, secret.SecretPath, secret.Method)] = "0"
 
-		if writeSecrets {
-			err = writeSecret(p.logger, cfg.TargetPath, secret.ObjectName, content, cfg.FilePermission)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			files = append(files, &pb.File{Path: secret.ObjectName, Mode: int32(cfg.FilePermission), Contents: content})
-			p.logger.Info("secret added to mount response", "directory", cfg.TargetPath, "file", secret.ObjectName)
-		}
+		files = append(files, &pb.File{Path: secret.ObjectName, Mode: int32(cfg.FilePermission), Contents: content})
+		p.logger.Info("secret added to mount response", "directory", cfg.TargetPath, "file", secret.ObjectName)
 	}
 
 	var ov []*pb.ObjectVersion

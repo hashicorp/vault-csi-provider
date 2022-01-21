@@ -91,4 +91,3 @@ jobs:
           arch: ${{matrix.arch}}
           tags: |
             docker.io/hashicorp/${{env.repo}}:${{env.version}}
-            ecr.public.aws/hashicorp/${{env.repo}}:${{env.version}}
