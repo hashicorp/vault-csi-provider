@@ -96,9 +96,6 @@ jobs:
             make e2e-setup
             export DISPLAY_SETUP_TEARDOWN_LOGS=true
             make e2e-test
-            # Now switch the behaviour of --write-secrets and run the tests a second time.
-            make e2e-switch-write-secrets
-            make e2e-test
 
 workflows:
   version: 2

@@ -17,10 +17,9 @@ var (
 
 // Server implements the secrets-store-csi-driver provider gRPC service interface.
 type Server struct {
-	Logger       hclog.Logger
-	VaultAddr    string
-	VaultMount   string
-	WriteSecrets bool
+	Logger     hclog.Logger
+	VaultAddr  string
+	VaultMount string
 }
 
 func (p *Server) Version(context.Context, *pb.VersionRequest) (*pb.VersionResponse, error) {
@@ -38,7 +37,7 @@ func (p *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResp
 	}
 
 	provider := provider.NewProvider(p.Logger.Named("provider"))
-	resp, err := provider.HandleMountRequest(ctx, cfg, p.WriteSecrets)
+	resp, err := provider.HandleMountRequest(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("error making mount request: %w", err)
 	}
