@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 1.0.0 (January 25th, 2022)
+
 CHANGES:
 
 * `-write-secrets` flag removed. All secrets are now written to the filesystem by the CSI secrets store driver. [[GH-133](https://github.com/hashicorp/vault-csi-provider/pull/133)]
