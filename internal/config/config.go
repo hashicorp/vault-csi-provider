@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/hashicorp/go-hclog"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -64,13 +63,13 @@ type Secret struct {
 	SecretArgs map[string]interface{} `yaml:"secretArgs,omitempty"`
 }
 
-func Parse(logger hclog.Logger, parametersStr, targetPath, permissionStr string, defaultVaultAddr string, defaultVaultKubernetesMountPath string) (Config, error) {
+func Parse(parametersStr, targetPath, permissionStr string, defaultVaultAddr string, defaultVaultKubernetesMountPath string) (Config, error) {
 	config := Config{
 		TargetPath: targetPath,
 	}
 
 	var err error
-	config.Parameters, err = parseParameters(logger, parametersStr, defaultVaultAddr, defaultVaultKubernetesMountPath)
+	config.Parameters, err = parseParameters(parametersStr, defaultVaultAddr, defaultVaultKubernetesMountPath)
 	if err != nil {
 		return Config{}, err
 	}
@@ -88,7 +87,7 @@ func Parse(logger hclog.Logger, parametersStr, targetPath, permissionStr string,
 	return config, nil
 }
 
-func parseParameters(logger hclog.Logger, parametersStr string, defaultVaultAddress string, defaultVaultKubernetesMountPath string) (Parameters, error) {
+func parseParameters(parametersStr string, defaultVaultAddress string, defaultVaultKubernetesMountPath string) (Parameters, error) {
 	var params map[string]string
 	err := json.Unmarshal([]byte(parametersStr), &params)
 	if err != nil {
@@ -131,12 +130,6 @@ func parseParameters(logger hclog.Logger, parametersStr string, defaultVaultAddr
 
 	if parameters.VaultKubernetesMountPath == "" {
 		parameters.VaultKubernetesMountPath = defaultVaultKubernetesMountPath
-	}
-	if _, exists := params["kubernetesServiceAccountPath"]; exists {
-		logger.Warn("kubernetesServiceAccountPath set but will be ignored", "PodInfo", parameters.PodInfo)
-	}
-	if _, exists := params["vaultCAPem"]; exists {
-		logger.Warn("vaultCAPem set but will be ignored", "PodInfo", parameters.PodInfo)
 	}
 
 	return parameters, nil

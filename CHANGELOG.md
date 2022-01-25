@@ -7,6 +7,7 @@ CHANGES:
 * `-write-secrets` flag removed. All secrets are now written to the filesystem by the CSI secrets store driver. [[GH-133](https://github.com/hashicorp/vault-csi-provider/pull/133)]
   * **NOTE:** CSI secrets store driver v0.0.21+ is required.
 * `-health_addr` flag removed, use `-health-addr` instead. [[GH-133](https://github.com/hashicorp/vault-csi-provider/pull/133)]
+* Warning logs are no longer printed when deprecated SecretProviderClass fields `kubernetesServiceAccountPath` and `vaultCAPem` are used. [[GH-134](https://github.com/hashicorp/vault-csi-provider/pull/134)]
 
 ## 0.4.0 (January 12th, 2022)
 
