@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/vault-csi-provider/internal/config"
+	"github.com/hashicorp/vault/api"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,30 +33,57 @@ func TestNew(t *testing.T) {
 
 	for _, tc := range []struct {
 		name string
-		cfg  config.TLSConfig
+		cfg  api.TLSConfig
 	}{
 		{
 			name: "file",
-			cfg: config.TLSConfig{
-				CACertPath: caPath,
+			cfg: api.TLSConfig{
+				CACert: caPath,
 			},
 		},
 		{
 			name: "directory",
-			cfg: config.TLSConfig{
-				CADirectory: "testdata",
+			cfg: api.TLSConfig{
+				CAPath: "testdata",
 			},
 		},
 	} {
-		_, err = New("https://vault:8200", tc.cfg)
+		_, err = New(config.Parameters{
+			VaultTLSConfig: tc.cfg,
+		}, config.FlagsConfig{})
 		require.NoError(t, err, tc.name)
 	}
 }
 
-func TestNew_Error(t *testing.T) {
-	_, err := New("https://vault:8200", config.TLSConfig{
-		CADirectory: "bad_directory",
+func TestConfigPrecedence(t *testing.T) {
+	err := os.Setenv("VAULT_ADDR", "from-env")
+	require.NoError(t, err)
+
+	client, err := New(config.Parameters{}, config.FlagsConfig{})
+	require.NoError(t, err)
+	assert.Equal(t, "from-env", client.Address())
+
+	client, err = New(config.Parameters{}, config.FlagsConfig{
+		VaultAddr: "from-flags",
 	})
+	require.NoError(t, err)
+	assert.Equal(t, "from-flags", client.Address())
+
+	client, err = New(config.Parameters{
+		VaultAddress: "from-parameters",
+	}, config.FlagsConfig{
+		VaultAddr: "from-flags",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "from-parameters", client.Address())
+}
+
+func TestNew_Error(t *testing.T) {
+	_, err := New(config.Parameters{
+		VaultTLSConfig: api.TLSConfig{
+			CAPath: "bad_directory",
+		},
+	}, config.FlagsConfig{})
 	require.Error(t, err)
 }
 

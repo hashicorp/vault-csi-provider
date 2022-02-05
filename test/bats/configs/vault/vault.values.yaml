@@ -47,6 +47,11 @@ server:
 csi:
   enabled: true
   debug: true
+  extraArgs:
+    - -vault-addr=https://vault:8200
+    - -vault-tls-ca-cert=/mnt/tls/ca.crt
+    - -vault-tls-client-cert=/mnt/tls/client.crt
+    - -vault-tls-client-key=/mnt/tls/client.key
 
   image:
     repository: "e2e/vault-csi-provider"
