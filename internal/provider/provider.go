@@ -255,7 +255,11 @@ func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config) (*
 		}
 		versions[fmt.Sprintf("%s:%s:%s", secret.ObjectName, secret.SecretPath, secret.Method)] = "0"
 
-		files = append(files, &pb.File{Path: secret.ObjectName, Mode: int32(cfg.FilePermission), Contents: content})
+		filePermission := int32(cfg.FilePermission)
+		if secret.FilePermission != 0 {
+			filePermission = int32(secret.FilePermission)
+		}
+		files = append(files, &pb.File{Path: secret.ObjectName, Mode: filePermission, Contents: content})
 		p.logger.Info("secret added to mount response", "directory", cfg.TargetPath, "file", secret.ObjectName)
 	}
 

@@ -56,11 +56,12 @@ type PodInfo struct {
 }
 
 type Secret struct {
-	ObjectName string                 `yaml:"objectName,omitempty"`
-	SecretPath string                 `yaml:"secretPath,omitempty"`
-	SecretKey  string                 `yaml:"secretKey,omitempty"`
-	Method     string                 `yaml:"method,omitempty"`
-	SecretArgs map[string]interface{} `yaml:"secretArgs,omitempty"`
+	ObjectName     string                 `yaml:"objectName,omitempty"`
+	SecretPath     string                 `yaml:"secretPath,omitempty"`
+	SecretKey      string                 `yaml:"secretKey,omitempty"`
+	Method         string                 `yaml:"method,omitempty"`
+	SecretArgs     map[string]interface{} `yaml:"secretArgs,omitempty"`
+	FilePermission os.FileMode            `yaml:"filePermission,omitempty"`
 }
 
 func Parse(parametersStr, targetPath, permissionStr string, defaultVaultAddr string, defaultVaultKubernetesMountPath string) (Config, error) {

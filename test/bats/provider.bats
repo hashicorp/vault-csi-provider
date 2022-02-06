@@ -140,8 +140,16 @@ teardown(){
     result=$(kubectl --namespace=test exec nginx-kv -- cat /mnt/secrets-store/secret-1)
     [[ "$result" == "hello1" ]]
 
+    # Check file permission is non-default
+    result=$(kubectl --namespace=test exec nginx-kv -- stat -c '%a' /mnt/secrets-store/..data/secret-1)
+    [[ "$result" == "600" ]]
+
     result=$(kubectl --namespace=test exec nginx-kv -- cat /mnt/secrets-store/secret-2)
     [[ "$result" == "hello2" ]]
+
+    # Check file permission is default
+    result=$(kubectl --namespace=test exec nginx-kv -- stat -c '%a' /mnt/secrets-store/..data/secret-2)
+    [[ "$result" == "644" ]]
 }
 
 @test "2 Sync with kubernetes secrets" {

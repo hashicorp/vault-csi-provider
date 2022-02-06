@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	objects      = "-\n  secretPath: \"v1/secret/foo1\"\n  objectName: \"bar1\""
+	objects      = "-\n  secretPath: \"v1/secret/foo1\"\n  objectName: \"bar1\"\n  filePermission: 0600"
 	certsSPCYaml = `apiVersion: secrets-store.csi.x-k8s.io/v1
 kind: SecretProviderClass
 metadata:
@@ -95,8 +95,8 @@ func TestParseParameters(t *testing.T) {
 			SkipVerify: true,
 		},
 		Secrets: []Secret{
-			{"bar1", "v1/secret/foo1", "", "GET", nil},
-			{"bar2", "v1/secret/foo2", "", "", nil},
+			{"bar1", "v1/secret/foo1", "", "GET", nil, 0},
+			{"bar2", "v1/secret/foo2", "", "", nil, 0},
 		},
 		VaultKubernetesMountPath: defaultVaultKubernetesMountPath,
 		PodInfo: PodInfo{
@@ -139,7 +139,7 @@ func TestParseConfig(t *testing.T) {
 					expected.VaultRoleName = roleName
 					expected.VaultTLSConfig.SkipVerify = true
 					expected.Secrets = []Secret{
-						{"bar1", "v1/secret/foo1", "", "", nil},
+						{"bar1", "v1/secret/foo1", "", "", nil, 0o600},
 					}
 					return expected
 				}(),
@@ -168,7 +168,7 @@ func TestParseConfig(t *testing.T) {
 					expected.VaultKubernetesMountPath = "my-mount-path"
 					expected.VaultTLSConfig.SkipVerify = true
 					expected.Secrets = []Secret{
-						{"bar1", "v1/secret/foo1", "", "", nil},
+						{"bar1", "v1/secret/foo1", "", "", nil, 0o600},
 					}
 					return expected
 				}(),
