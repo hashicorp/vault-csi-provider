@@ -17,12 +17,18 @@ var (
 
 // Server implements the secrets-store-csi-driver provider gRPC service interface.
 type Server struct {
-	Logger     hclog.Logger
-	VaultAddr  string
-	VaultMount string
+	logger      hclog.Logger
+	flagsConfig config.FlagsConfig
 }
 
-func (p *Server) Version(context.Context, *pb.VersionRequest) (*pb.VersionResponse, error) {
+func NewServer(logger hclog.Logger, flagsConfig config.FlagsConfig) *Server {
+	return &Server{
+		logger:      logger,
+		flagsConfig: flagsConfig,
+	}
+}
+
+func (s *Server) Version(context.Context, *pb.VersionRequest) (*pb.VersionResponse, error) {
 	return &pb.VersionResponse{
 		Version:        "v1alpha1",
 		RuntimeName:    "vault-csi-provider",
@@ -30,14 +36,14 @@ func (p *Server) Version(context.Context, *pb.VersionRequest) (*pb.VersionRespon
 	}, nil
 }
 
-func (p *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResponse, error) {
-	cfg, err := config.Parse(req.Attributes, req.TargetPath, req.Permission, p.VaultAddr, p.VaultMount)
+func (s *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResponse, error) {
+	cfg, err := config.Parse(req.Attributes, req.TargetPath, req.Permission)
 	if err != nil {
 		return nil, err
 	}
 
-	provider := provider.NewProvider(p.Logger.Named("provider"))
-	resp, err := provider.HandleMountRequest(ctx, cfg)
+	provider := provider.NewProvider(s.logger.Named("provider"))
+	resp, err := provider.HandleMountRequest(ctx, cfg, s.flagsConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error making mount request: %w", err)
 	}
