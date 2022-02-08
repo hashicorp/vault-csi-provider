@@ -1,5 +1,16 @@
 ## Unreleased
 
+IMPROVEMENTS:
+
+* New flags to configure default Vault namespace and TLS details. [[GH-138](https://github.com/hashicorp/vault-csi-provider/pull/138)]
+  * `-vault-namespace`
+  * `-vault-tls-ca-cert`
+  * `-vault-tls-ca-directory`
+  * `-vault-tls-server-name`
+  * `-vault-tls-client-cert`
+  * `-vault-tls-client-key`
+  * `-vault-tls-skip-verify`
+
 ## 1.0.0 (January 25th, 2022)
 
 CHANGES:

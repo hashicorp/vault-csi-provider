@@ -56,7 +56,10 @@ func TestNew(t *testing.T) {
 }
 
 func TestConfigPrecedence(t *testing.T) {
-	err := os.Setenv("VAULT_ADDR", "from-env")
+	if originalVaultAddr, isSet := os.LookupEnv(api.EnvVaultAddress); isSet {
+		defer os.Setenv(api.EnvVaultAddress, originalVaultAddr)
+	}
+	err := os.Setenv(api.EnvVaultAddress, "from-env")
 	require.NoError(t, err)
 
 	client, err := New(config.Parameters{}, config.FlagsConfig{})
