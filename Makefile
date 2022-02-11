@@ -4,10 +4,18 @@ IMAGE_NAME=vault-csi-provider
 VERSION?=1.0.0
 IMAGE_TAG=$(REGISTRY_NAME)/$(IMAGE_NAME):$(VERSION)
 IMAGE_TAG_LATEST=$(REGISTRY_NAME)/$(IMAGE_NAME):latest
-BUILD_DATE=$$(date +%Y-%m-%d-%H:%M)
-LDFLAGS?="-X 'github.com/hashicorp/vault-csi-provider/internal/version.BuildVersion=$(VERSION)' \
-	-X 'github.com/hashicorp/vault-csi-provider/internal/version.BuildDate=$(BUILD_DATE)' \
-	-X 'github.com/hashicorp/vault-csi-provider/internal/version.GoVersion=$(shell go version)'"
+# https://reproducible-builds.org/docs/source-date-epoch/
+DATE_FMT=+%Y-%m-%d-%H:%M
+SOURCE_DATE_EPOCH ?= $(shell git log -1 --pretty=%ct)
+ifdef SOURCE_DATE_EPOCH
+  BUILD_DATE ?= $(shell date -u -d "@$(SOURCE_DATE_EPOCH)" $(DATE_FMT) 2>/dev/null || date -u -r "$(SOURCE_DATE_EPOCH)" $(DATE_FMT) 2>/dev/null || date -u $(DATE_FMT))
+else
+    BUILD_DATE ?= $(shell date $(DATE_FMT))
+endif
+PKG=github.com/hashicorp/vault-csi-provider/internal/version
+LDFLAGS?="-X '$(PKG).BuildVersion=$(VERSION)' \
+	-X '$(PKG).BuildDate=$(BUILD_DATE)' \
+	-X '$(PKG).GoVersion=$(shell go version)'"
 K8S_VERSION?=v1.22.2
 CSI_DRIVER_VERSION=1.0.0
 VAULT_HELM_VERSION=0.16.1
