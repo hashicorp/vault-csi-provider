@@ -10,6 +10,7 @@ IMPROVEMENTS:
   * `-vault-tls-client-cert`
   * `-vault-tls-client-key`
   * `-vault-tls-skip-verify`
+* New SecretProviderClass field `filePermission` can be used per-secret to set the file permissions it is written with. [[GH-139](https://github.com/hashicorp/vault-csi-provider/pull/139)]
 
 ## 1.0.0 (January 25th, 2022)
 
