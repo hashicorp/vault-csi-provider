@@ -13,7 +13,7 @@ else
     BUILD_DATE ?= $(shell date $(DATE_FMT))
 endif
 PKG=github.com/hashicorp/vault-csi-provider/internal/version
-LDFLAGS?="-X '$(PKG).BuildVersion=$(VERSION)' \
+LDFLAGS?="-buildid= -s -w -X '$(PKG).BuildVersion=$(VERSION)' \
 	-X '$(PKG).BuildDate=$(BUILD_DATE)' \
 	-X '$(PKG).GoVersion=$(shell go version)'"
 K8S_VERSION?=v1.22.2
@@ -41,6 +41,9 @@ lint:
 
 build:
 	CGO_ENABLED=0 go build \
+		-trimpath \
+		-mod=readonly \
+		-modcacherw \
 		-ldflags $(LDFLAGS) \
 		-o dist/ \
 		.
