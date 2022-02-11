@@ -6,18 +6,49 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/hashicorp/vault/api"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// Config represents all of the provider's configurable behaviour from the MountRequest proto message:
+// Config represents all of the provider's configurable behaviour from the SecretProviderClass,
+// transmitted in the MountRequest proto message:
 // * Parameters from the `Attributes` field.
 // * Plus the rest of the proto fields we consume.
 // See sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1/service.pb.go
 type Config struct {
-	Parameters
+	Parameters     Parameters
 	TargetPath     string
 	FilePermission os.FileMode
+}
+
+type FlagsConfig struct {
+	Endpoint   string
+	Debug      bool
+	Version    bool
+	HealthAddr string
+
+	VaultAddr      string
+	VaultMount     string
+	VaultNamespace string
+
+	TLSCACertPath  string
+	TLSCADirectory string
+	TLSServerName  string
+	TLSClientCert  string
+	TLSClientKey   string
+	TLSSkipVerify  bool
+}
+
+func (fc FlagsConfig) TLSConfig() api.TLSConfig {
+	return api.TLSConfig{
+		CACert:        fc.TLSCACertPath,
+		CAPath:        fc.TLSCADirectory,
+		ClientCert:    fc.TLSClientCert,
+		ClientKey:     fc.TLSClientKey,
+		TLSServerName: fc.TLSServerName,
+		Insecure:      fc.TLSSkipVerify,
+	}
 }
 
 // Parameters stores the parameters specified in a mount request's `Attributes` field.
@@ -34,18 +65,9 @@ type Parameters struct {
 	VaultRoleName            string
 	VaultKubernetesMountPath string
 	VaultNamespace           string
-	VaultTLSConfig           TLSConfig
+	VaultTLSConfig           api.TLSConfig
 	Secrets                  []Secret
 	PodInfo                  PodInfo
-}
-
-type TLSConfig struct {
-	CACertPath     string
-	CADirectory    string
-	TLSServerName  string
-	SkipVerify     bool
-	ClientCertPath string
-	ClientKeyPath  string
 }
 
 type PodInfo struct {
@@ -64,31 +86,29 @@ type Secret struct {
 	FilePermission os.FileMode            `yaml:"filePermission,omitempty"`
 }
 
-func Parse(parametersStr, targetPath, permissionStr string, defaultVaultAddr string, defaultVaultKubernetesMountPath string) (Config, error) {
+func Parse(parametersStr, targetPath, permissionStr string) (Config, error) {
 	config := Config{
 		TargetPath: targetPath,
 	}
 
 	var err error
-	config.Parameters, err = parseParameters(parametersStr, defaultVaultAddr, defaultVaultKubernetesMountPath)
+	config.Parameters, err = parseParameters(parametersStr)
 	if err != nil {
 		return Config{}, err
 	}
 
-	err = json.Unmarshal([]byte(permissionStr), &config.FilePermission)
-	if err != nil {
+	if err := json.Unmarshal([]byte(permissionStr), &config.FilePermission); err != nil {
 		return Config{}, err
 	}
 
-	err = config.validate()
-	if err != nil {
+	if err := config.validate(); err != nil {
 		return Config{}, err
 	}
 
 	return config, nil
 }
 
-func parseParameters(parametersStr string, defaultVaultAddress string, defaultVaultKubernetesMountPath string) (Parameters, error) {
+func parseParameters(parametersStr string) (Parameters, error) {
 	var params map[string]string
 	err := json.Unmarshal([]byte(parametersStr), &params)
 	if err != nil {
@@ -99,11 +119,11 @@ func parseParameters(parametersStr string, defaultVaultAddress string, defaultVa
 	parameters.VaultRoleName = params["roleName"]
 	parameters.VaultAddress = params["vaultAddress"]
 	parameters.VaultNamespace = params["vaultNamespace"]
-	parameters.VaultTLSConfig.CACertPath = params["vaultCACertPath"]
-	parameters.VaultTLSConfig.CADirectory = params["vaultCADirectory"]
+	parameters.VaultTLSConfig.CACert = params["vaultCACertPath"]
+	parameters.VaultTLSConfig.CAPath = params["vaultCADirectory"]
 	parameters.VaultTLSConfig.TLSServerName = params["vaultTLSServerName"]
-	parameters.VaultTLSConfig.ClientCertPath = params["vaultTLSClientCertPath"]
-	parameters.VaultTLSConfig.ClientKeyPath = params["vaultTLSClientKeyPath"]
+	parameters.VaultTLSConfig.ClientCert = params["vaultTLSClientCertPath"]
+	parameters.VaultTLSConfig.ClientKey = params["vaultTLSClientKeyPath"]
 	parameters.VaultKubernetesMountPath = params["vaultKubernetesMountPath"]
 	parameters.PodInfo.Name = params["csi.storage.k8s.io/pod.name"]
 	parameters.PodInfo.UID = types.UID(params["csi.storage.k8s.io/pod.uid"])
@@ -112,7 +132,7 @@ func parseParameters(parametersStr string, defaultVaultAddress string, defaultVa
 	if skipTLS, ok := params["vaultSkipTLSVerify"]; ok {
 		value, err := strconv.ParseBool(skipTLS)
 		if err == nil {
-			parameters.VaultTLSConfig.SkipVerify = value
+			parameters.VaultTLSConfig.Insecure = value
 		} else {
 			return Parameters{}, err
 		}
@@ -122,15 +142,6 @@ func parseParameters(parametersStr string, defaultVaultAddress string, defaultVa
 	err = yaml.Unmarshal([]byte(secretsYaml), &parameters.Secrets)
 	if err != nil {
 		return Parameters{}, err
-	}
-
-	// Set default values.
-	if parameters.VaultAddress == "" {
-		parameters.VaultAddress = defaultVaultAddress
-	}
-
-	if parameters.VaultKubernetesMountPath == "" {
-		parameters.VaultKubernetesMountPath = defaultVaultKubernetesMountPath
 	}
 
 	return parameters, nil

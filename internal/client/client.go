@@ -8,24 +8,47 @@ import (
 	"github.com/hashicorp/vault/api"
 )
 
-func New(vaultAddress string, tlsConfig config.TLSConfig) (*api.Client, error) {
+// New creates a Vault client configured for a specific SecretProviderClass (SPC).
+// Config is read from environment variables first, then flags, then the SPC in
+// ascending order of precedence.
+func New(spcParameters config.Parameters, flagsConfig config.FlagsConfig) (*api.Client, error) {
 	cfg := api.DefaultConfig()
-	err := cfg.ConfigureTLS(&api.TLSConfig{
-		CACert:        tlsConfig.CACertPath,
-		CAPath:        tlsConfig.CADirectory,
-		ClientCert:    tlsConfig.ClientCertPath,
-		ClientKey:     tlsConfig.ClientKeyPath,
-		TLSServerName: tlsConfig.TLSServerName,
-		Insecure:      tlsConfig.SkipVerify,
-	})
+	if cfg.Error != nil {
+		return nil, cfg.Error
+	}
+	if err := overlayConfig(cfg, flagsConfig.VaultAddr, flagsConfig.TLSConfig()); err != nil {
+		return nil, err
+	}
+	if err := overlayConfig(cfg, spcParameters.VaultAddress, spcParameters.VaultTLSConfig); err != nil {
+		return nil, err
+	}
+
+	client, err := api.NewClient(cfg)
 	if err != nil {
 		return nil, err
 	}
-	if vaultAddress != "" {
-		cfg.Address = vaultAddress
+
+	// Set Vault namespace if configured.
+	if flagsConfig.VaultNamespace != "" {
+		client.SetNamespace(flagsConfig.VaultNamespace)
+	}
+	if spcParameters.VaultNamespace != "" {
+		client.SetNamespace(spcParameters.VaultNamespace)
 	}
 
-	return api.NewClient(cfg)
+	return client, nil
+}
+
+func overlayConfig(cfg *api.Config, vaultAddr string, tlsConfig api.TLSConfig) error {
+	err := cfg.ConfigureTLS(&tlsConfig)
+	if err != nil {
+		return err
+	}
+	if vaultAddr != "" {
+		cfg.Address = vaultAddr
+	}
+
+	return nil
 }
 
 func Do(ctx context.Context, c *api.Client, req *api.Request) (*api.Secret, error) {

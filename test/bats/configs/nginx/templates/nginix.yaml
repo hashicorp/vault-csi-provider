@@ -12,6 +12,7 @@ spec:
   terminationGracePeriodSeconds: 0
   containers:
   - image: docker.mirror.hashicorp.services/nginx
+    imagePullPolicy: IfNotPresent
     name: nginx
     volumeMounts:
     - name: secrets-store-inline

@@ -227,18 +227,17 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 }
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
-func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config) (*pb.MountResponse, error) {
+func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, flagsConfig config.FlagsConfig) (*pb.MountResponse, error) {
 	versions := make(map[string]string)
 
-	client, err := vaultclient.New(cfg.Parameters.VaultAddress, cfg.Parameters.VaultTLSConfig)
+	client, err := vaultclient.New(cfg.Parameters, flagsConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set Vault namespace if configured
-	if cfg.VaultNamespace != "" {
-		p.logger.Debug("setting Vault namespace", "namespace", cfg.VaultNamespace)
-		client.SetNamespace(cfg.VaultNamespace)
+	// Set default k8s auth path if unset.
+	if cfg.Parameters.VaultKubernetesMountPath == "" {
+		cfg.Parameters.VaultKubernetesMountPath = flagsConfig.VaultMount
 	}
 
 	// Authenticate to vault using the jwt token

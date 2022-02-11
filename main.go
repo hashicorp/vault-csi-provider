@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/vault-csi-provider/internal/config"
 	providerserver "github.com/hashicorp/vault-csi-provider/internal/server"
 	"github.com/hashicorp/vault-csi-provider/internal/version"
 	"google.golang.org/grpc"
@@ -29,23 +30,31 @@ func main() {
 }
 
 func realMain(logger hclog.Logger) error {
-	var (
-		endpoint    = flag.String("endpoint", "/tmp/vault.sock", "path to socket on which to listen for driver gRPC calls")
-		debug       = flag.Bool("debug", false, "sets log to debug level")
-		selfVersion = flag.Bool("version", false, "prints the version information")
-		vaultAddr   = flag.String("vault-addr", "https://127.0.0.1:8200", "default address for connecting to Vault")
-		vaultMount  = flag.String("vault-mount", "kubernetes", "default Vault mount path for Kubernetes authentication")
-		healthAddr  = flag.String("health-addr", ":8080", "configure http listener for reporting health")
-	)
+	var flags = config.FlagsConfig{}
+	flag.StringVar(&flags.Endpoint, "endpoint", "/tmp/vault.sock", "Path to socket on which to listen for driver gRPC calls.")
+	flag.BoolVar(&flags.Debug, "debug", false, "Sets log to debug level.")
+	flag.BoolVar(&flags.Version, "version", false, "Prints the version information.")
+	flag.StringVar(&flags.HealthAddr, "health-addr", ":8080", "Configure http listener for reporting health.")
+
+	flag.StringVar(&flags.VaultAddr, "vault-addr", "https://127.0.0.1:8200", "Default address for connecting to Vault. Can also be specified via the VAULT_ADDR environment variable.")
+	flag.StringVar(&flags.VaultMount, "vault-mount", "kubernetes", "Default Vault mount path for Kubernetes authentication.")
+	flag.StringVar(&flags.VaultNamespace, "vault-namespace", "", "Default Vault namespace for Vault requests. Can also be specified via the VAULT_NAMESPACE environment variable.")
+
+	flag.StringVar(&flags.TLSCACertPath, "vault-tls-ca-cert", "", "Path on disk to a single PEM-encoded CA certificate to trust for Vault. Takes precendence over -vault-tls-ca-directory. Can also be specified via the VAULT_CACERT environment variable.")
+	flag.StringVar(&flags.TLSCADirectory, "vault-tls-ca-directory", "", "Path on disk to a directory of PEM-encoded CA certificates to trust for Vault. Can also be specified via the VAULT_CAPATH environment variable.")
+	flag.StringVar(&flags.TLSServerName, "vault-tls-server-name", "", "Name to use as the SNI host when connecting to Vault via TLS. Can also be specified via the VAULT_TLS_SERVER_NAME environment variable.")
+	flag.StringVar(&flags.TLSClientCert, "vault-tls-client-cert", "", "Path on disk to a PEM-encoded client certificate for mTLS communication with Vault. If set, also requires -vault-tls-client-key. Can also be specified via the VAULT_CLIENT_CERT environment variable.")
+	flag.StringVar(&flags.TLSClientKey, "vault-tls-client-key", "", "Path on disk to a PEM-encoded client key for mTLS communication with Vault. If set, also requires -vault-tls-client-cert. Can also be specified via the VAULT_CLIENT_KEY environment variable.")
+	flag.BoolVar(&flags.TLSSkipVerify, "vault-tls-skip-verify", false, "Disable verification of TLS certificates. Can also be specified via the VAULT_SKIP_VERIFY environment variable.")
 	flag.Parse()
 
 	// set log level
 	logger.SetLevel(hclog.Info)
-	if *debug {
+	if flags.Debug {
 		logger.SetLevel(hclog.Debug)
 	}
 
-	if *selfVersion {
+	if flags.Version {
 		v, err := version.GetVersion()
 		if err != nil {
 			return fmt.Errorf("failed to print version, err: %w", err)
@@ -76,23 +85,19 @@ func realMain(logger hclog.Logger) error {
 		server.GracefulStop()
 	}()
 
-	listener, err := listen(logger, *endpoint)
+	listener, err := listen(logger, flags.Endpoint)
 	if err != nil {
 		return err
 	}
 	defer listener.Close()
 
-	s := &providerserver.Server{
-		Logger:     serverLogger,
-		VaultAddr:  *vaultAddr,
-		VaultMount: *vaultMount,
-	}
-	pb.RegisterCSIDriverProviderServer(server, s)
+	srv := providerserver.NewServer(serverLogger, flags)
+	pb.RegisterCSIDriverProviderServer(server, srv)
 
 	// Create health handler
 	mux := http.NewServeMux()
 	ms := http.Server{
-		Addr:    *healthAddr,
+		Addr:    flags.HealthAddr,
 		Handler: mux,
 	}
 	defer func() {
@@ -108,7 +113,7 @@ func realMain(logger hclog.Logger) error {
 
 	// Start health handler
 	go func() {
-		logger.Info("Starting health handler", "addr", *healthAddr)
+		logger.Info("Starting health handler", "addr", flags.HealthAddr)
 		if err := ms.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("Error with health handler", "error", err)
 		}
