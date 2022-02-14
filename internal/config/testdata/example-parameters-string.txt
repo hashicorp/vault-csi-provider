@@ -6,5 +6,6 @@
     "objects":"- secretPath: \"v1/secret/foo1\"\n  objectName: \"bar1\"\n  method: \"GET\"\n- secretPath: \"v1/secret/foo2\"\n  objectName: \"bar2\"",
     "roleName":"example-role",
     "vaultAddress":"http://vault:8200",
-    "vaultSkipTLSVerify":"true"
+    "vaultSkipTLSVerify":"true",
+    "audience":"testaudience"
 }

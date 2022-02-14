@@ -43,7 +43,7 @@ type cacheKey struct {
 	method     string
 }
 
-func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo) (string, error) {
+func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo, audience string) (string, error) {
 	p.logger.Debug("creating service account token bound to pod",
 		"namespace", podInfo.Namespace,
 		"serviceAccountName", podInfo.ServiceAccountName,
@@ -60,11 +60,14 @@ func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo) (
 	}
 
 	ttl := int64((15 * time.Minute).Seconds())
+	audiences := []string{}
+	if audience != "" {
+		audiences = []string{audience}
+	}
 	resp, err := clientset.CoreV1().ServiceAccounts(podInfo.Namespace).CreateToken(ctx, podInfo.ServiceAccountName, &authenticationv1.TokenRequest{
 		Spec: authenticationv1.TokenRequestSpec{
 			ExpirationSeconds: &ttl,
-			// TODO: Support audiences as a configurable.
-			//Audiences:         []string{},
+			Audiences:         audiences,
 			BoundObjectRef: &authenticationv1.BoundObjectReference{
 				Kind:       "Pod",
 				APIVersion: "v1",
@@ -84,7 +87,7 @@ func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo) (
 func (p *provider) login(ctx context.Context, client *api.Client, params config.Parameters) (string, error) {
 	p.logger.Debug("performing vault login")
 
-	jwt, err := p.createJWTToken(ctx, params.PodInfo)
+	jwt, err := p.createJWTToken(ctx, params.PodInfo, params.Audience)
 	if err != nil {
 		return "", err
 	}
