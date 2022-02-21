@@ -20,6 +20,7 @@ setup(){
     cat $CONFIGS/vault-policy-kv.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write kv-policy -
     cat $CONFIGS/vault-policy-pki.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write pki-policy -
     cat $CONFIGS/vault-policy-kv-namespace.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write -namespace=acceptance kv-namespace-policy -
+    cat $CONFIGS/vault-policy-kv-custom-audience.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write kv-custom-audience-policy -
 
     # 1. b) Setup kubernetes auth engine.
     kubectl --namespace=csi exec vault-0 -- vault auth enable kubernetes
@@ -48,6 +49,12 @@ setup(){
         bound_service_account_names=nginx-kv \
         bound_service_account_namespaces=test \
         policies=kv-policy \
+        ttl=20m
+    kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/kv-custom-audience-role \
+        audience=custom-audience \
+        bound_service_account_names=nginx-kv-custom-audience \
+        bound_service_account_namespaces=test \
+        policies=kv-custom-audience-policy \
         ttl=20m
     kubectl --namespace=csi exec vault-0 -- vault write -namespace=acceptance auth/kubernetes/role/kv-namespace-role \
         bound_service_account_names=nginx-kv-namespace \
@@ -83,11 +90,13 @@ setup(){
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv-sync2 bar2=hello-sync2
     kubectl --namespace=csi exec vault-0 -- vault secrets enable -namespace=acceptance -path=secret -version=2 kv
     kubectl --namespace=csi exec vault-0 -- vault kv put -namespace=acceptance secret/kv1-namespace greeting=hello-namespaces
+    kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv-custom-audience bar=hello-custom-audience
 
     # 2. Create shared k8s resources.
     kubectl create namespace test
     kubectl --namespace=test apply -f $CONFIGS/vault-all-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-db-secretproviderclass.yaml
+    kubectl --namespace=test apply -f $CONFIGS/vault-kv-custom-audience-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-namespace-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-sync-secretproviderclass.yaml
@@ -123,6 +132,7 @@ teardown(){
     kubectl --namespace=csi exec vault-0 -- vault policy delete example-policy
     kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv1
     kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv2
+    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv-custom-audience
     kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv-sync1
     kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv-sync2
 
@@ -303,4 +313,13 @@ teardown(){
 
     result=$(kubectl --namespace=test exec nginx-kv-namespace -- cat /mnt/secrets-store/secret-1)
     [[ "$result" == "hello-namespaces" ]]
+}
+
+@test "10 Custom audience" {
+    helm --namespace=test install nginx $CONFIGS/nginx \
+        --set engine=kv-custom-audience --set sa=kv-custom-audience \
+        --wait --timeout=5m
+
+    result=$(kubectl --namespace=test exec nginx-kv-custom-audience -- cat /mnt/secrets-store/secret)
+    [[ "$result" == "hello-custom-audience" ]]
 }
