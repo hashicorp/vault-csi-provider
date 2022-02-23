@@ -10,6 +10,7 @@ IMPROVEMENTS:
   * `-vault-tls-client-cert`
   * `-vault-tls-client-key`
   * `-vault-tls-skip-verify`
+* Add an optional SecretProviderClass parameter `audience` to customize the `aud` claim in the JWT [[GH-144](https://github.com/hashicorp/vault-csi-provider/pull/144)]
 
 ## 1.0.0 (January 25th, 2022)
 
