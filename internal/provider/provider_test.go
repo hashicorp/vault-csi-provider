@@ -1,10 +1,11 @@
 package provider
 
 import (
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strings"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/hashicorp/go-hclog"
@@ -12,99 +13,10 @@ import (
 	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
+	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
-
-func TestValidateFilePath(t *testing.T) {
-	// Don't use filepath.Join to generate the test cases because it calls filepath.Clean
-	// which simplifies some of the test cases into less interesting paths.
-	for _, tc := range []string{
-		"",
-		".",
-		"/",
-		"bar",
-		"bar/foo",
-		"bar///foo",
-		"./bar",
-		"/foo/bar",
-		"foo/bar\\baz",
-	} {
-		err := validateFilePath(tc)
-		if err != nil {
-			t.Fatalf("Expected no error for %q but got %s", tc, err)
-		}
-	}
-}
-
-func TestValidatePath_Malformed(t *testing.T) {
-	for _, tc := range []string{
-		"../bar",
-		"foo/..",
-		"foo/../../bar",
-		"foo////..",
-	} {
-		err := validateFilePath(tc)
-		if err == nil {
-			t.Fatalf("Expected error for %q but got none", tc)
-		}
-
-		tc = strings.ReplaceAll(tc, "/", "\\")
-		err = validateFilePath(tc)
-		if err == nil {
-			t.Fatalf("Expected error for %q but got none", tc)
-		}
-	}
-}
-
-func TestWriteSecret(t *testing.T) {
-	l := hclog.NewNullLogger()
-	for _, tc := range []struct {
-		name       string
-		file       string
-		permission os.FileMode
-		invalid    bool
-	}{
-		{
-			name:       "simple case",
-			file:       "foo",
-			permission: 0644,
-		},
-		{
-			name:       "validation error",
-			file:       filepath.Join("..", "foo"),
-			permission: 0644,
-			invalid:    true,
-		},
-		{
-			name:       "requires new directory",
-			file:       filepath.Join("foo", "bar", "baz"),
-			permission: 0644,
-		},
-		{
-			name:       "only owner can read",
-			file:       "foo",
-			permission: 0600,
-		},
-	} {
-		root, err := ioutil.TempDir(os.TempDir(), "")
-		require.NoError(t, err, tc.name)
-		defer func() {
-			require.NoError(t, os.RemoveAll(root), tc.name)
-		}()
-
-		err = writeSecret(l, root, tc.file, nil, tc.permission)
-		if tc.invalid {
-			require.Error(t, err, tc.name)
-			assert.Contains(t, err.Error(), "must not contain any .. segments", tc.name)
-			continue
-		}
-
-		require.NoError(t, err, tc.name)
-		rootedPath := filepath.Join(root, tc.file)
-		info, err := os.Stat(rootedPath)
-		require.NoError(t, err, tc.name)
-		assert.Equal(t, tc.permission, info.Mode(), tc.name)
-	}
-}
 
 func TestEnsureV1Prefix(t *testing.T) {
 	for _, tc := range []struct {
@@ -146,21 +58,21 @@ func TestGenerateRequest(t *testing.T) {
 			secret: config.Secret{
 				SecretPath: "secret/foo",
 			},
-			expected: expected{"GET", "/v1/secret/foo", "", ""},
+			expected: expected{http.MethodGet, "/v1/secret/foo", "", ""},
 		},
 		{
 			name: "zero-length query string",
 			secret: config.Secret{
 				SecretPath: "secret/foo?",
 			},
-			expected: expected{"GET", "/v1/secret/foo", "", ""},
+			expected: expected{http.MethodGet, "/v1/secret/foo", "", ""},
 		},
 		{
 			name: "query string",
 			secret: config.Secret{
 				SecretPath: "secret/foo?bar=true&baz=maybe&zap=0",
 			},
-			expected: expected{"GET", "/v1/secret/foo", "bar=true&baz=maybe&zap=0", ""},
+			expected: expected{http.MethodGet, "/v1/secret/foo", "bar=true&baz=maybe&zap=0", ""},
 		},
 		{
 			name: "method specified",
@@ -174,14 +86,14 @@ func TestGenerateRequest(t *testing.T) {
 			name: "body specified",
 			secret: config.Secret{
 				SecretPath: "secret/foo",
-				Method:     "POST",
+				Method:     http.MethodPost,
 				SecretArgs: map[string]interface{}{
 					"bar": true,
 					"baz": 10,
 					"zap": "a string",
 				},
 			},
-			expected: expected{"POST", "/v1/secret/foo", "", `{"bar":true,"baz":10,"zap":"a string"}`},
+			expected: expected{http.MethodPost, "/v1/secret/foo", "", `{"bar":true,"baz":10,"zap":"a string"}`},
 		},
 	} {
 		req, err := generateRequest(client, tc.secret)
@@ -277,3 +189,191 @@ func TestKeyFromData(t *testing.T) {
 		assert.Equal(t, tc.expected, content)
 	}
 }
+
+func TestHandleMountRequest(t *testing.T) {
+	// SETUP
+	mockKubernetesServer := httptest.NewServer(http.HandlerFunc(mockKubernetesHandler))
+	defer mockKubernetesServer.Close()
+
+	mockVaultServer := httptest.NewServer(http.HandlerFunc(mockVaultHandler()))
+	defer mockVaultServer.Close()
+
+	// Generate a fresh provider on each request to avoid hitting the cache.
+	provider := func() *provider {
+		p := NewProvider(hclog.Default())
+		p.k8sClientConfig = func() (*rest.Config, error) {
+			return &rest.Config{
+				Host: mockKubernetesServer.URL,
+			}, nil
+		}
+		return p
+	}
+
+	spcConfig := config.Config{
+		TargetPath:     "some/unused/path",
+		FilePermission: 0,
+		Parameters: config.Parameters{
+			VaultRoleName: "my-vault-role",
+			Secrets: []config.Secret{
+				{
+					ObjectName: "object-one",
+					SecretPath: "path/one",
+					SecretKey:  "the-key",
+					Method:     "",
+					SecretArgs: nil,
+				},
+				{
+					ObjectName: "object-two",
+					SecretPath: "path/two",
+					SecretKey:  "",
+					Method:     "",
+					SecretArgs: nil,
+				},
+			},
+			PodInfo: config.PodInfo{
+				ServiceAccountName: "a-k8s-service-account",
+				Namespace:          "a-k8s-namespace",
+				Name:               "a-pod",
+				UID:                "a-uid",
+			},
+		},
+	}
+	flagsConfig := config.FlagsConfig{
+		VaultAddr: mockVaultServer.URL,
+	}
+
+	// TEST
+	expectedFiles := []*pb.File{
+		{
+			Path:     "object-one",
+			Mode:     0,
+			Contents: []byte("secret v1 from: /v1/path/one"),
+		},
+		{
+			Path:     "object-two",
+			Mode:     0,
+			Contents: []byte(`{"request_id":"","lease_id":"","lease_duration":0,"renewable":false,"data":{"the-key":"secret v1 from: /v1/path/two"},"warnings":null}`),
+		},
+	}
+	expectedVersions := []*pb.ObjectVersion{
+		{
+			Id:      "object-one",
+			Version: "GTA4Q4qmllcXGP5c-2zGpd2nDKA_koge-LpAK3QS6x4=",
+		},
+		{
+			Id:      "object-two",
+			Version: "01yGq-JMHV5hkbN-VeaV0sqmhXSigHwkSa1-xiLByLQ=",
+		},
+	}
+
+	// While we hit the cache, the secret contents and versions should remain the same.
+	p := provider()
+	for i := 0; i < 3; i++ {
+		resp, err := p.HandleMountRequest(context.Background(), spcConfig, flagsConfig)
+		require.NoError(t, err)
+
+		assert.Equal(t, (*v1alpha1.Error)(nil), resp.Error)
+		assert.Equal(t, expectedFiles, resp.Files)
+		assert.Equal(t, expectedVersions, resp.ObjectVersion)
+	}
+
+	// Mounting again with a fresh provider will update the contents of the secrets, which should update the version.
+	resp, err := provider().HandleMountRequest(context.Background(), spcConfig, flagsConfig)
+	require.NoError(t, err)
+
+	assert.Equal(t, (*v1alpha1.Error)(nil), resp.Error)
+	expectedFiles[0].Contents = []byte("secret v2 from: /v1/path/one")
+	expectedFiles[1].Contents = []byte(`{"request_id":"","lease_id":"","lease_duration":0,"renewable":false,"data":{"the-key":"secret v2 from: /v1/path/two"},"warnings":null}`)
+	expectedVersions[0].Version = "pEVsjkL1Sa3izLS3yl5jUz3nVdgWbWi4kX5sH-WqYvQ="
+	expectedVersions[1].Version = "YhyNECvv1klLks1FxzC690cgBncilNwc5G-UlwIRNDY="
+	assert.Equal(t, expectedFiles, resp.Files)
+	assert.Equal(t, expectedVersions, resp.ObjectVersion)
+}
+
+func mockKubernetesHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	_, err := w.Write([]byte(tokenRequestResponse))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func mockVaultHandler() func(w http.ResponseWriter, req *http.Request) {
+	getsPerPath := map[string]int{}
+
+	return func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
+		case http.MethodPost:
+			// Assume all POSTs are login requests and return a token.
+			body, err := json.Marshal(&api.Secret{
+				Auth: &api.SecretAuth{
+					ClientToken: "my-vault-client-token",
+				},
+			})
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			_, err = w.Write(body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		case http.MethodGet:
+			// Assume all GETs are secret reads and return a derivative of the request path.
+			path := req.URL.Path
+			getsPerPath[path]++
+			body, err := json.Marshal(&api.Secret{
+				Data: map[string]interface{}{
+					"the-key": fmt.Sprintf("secret v%d from: %s", getsPerPath[path], path),
+				},
+			})
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			_, err = w.Write(body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+}
+
+// To regenerate, configure kubectl for a cluster (e.g. `kind create cluster`), and run:
+// kubectl proxy &
+// curl --silent http://127.0.0.1:8001/api/v1/namespaces/default/serviceaccounts/default/token \
+//   -H "Content-Type: application/json" \
+//   -X POST \
+//   -d '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}'
+// kill %%
+const tokenRequestResponse = `{
+  "kind": "TokenRequest",
+  "apiVersion": "authentication.k8s.io/v1",
+  "metadata": {
+    "creationTimestamp": null,
+    "managedFields": [
+      {
+        "manager": "curl",
+        "operation": "Update",
+        "apiVersion": "authentication.k8s.io/v1",
+        "time": "2022-02-22T15:28:56Z",
+        "fieldsType": "FieldsV1",
+        "fieldsV1": {"f:spec":{"f:expirationSeconds":{}}}
+      }
+    ]
+  },
+  "spec": {
+    "audiences": [
+      "https://kubernetes.default.svc.cluster.local"
+    ],
+    "expirationSeconds": 3600,
+    "boundObjectRef": null
+  },
+  "status": {
+    "token": "a-kubernetes-jwt",
+    "expirationTimestamp": "2022-02-22T16:28:56Z"
+  }
+}`

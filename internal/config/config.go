@@ -3,8 +3,10 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/vault/api"
 	"gopkg.in/yaml.v3"
@@ -156,6 +158,21 @@ func (c *Config) validate() error {
 	}
 	if len(c.Parameters.Secrets) == 0 {
 		return errors.New("no secrets configured - the provider will not read any secret material")
+	}
+
+	objectNames := map[string]struct{}{}
+	conflicts := []string{}
+	for _, secret := range c.Parameters.Secrets {
+		if _, exists := objectNames[secret.ObjectName]; exists {
+			conflicts = append(conflicts, secret.ObjectName)
+		}
+
+		objectNames[secret.ObjectName] = struct{}{}
+	}
+
+	if len(conflicts) > 0 {
+		return fmt.Errorf("Each `objectName` within a SecretProviderClass must be unique, "+
+			"but the following keys were duplicated: %s", strings.Join(conflicts, ", "))
 	}
 
 	return nil

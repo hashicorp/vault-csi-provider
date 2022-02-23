@@ -2,12 +2,12 @@ package provider
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -27,12 +27,16 @@ import (
 type provider struct {
 	logger hclog.Logger
 	cache  map[cacheKey]*api.Secret
+
+	// Allows mocking Kubernetes API for tests.
+	k8sClientConfig func() (*rest.Config, error)
 }
 
 func NewProvider(logger hclog.Logger) *provider {
 	p := &provider{
-		logger: logger,
-		cache:  make(map[cacheKey]*api.Secret),
+		logger:          logger,
+		cache:           make(map[cacheKey]*api.Secret),
+		k8sClientConfig: rest.InClusterConfig,
 	}
 
 	return p
@@ -50,7 +54,7 @@ func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo) (
 		"podName", podInfo.Name,
 		"podUID", podInfo.UID)
 
-	config, err := rest.InClusterConfig()
+	config, err := p.k8sClientConfig()
 	if err != nil {
 		return "", err
 	}
@@ -81,31 +85,31 @@ func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo) (
 	return resp.Status.Token, nil
 }
 
-func (p *provider) login(ctx context.Context, client *api.Client, params config.Parameters) (string, error) {
+func (p *provider) login(ctx context.Context, client *api.Client, params config.Parameters) error {
 	p.logger.Debug("performing vault login")
 
 	jwt, err := p.createJWTToken(ctx, params.PodInfo)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	req := client.NewRequest("POST", "/v1/auth/"+params.VaultKubernetesMountPath+"/login")
+	req := client.NewRequest(http.MethodPost, "/v1/auth/"+params.VaultKubernetesMountPath+"/login")
 	err = req.SetJSONBody(map[string]string{
 		"role": params.VaultRoleName,
 		"jwt":  jwt,
 	})
 	if err != nil {
-		return "", err
+		return err
 	}
 	secret, err := vaultclient.Do(ctx, client, req)
 	if err != nil {
-		return "", fmt.Errorf("failed to login: %w", err)
+		return fmt.Errorf("failed to login: %w", err)
 	}
 
 	client.SetToken(secret.Auth.ClientToken)
 
 	p.logger.Debug("vault login successful")
-	return secret.Auth.ClientToken, nil
+	return nil
 }
 
 func ensureV1Prefix(s string) string {
@@ -133,7 +137,7 @@ func generateRequest(client *api.Client, secret config.Secret) (*api.Request, er
 		}
 		secretPath = secretPath[:queryIndex]
 	}
-	method := "GET"
+	method := http.MethodGet
 	if secret.Method != "" {
 		method = secret.Method
 	}
@@ -228,8 +232,6 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
 func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, flagsConfig config.FlagsConfig) (*pb.MountResponse, error) {
-	versions := make(map[string]string)
-
 	client, err := vaultclient.New(cfg.Parameters, flagsConfig)
 	if err != nil {
 		return nil, err
@@ -241,59 +243,46 @@ func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, fl
 	}
 
 	// Authenticate to vault using the jwt token
-	_, err = p.login(ctx, client, cfg.Parameters)
+	err = p.login(ctx, client, cfg.Parameters)
 	if err != nil {
 		return nil, err
 	}
 
 	var files []*pb.File
+	var objectVersions []*pb.ObjectVersion
 	for _, secret := range cfg.Parameters.Secrets {
 		content, err := p.getSecret(ctx, client, secret)
 		if err != nil {
 			return nil, err
 		}
-		versions[fmt.Sprintf("%s:%s:%s", secret.ObjectName, secret.SecretPath, secret.Method)] = "0"
+
+		version, err := generateObjectVersion(secret, content)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate version for object name %q: %w", secret.ObjectName, err)
+		}
 
 		files = append(files, &pb.File{Path: secret.ObjectName, Mode: int32(cfg.FilePermission), Contents: content})
+		objectVersions = append(objectVersions, version)
 		p.logger.Info("secret added to mount response", "directory", cfg.TargetPath, "file", secret.ObjectName)
 	}
 
-	var ov []*pb.ObjectVersion
-	for k, v := range versions {
-		ov = append(ov, &pb.ObjectVersion{Id: k, Version: v})
-	}
-
 	return &pb.MountResponse{
-		ObjectVersion: ov,
 		Files:         files,
+		ObjectVersion: objectVersions,
 	}, nil
 }
 
-func writeSecret(logger hclog.Logger, directory string, file string, content []byte, permission os.FileMode) error {
-	if err := validateFilePath(file); err != nil {
-		return err
-	}
-	if filepath.Base(file) != file {
-		err := os.MkdirAll(filepath.Join(directory, filepath.Dir(file)), 0755)
-		if err != nil {
-			return err
-		}
-	}
-	if err := ioutil.WriteFile(filepath.Join(directory, file), content, permission); err != nil {
-		return fmt.Errorf("secrets-store csi driver failed to write %s at %s: %w", file, directory, err)
-	}
-	logger.Info("secrets-store csi driver wrote secret", "directory", directory, "file", file)
-
-	return nil
-}
-
-func validateFilePath(path string) error {
-	segments := strings.Split(strings.ReplaceAll(path, `\`, "/"), "/")
-	for _, segment := range segments {
-		if segment == ".." {
-			return fmt.Errorf("ObjectName %q invalid, must not contain any .. segments", path)
-		}
+func generateObjectVersion(secret config.Secret, content []byte) (*pb.ObjectVersion, error) {
+	hash := sha256.New()
+	// We include the secret config in the hash input to avoid leaking information
+	// about different secrets that could have the same content.
+	_, err := hash.Write([]byte(fmt.Sprintf("%v:%s", secret, content)))
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	return &pb.ObjectVersion{
+		Id:      secret.ObjectName,
+		Version: base64.URLEncoding.EncodeToString(hash.Sum(nil)),
+	}, nil
 }

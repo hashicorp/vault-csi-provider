@@ -1,5 +1,9 @@
 ## Unreleased
 
+CHANGES:
+
+* Duplicate object names now trigger an error instead of silently overwriting files. [[GH-148](https://github.com/hashicorp/vault-csi-provider/pull/148)]
+
 IMPROVEMENTS:
 
 * New flags to configure default Vault namespace and TLS details. [[GH-138](https://github.com/hashicorp/vault-csi-provider/pull/138)]
@@ -10,6 +14,7 @@ IMPROVEMENTS:
   * `-vault-tls-client-cert`
   * `-vault-tls-client-key`
   * `-vault-tls-skip-verify`
+* Secret versions are now reported as a hash of their input and contents instead of hardcoded to 0. [[GH-148](https://github.com/hashicorp/vault-csi-provider/pull/148)]
 
 ## 1.0.0 (January 25th, 2022)
 
