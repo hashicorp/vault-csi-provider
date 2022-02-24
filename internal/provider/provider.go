@@ -18,7 +18,6 @@ import (
 	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
@@ -29,14 +28,14 @@ type provider struct {
 	cache  map[cacheKey]*api.Secret
 
 	// Allows mocking Kubernetes API for tests.
-	k8sClientConfig func() (*rest.Config, error)
+	k8sClient kubernetes.Interface
 }
 
-func NewProvider(logger hclog.Logger) *provider {
+func NewProvider(logger hclog.Logger, k8sClient kubernetes.Interface) *provider {
 	p := &provider{
-		logger:          logger,
-		cache:           make(map[cacheKey]*api.Secret),
-		k8sClientConfig: rest.InClusterConfig,
+		logger:    logger,
+		cache:     make(map[cacheKey]*api.Secret),
+		k8sClient: k8sClient,
 	}
 
 	return p
@@ -54,17 +53,8 @@ func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo) (
 		"podName", podInfo.Name,
 		"podUID", podInfo.UID)
 
-	config, err := p.k8sClientConfig()
-	if err != nil {
-		return "", err
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return "", err
-	}
-
 	ttl := int64((15 * time.Minute).Seconds())
-	resp, err := clientset.CoreV1().ServiceAccounts(podInfo.Namespace).CreateToken(ctx, podInfo.ServiceAccountName, &authenticationv1.TokenRequest{
+	resp, err := p.k8sClient.CoreV1().ServiceAccounts(podInfo.Namespace).CreateToken(ctx, podInfo.ServiceAccountName, &authenticationv1.TokenRequest{
 		Spec: authenticationv1.TokenRequestSpec{
 			ExpirationSeconds: &ttl,
 			// TODO: Support audiences as a configurable.

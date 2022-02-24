@@ -13,7 +13,9 @@ import (
 	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/client-go/rest"
+	authenticationv1 "k8s.io/api/authentication/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
@@ -192,22 +194,13 @@ func TestKeyFromData(t *testing.T) {
 
 func TestHandleMountRequest(t *testing.T) {
 	// SETUP
-	mockKubernetesServer := httptest.NewServer(http.HandlerFunc(mockKubernetesHandler))
-	defer mockKubernetesServer.Close()
-
 	mockVaultServer := httptest.NewServer(http.HandlerFunc(mockVaultHandler()))
 	defer mockVaultServer.Close()
 
-	// Generate a fresh provider on each request to avoid hitting the cache.
-	provider := func() *provider {
-		p := NewProvider(hclog.Default())
-		p.k8sClientConfig = func() (*rest.Config, error) {
-			return &rest.Config{
-				Host: mockKubernetesServer.URL,
-			}, nil
-		}
-		return p
-	}
+	k8sClient := fake.NewSimpleClientset(
+		&corev1.ServiceAccount{},
+		&authenticationv1.TokenRequest{},
+	)
 
 	spcConfig := config.Config{
 		TargetPath:     "some/unused/path",
@@ -229,12 +222,6 @@ func TestHandleMountRequest(t *testing.T) {
 					Method:     "",
 					SecretArgs: nil,
 				},
-			},
-			PodInfo: config.PodInfo{
-				ServiceAccountName: "a-k8s-service-account",
-				Namespace:          "a-k8s-namespace",
-				Name:               "a-pod",
-				UID:                "a-uid",
 			},
 		},
 	}
@@ -267,9 +254,9 @@ func TestHandleMountRequest(t *testing.T) {
 	}
 
 	// While we hit the cache, the secret contents and versions should remain the same.
-	p := provider()
+	provider := NewProvider(hclog.Default(), k8sClient)
 	for i := 0; i < 3; i++ {
-		resp, err := p.HandleMountRequest(context.Background(), spcConfig, flagsConfig)
+		resp, err := provider.HandleMountRequest(context.Background(), spcConfig, flagsConfig)
 		require.NoError(t, err)
 
 		assert.Equal(t, (*v1alpha1.Error)(nil), resp.Error)
@@ -278,7 +265,7 @@ func TestHandleMountRequest(t *testing.T) {
 	}
 
 	// Mounting again with a fresh provider will update the contents of the secrets, which should update the version.
-	resp, err := provider().HandleMountRequest(context.Background(), spcConfig, flagsConfig)
+	resp, err := NewProvider(hclog.Default(), k8sClient).HandleMountRequest(context.Background(), spcConfig, flagsConfig)
 	require.NoError(t, err)
 
 	assert.Equal(t, (*v1alpha1.Error)(nil), resp.Error)
@@ -288,15 +275,6 @@ func TestHandleMountRequest(t *testing.T) {
 	expectedVersions[1].Version = "YhyNECvv1klLks1FxzC690cgBncilNwc5G-UlwIRNDY="
 	assert.Equal(t, expectedFiles, resp.Files)
 	assert.Equal(t, expectedVersions, resp.ObjectVersion)
-}
-
-func mockKubernetesHandler(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	_, err := w.Write([]byte(tokenRequestResponse))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 }
 
 func mockVaultHandler() func(w http.ResponseWriter, req *http.Request) {
