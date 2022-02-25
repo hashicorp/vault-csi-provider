@@ -319,39 +319,3 @@ func mockVaultHandler() func(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 }
-
-// To regenerate, configure kubectl for a cluster (e.g. `kind create cluster`), and run:
-// kubectl proxy &
-// curl --silent http://127.0.0.1:8001/api/v1/namespaces/default/serviceaccounts/default/token \
-//   -H "Content-Type: application/json" \
-//   -X POST \
-//   -d '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}'
-// kill %%
-const tokenRequestResponse = `{
-  "kind": "TokenRequest",
-  "apiVersion": "authentication.k8s.io/v1",
-  "metadata": {
-    "creationTimestamp": null,
-    "managedFields": [
-      {
-        "manager": "curl",
-        "operation": "Update",
-        "apiVersion": "authentication.k8s.io/v1",
-        "time": "2022-02-22T15:28:56Z",
-        "fieldsType": "FieldsV1",
-        "fieldsV1": {"f:spec":{"f:expirationSeconds":{}}}
-      }
-    ]
-  },
-  "spec": {
-    "audiences": [
-      "https://kubernetes.default.svc.cluster.local"
-    ],
-    "expirationSeconds": 3600,
-    "boundObjectRef": null
-  },
-  "status": {
-    "token": "a-kubernetes-jwt",
-    "expirationTimestamp": "2022-02-22T16:28:56Z"
-  }
-}`
