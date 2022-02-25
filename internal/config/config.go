@@ -68,6 +68,7 @@ type Parameters struct {
 	VaultTLSConfig           api.TLSConfig
 	Secrets                  []Secret
 	PodInfo                  PodInfo
+	Audience                 string
 }
 
 type PodInfo struct {
@@ -128,6 +129,7 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	parameters.PodInfo.UID = types.UID(params["csi.storage.k8s.io/pod.uid"])
 	parameters.PodInfo.Namespace = params["csi.storage.k8s.io/pod.namespace"]
 	parameters.PodInfo.ServiceAccountName = params["csi.storage.k8s.io/serviceAccount.name"]
+	parameters.Audience = params["audience"]
 	if skipTLS, ok := params["vaultSkipTLSVerify"]; ok {
 		value, err := strconv.ParseBool(skipTLS)
 		if err == nil {

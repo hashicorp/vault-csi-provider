@@ -101,6 +101,7 @@ func TestParseParameters(t *testing.T) {
 			Namespace:          "test",
 			ServiceAccountName: "default",
 		},
+		Audience: "testaudience",
 	}
 	require.Equal(t, expected, actual)
 }
@@ -155,6 +156,7 @@ func TestParseConfig(t *testing.T) {
 				"csi.storage.k8s.io/pod.namespace":       "my-pod-namespace",
 				"csi.storage.k8s.io/serviceAccount.name": "my-pod-sa-name",
 				"objects":                                objects,
+				"audience":                               "my-aud",
 			},
 			expected: Config{
 				TargetPath:     targetPath,
@@ -181,6 +183,7 @@ func TestParseConfig(t *testing.T) {
 						"my-pod-namespace",
 						"my-pod-sa-name",
 					},
+					Audience: "my-aud",
 				},
 			},
 		},
