@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	objects      = "-\n  secretPath: \"v1/secret/foo1\"\n  objectName: \"bar1\""
+	objects      = "-\n  secretPath: \"v1/secret/foo1\"\n  objectName: \"bar1\"\n  filePermission: 0600"
 	certsSPCYaml = `apiVersion: secrets-store.csi.x-k8s.io/v1
 kind: SecretProviderClass
 metadata:
@@ -92,8 +92,8 @@ func TestParseParameters(t *testing.T) {
 			Insecure: true,
 		},
 		Secrets: []Secret{
-			{"bar1", "v1/secret/foo1", "", "GET", nil},
-			{"bar2", "v1/secret/foo2", "", "", nil},
+			{"bar1", "v1/secret/foo1", "", "GET", nil, 0},
+			{"bar2", "v1/secret/foo2", "", "", nil, 0},
 		},
 		PodInfo: PodInfo{
 			Name:               "nginx-secrets-store-inline",
@@ -131,7 +131,7 @@ func TestParseConfig(t *testing.T) {
 					expected.VaultRoleName = roleName
 					expected.VaultTLSConfig.Insecure = true
 					expected.Secrets = []Secret{
-						{"bar1", "v1/secret/foo1", "", "", nil},
+						{"bar1", "v1/secret/foo1", "", "", nil, 0o600},
 					}
 					return expected
 				}(),
@@ -167,7 +167,7 @@ func TestParseConfig(t *testing.T) {
 					VaultNamespace:           "my-vault-namespace",
 					VaultKubernetesMountPath: "my-mount-path",
 					Secrets: []Secret{
-						{"bar1", "v1/secret/foo1", "", "", nil},
+						{"bar1", "v1/secret/foo1", "", "", nil, 0o600},
 					},
 					VaultTLSConfig: api.TLSConfig{
 						CACert:        "my-ca-cert-path",
