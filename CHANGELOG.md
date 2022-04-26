@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 1.1.0 (April 26th, 2022)
+
 IMPROVEMENTS:
 
 * New flags to configure default Vault namespace and TLS details. [[GH-138](https://github.com/hashicorp/vault-csi-provider/pull/138)]
