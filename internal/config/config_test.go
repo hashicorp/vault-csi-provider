@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	objects      = "-\n  secretPath: \"v1/secret/foo1\"\n  objectName: \"bar1\""
+	objects      = "-\n  secretPath: \"v1/secret/foo1\"\n  objectName: \"bar1\"\n  filePermission: 0600"
 	certsSPCYaml = `apiVersion: secrets-store.csi.x-k8s.io/v1
 kind: SecretProviderClass
 metadata:
@@ -93,8 +93,8 @@ func TestParseParameters(t *testing.T) {
 			Insecure: true,
 		},
 		Secrets: []Secret{
-			{"bar1", "v1/secret/foo1", "", http.MethodGet, nil},
-			{"bar2", "v1/secret/foo2", "", "", nil},
+			{"bar1", "v1/secret/foo1", "", http.MethodGet, nil, 0},
+			{"bar2", "v1/secret/foo2", "", "", nil, 0},
 		},
 		PodInfo: PodInfo{
 			Name:               "nginx-secrets-store-inline",
@@ -102,6 +102,7 @@ func TestParseParameters(t *testing.T) {
 			Namespace:          "test",
 			ServiceAccountName: "default",
 		},
+		Audience: "testaudience",
 	}
 	require.Equal(t, expected, actual)
 }
@@ -131,7 +132,7 @@ func TestParseConfig(t *testing.T) {
 					expected.VaultRoleName = roleName
 					expected.VaultTLSConfig.Insecure = true
 					expected.Secrets = []Secret{
-						{"bar1", "v1/secret/foo1", "", "", nil},
+						{"bar1", "v1/secret/foo1", "", "", nil, 0o600},
 					}
 					return expected
 				}(),
@@ -156,6 +157,7 @@ func TestParseConfig(t *testing.T) {
 				"csi.storage.k8s.io/pod.namespace":       "my-pod-namespace",
 				"csi.storage.k8s.io/serviceAccount.name": "my-pod-sa-name",
 				"objects":                                objects,
+				"audience":                               "my-aud",
 			},
 			expected: Config{
 				TargetPath:     targetPath,
@@ -166,7 +168,7 @@ func TestParseConfig(t *testing.T) {
 					VaultNamespace:           "my-vault-namespace",
 					VaultKubernetesMountPath: "my-mount-path",
 					Secrets: []Secret{
-						{"bar1", "v1/secret/foo1", "", "", nil},
+						{"bar1", "v1/secret/foo1", "", "", nil, 0o600},
 					},
 					VaultTLSConfig: api.TLSConfig{
 						CACert:        "my-ca-cert-path",
@@ -182,6 +184,7 @@ func TestParseConfig(t *testing.T) {
 						"my-pod-namespace",
 						"my-pod-sa-name",
 					},
+					Audience: "my-aud",
 				},
 			},
 		},

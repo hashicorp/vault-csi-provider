@@ -6,6 +6,12 @@ CHANGES:
 
 IMPROVEMENTS:
 
+* Secret versions are now reported as a hash of their input and contents instead of hardcoded to 0. [[GH-148](https://github.com/hashicorp/vault-csi-provider/pull/148)]
+
+## 1.1.0 (April 26th, 2022)
+
+IMPROVEMENTS:
+
 * New flags to configure default Vault namespace and TLS details. [[GH-138](https://github.com/hashicorp/vault-csi-provider/pull/138)]
   * `-vault-namespace`
   * `-vault-tls-ca-cert`
@@ -14,7 +20,8 @@ IMPROVEMENTS:
   * `-vault-tls-client-cert`
   * `-vault-tls-client-key`
   * `-vault-tls-skip-verify`
-* Secret versions are now reported as a hash of their input and contents instead of hardcoded to 0. [[GH-148](https://github.com/hashicorp/vault-csi-provider/pull/148)]
+* Add an optional SecretProviderClass parameter `audience` to customize the `aud` claim in the JWT [[GH-144](https://github.com/hashicorp/vault-csi-provider/pull/144)]
+* New SecretProviderClass field `filePermission` can be used per-secret to set the file permissions it is written with. [[GH-139](https://github.com/hashicorp/vault-csi-provider/pull/139)]
 
 ## 1.0.0 (January 25th, 2022)
 

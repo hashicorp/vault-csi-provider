@@ -1,6 +1,6 @@
 module github.com/hashicorp/vault-csi-provider
 
-go 1.12
+go 1.13
 
 require (
 	github.com/hashicorp/go-hclog v1.0.0

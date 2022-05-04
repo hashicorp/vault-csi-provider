@@ -46,7 +46,7 @@ type cacheKey struct {
 	method     string
 }
 
-func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo) (string, error) {
+func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo, audience string) (string, error) {
 	p.logger.Debug("creating service account token bound to pod",
 		"namespace", podInfo.Namespace,
 		"serviceAccountName", podInfo.ServiceAccountName,
@@ -54,11 +54,14 @@ func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo) (
 		"podUID", podInfo.UID)
 
 	ttl := int64((15 * time.Minute).Seconds())
+	audiences := []string{}
+	if audience != "" {
+		audiences = []string{audience}
+	}
 	resp, err := p.k8sClient.CoreV1().ServiceAccounts(podInfo.Namespace).CreateToken(ctx, podInfo.ServiceAccountName, &authenticationv1.TokenRequest{
 		Spec: authenticationv1.TokenRequestSpec{
 			ExpirationSeconds: &ttl,
-			// TODO: Support audiences as a configurable.
-			//Audiences:         []string{},
+			Audiences:         audiences,
 			BoundObjectRef: &authenticationv1.BoundObjectReference{
 				Kind:       "Pod",
 				APIVersion: "v1",
@@ -78,7 +81,7 @@ func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo) (
 func (p *provider) login(ctx context.Context, client *api.Client, params config.Parameters) error {
 	p.logger.Debug("performing vault login")
 
-	jwt, err := p.createJWTToken(ctx, params.PodInfo)
+	jwt, err := p.createJWTToken(ctx, params.PodInfo, params.Audience)
 	if err != nil {
 		return err
 	}
@@ -251,7 +254,11 @@ func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, fl
 			return nil, fmt.Errorf("failed to generate version for object name %q: %w", secret.ObjectName, err)
 		}
 
-		files = append(files, &pb.File{Path: secret.ObjectName, Mode: int32(cfg.FilePermission), Contents: content})
+		filePermission := int32(cfg.FilePermission)
+		if secret.FilePermission != 0 {
+			filePermission = int32(secret.FilePermission)
+		}
+		files = append(files, &pb.File{Path: secret.ObjectName, Mode: filePermission, Contents: content})
 		objectVersions = append(objectVersions, version)
 		p.logger.Info("secret added to mount response", "directory", cfg.TargetPath, "file", secret.ObjectName)
 	}
