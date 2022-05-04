@@ -174,7 +174,7 @@ func (c *Config) validate() error {
 	}
 
 	if len(conflicts) > 0 {
-		return fmt.Errorf("Each `objectName` within a SecretProviderClass must be unique, "+
+		return fmt.Errorf("each `objectName` within a SecretProviderClass must be unique, "+
 			"but the following keys were duplicated: %s", strings.Join(conflicts, ", "))
 	}
 
