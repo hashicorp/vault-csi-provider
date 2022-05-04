@@ -245,11 +245,11 @@ func TestHandleMountRequest(t *testing.T) {
 	expectedVersions := []*pb.ObjectVersion{
 		{
 			Id:      "object-one",
-			Version: "GTA4Q4qmllcXGP5c-2zGpd2nDKA_koge-LpAK3QS6x4=",
+			Version: "NUAYElpND6QqTB7MYXdP_kCAjsXQTxCO24ExLXXsKPk=",
 		},
 		{
 			Id:      "object-two",
-			Version: "01yGq-JMHV5hkbN-VeaV0sqmhXSigHwkSa1-xiLByLQ=",
+			Version: "2x2gbSKY0Ot2c9RW8djcD9o3oGuSbwZ1ZXzvnp8ArZg=",
 		},
 	}
 
@@ -264,15 +264,16 @@ func TestHandleMountRequest(t *testing.T) {
 		assert.Equal(t, expectedVersions, resp.ObjectVersion)
 	}
 
-	// Mounting again with a fresh provider will update the contents of the secrets, which should update the version.
+	// The mockVaultHandler function below includes a dynamic counter in the content of secrets.
+	// That means mounting again with a fresh provider will update the contents of the secrets, which should update the version.
 	resp, err := NewProvider(hclog.Default(), k8sClient).HandleMountRequest(context.Background(), spcConfig, flagsConfig)
 	require.NoError(t, err)
 
 	assert.Equal(t, (*v1alpha1.Error)(nil), resp.Error)
 	expectedFiles[0].Contents = []byte("secret v2 from: /v1/path/one")
 	expectedFiles[1].Contents = []byte(`{"request_id":"","lease_id":"","lease_duration":0,"renewable":false,"data":{"the-key":"secret v2 from: /v1/path/two"},"warnings":null}`)
-	expectedVersions[0].Version = "pEVsjkL1Sa3izLS3yl5jUz3nVdgWbWi4kX5sH-WqYvQ="
-	expectedVersions[1].Version = "YhyNECvv1klLks1FxzC690cgBncilNwc5G-UlwIRNDY="
+	expectedVersions[0].Version = "_MwvWQq78rNEsiDtzGPtECvgHmCi2EhlXc6Sdmcemhw="
+	expectedVersions[1].Version = "9Ck2wFZxO5vGIY08Pk_RNSfR8dJh-_QB4ev3KSCDXOg="
 	assert.Equal(t, expectedFiles, resp.Files)
 	assert.Equal(t, expectedVersions, resp.ObjectVersion)
 }
