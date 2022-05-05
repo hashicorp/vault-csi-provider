@@ -17,6 +17,8 @@ import (
 	"github.com/hashicorp/vault-csi-provider/internal/version"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
@@ -91,7 +93,16 @@ func realMain(logger hclog.Logger) error {
 	}
 	defer listener.Close()
 
-	srv := providerserver.NewServer(serverLogger, flags)
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return err
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	srv := providerserver.NewServer(serverLogger, flags, clientset)
 	pb.RegisterCSIDriverProviderServer(server, srv)
 
 	// Create health handler

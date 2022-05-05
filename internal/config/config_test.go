@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"io/ioutil"
+	"net/http"
 	"path/filepath"
 	"testing"
 
@@ -92,7 +93,7 @@ func TestParseParameters(t *testing.T) {
 			Insecure: true,
 		},
 		Secrets: []Secret{
-			{"bar1", "v1/secret/foo1", "", "GET", nil, 0},
+			{"bar1", "v1/secret/foo1", "", http.MethodGet, nil, 0},
 			{"bar2", "v1/secret/foo2", "", "", nil, 0},
 		},
 		PodInfo: PodInfo{
@@ -265,6 +266,17 @@ func TestValidateConfig(t *testing.T) {
 			cfg: func() Config {
 				cfg := minimumValid
 				cfg.Parameters.Secrets = []Secret{}
+				return cfg
+			}(),
+		},
+		{
+			name: "Duplicate objectName",
+			cfg: func() Config {
+				cfg := minimumValid
+				cfg.Parameters.Secrets = []Secret{
+					{ObjectName: "foo", SecretPath: "path/one"},
+					{ObjectName: "foo", SecretPath: "path/two"},
+				}
 				return cfg
 			}(),
 		},
