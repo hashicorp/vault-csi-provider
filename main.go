@@ -38,7 +38,7 @@ func realMain(logger hclog.Logger) error {
 	flag.BoolVar(&flags.Version, "version", false, "Prints the version information.")
 	flag.StringVar(&flags.HealthAddr, "health-addr", ":8080", "Configure http listener for reporting health.")
 
-	flag.StringVar(&flags.VaultAddr, "vault-addr", "https://127.0.0.1:8200", "Default address for connecting to Vault. Can also be specified via the VAULT_ADDR environment variable.")
+	flag.StringVar(&flags.VaultAddr, "vault-addr", "", "Default address for connecting to Vault. Can also be specified via the VAULT_ADDR environment variable.")
 	flag.StringVar(&flags.VaultMount, "vault-mount", "kubernetes", "Default Vault mount path for Kubernetes authentication.")
 	flag.StringVar(&flags.VaultNamespace, "vault-namespace", "", "Default Vault namespace for Vault requests. Can also be specified via the VAULT_NAMESPACE environment variable.")
 
