@@ -4,6 +4,10 @@ CHANGES:
 
 * Duplicate object names now trigger an error instead of silently overwriting files. [[GH-148](https://github.com/hashicorp/vault-csi-provider/pull/148)]
 
+BUGS:
+
+* `VAULT_ADDR` environment variable can now be used to set the Vault address. [[GH-160](https://github.com/hashicorp/vault-csi-provider/pull/160)]
+
 IMPROVEMENTS:
 
 * Secret versions are now reported as a hash of their input and contents instead of hardcoded to 0. [[GH-148](https://github.com/hashicorp/vault-csi-provider/pull/148)]
