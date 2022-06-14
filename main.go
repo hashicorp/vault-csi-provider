@@ -72,7 +72,6 @@ func realMain(logger hclog.Logger) error {
 		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 			startTime := time.Now()
 			serverLogger.Info("Processing unary gRPC call", "grpc.method", info.FullMethod)
-			serverLogger.Debug("Request contents", "req", req)
 			resp, err := handler(ctx, req)
 			serverLogger.Info("Finished unary gRPC call", "grpc.method", info.FullMethod, "grpc.time", time.Since(startTime), "grpc.code", status.Code(err), "err", err)
 			return resp, err

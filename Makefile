@@ -17,7 +17,7 @@ LDFLAGS?="-X '$(PKG).BuildVersion=$(VERSION)' \
 	-X '$(PKG).BuildDate=$(BUILD_DATE)' \
 	-X '$(PKG).GoVersion=$(shell go version)'"
 K8S_VERSION?=v1.22.2
-CSI_DRIVER_VERSION=1.0.0
+CSI_DRIVER_VERSION=1.1.2
 VAULT_HELM_VERSION=0.16.1
 CI_TEST_ARGS?=
 
@@ -68,7 +68,8 @@ e2e-setup:
 		--wait --timeout=5m \
 		--namespace=csi \
 		--set linux.image.pullPolicy="IfNotPresent" \
-		--set syncSecret.enabled=true
+		--set syncSecret.enabled=true \
+		--set tokenRequests[0].audience="vault"
 	helm install vault-bootstrap test/bats/configs/vault \
 		--namespace=csi
 	helm install vault https://github.com/hashicorp/vault-helm/archive/v$(VAULT_HELM_VERSION).tar.gz \

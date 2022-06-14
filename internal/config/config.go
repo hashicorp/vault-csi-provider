@@ -74,10 +74,11 @@ type Parameters struct {
 }
 
 type PodInfo struct {
-	Name               string
-	UID                types.UID
-	Namespace          string
-	ServiceAccountName string
+	Name                string
+	UID                 types.UID
+	Namespace           string
+	ServiceAccountName  string
+	ServiceAccountToken string
 }
 
 type Secret struct {
@@ -146,6 +147,29 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	err = yaml.Unmarshal([]byte(secretsYaml), &parameters.Secrets)
 	if err != nil {
 		return Parameters{}, err
+	}
+
+	tokensJSON := params["csi.storage.k8s.io/serviceAccount.tokens"]
+	if tokensJSON != "" {
+		// The csi.storage.k8s.io/serviceAccount.tokens field is a JSON object
+		// marshalled into a string. The object keys are audience name (string)
+		// and the values are embedded objects with "token" and
+		// "expirationTimestamp" fields for the corresponding audience.
+		var tokens map[string]struct {
+			Token               string `json:"token"`
+			ExpirationTimestamp string `json:"expirationTimestamp"`
+		}
+		if err := json.Unmarshal([]byte(tokensJSON), &tokens); err != nil {
+			return Parameters{}, fmt.Errorf("failed to unmarshal service account tokens: %w", err)
+		}
+
+		audience := "vault"
+		if parameters.Audience != "" {
+			audience = parameters.Audience
+		}
+		if token, ok := tokens[audience]; ok {
+			parameters.PodInfo.ServiceAccountToken = token.Token
+		}
 	}
 
 	return parameters, nil
