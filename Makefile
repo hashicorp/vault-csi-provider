@@ -1,7 +1,7 @@
 REGISTRY_NAME?=docker.io/hashicorp
 IMAGE_NAME=vault-csi-provider
 # VERSION defines the next version to build/release
-VERSION?=1.1.1
+VERSION?=1.2.0
 IMAGE_TAG=$(REGISTRY_NAME)/$(IMAGE_NAME):$(VERSION)
 IMAGE_TAG_LATEST=$(REGISTRY_NAME)/$(IMAGE_NAME):latest
 # https://reproducible-builds.org/docs/source-date-epoch/
