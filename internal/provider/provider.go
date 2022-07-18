@@ -161,6 +161,11 @@ func keyFromData(rootData map[string]interface{}, secretKey string) ([]byte, err
 		data = rootData
 	}
 
+	// Fail early if a the key does not exist in the secret
+	if _, ok := data[secretKey]; !ok {
+		return nil, fmt.Errorf("key %q does not exist at the secret path", secretKey)
+	}
+
 	// Special-case the most common format of strings so the contents are
 	// returned plainly without quotes that json.Marshal would add.
 	if content, ok := data[secretKey].(string); ok {
