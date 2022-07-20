@@ -225,7 +225,12 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 		return content, nil
 	}
 
-	return keyFromData(secret.Data, secretConfig.SecretKey)
+	value, err := keyFromData(secret.Data, secretConfig.SecretKey)
+	if err != nil {
+		return nil, fmt.Errorf("{%s}: {%s}", secretConfig.SecretPath, err)
+	}
+
+	return value, nil
 }
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
