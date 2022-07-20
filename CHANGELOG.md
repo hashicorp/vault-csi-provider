@@ -7,6 +7,7 @@ CHANGES:
 BUGS:
 
 * `VAULT_ADDR` environment variable can now be used to set the Vault address. [[GH-160](https://github.com/hashicorp/vault-csi-provider/pull/160)]
+* Secret mounting correctly fails now if the secret path exists but the requested secret key does not. [[GH-165](https://github.com/hashicorp/vault-csi-provider/issues/165)]
 
 IMPROVEMENTS:
 
