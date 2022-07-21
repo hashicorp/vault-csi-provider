@@ -192,6 +192,48 @@ func TestKeyFromData(t *testing.T) {
 	}
 }
 
+func TestKeyFromDataMissingKey(t *testing.T) {
+	data := map[string]interface{}{
+		"foo": "bar",
+		"baz": "zap",
+	}
+	dataWithDataString := map[string]interface{}{
+		"foo":  "bar",
+		"baz":  "zap",
+		"data": "hello",
+	}
+	dataWithDataField := map[string]interface{}{
+		"data": map[string]interface{}{
+			"foo": "bar",
+			"baz": "zap",
+		},
+	}
+	for _, tc := range []struct {
+		name string
+		key  string
+		data map[string]interface{}
+	}{
+		{
+			name: "base case",
+			key:  "non-existing",
+			data: data,
+		},
+		{
+			name: "string data",
+			key:  "non-existing",
+			data: dataWithDataString,
+		},
+		{
+			name: "kv v2 embedded data field",
+			key:  "non-existing",
+			data: dataWithDataField,
+		},
+	} {
+		_, err := keyFromData(tc.data, tc.key)
+		require.Error(t, err)
+	}
+}
+
 func TestHandleMountRequest(t *testing.T) {
 	// SETUP
 	mockVaultServer := httptest.NewServer(http.HandlerFunc(mockVaultHandler()))
