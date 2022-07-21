@@ -227,7 +227,7 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 
 	value, err := keyFromData(secret.Data, secretConfig.SecretKey)
 	if err != nil {
-		return nil, fmt.Errorf("{%s}: {%s}", secretConfig.SecretPath, err)
+		return nil, fmt.Errorf("{%s}: {%w}", secretConfig.SecretPath, err)
 	}
 
 	return value, nil
