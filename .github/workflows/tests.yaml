@@ -8,6 +8,7 @@ env:
   KIND_VERSION: "v0.14.0"
   BATS_VERSION: "1.5.0"
   NODE_VERSION: "14"
+  TARBALL_FILE: vault-csi-provider.docker.tar
 
 jobs:
   get-inputs:
@@ -87,8 +88,18 @@ jobs:
         with:
           go-version: ${{ needs.get-inputs.outputs.go-version }}
 
+      - name: Build
+        run: |
+          make e2e-container
+          docker save --output "${TARBALL_FILE}" e2e/vault-csi-provider:latest
+
       - name: Test
         run: make test
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: vault-csi-provider-image
+          path: ${{ env.TARBALL_FILE }}
 
   integration-test:
     needs:
@@ -116,9 +127,17 @@ jobs:
           node_image: kindest/node:v${{ matrix.kind-k8s-version }}
           version: ${{ env.KIND_VERSION }}
 
+      - uses: actions/download-artifact@v3
+        with:
+          name: vault-csi-provider-image
+
+      - name: Load vault-k8s dev image
+        run: |
+          docker image load --input ${{ env.TARBALL_FILE }}
+          kind load docker-image e2e/vault-csi-provider:latest
+
       - name: bats tests
         run: |
-          make e2e-container
           make e2e-setup
           export DISPLAY_SETUP_TEARDOWN_LOGS=true
           make e2e-test

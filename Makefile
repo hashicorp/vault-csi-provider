@@ -59,12 +59,12 @@ image:
 
 e2e-container:
 	REGISTRY_NAME="e2e" VERSION="latest" make image
-	kind load docker-image e2e/vault-csi-provider:latest
 
 setup-kind:
 	kind create cluster --image kindest/node:${K8S_VERSION}
 
 e2e-setup:
+	kind load docker-image e2e/vault-csi-provider:latest
 	kubectl create namespace csi
 	helm install secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts/secrets-store-csi-driver-$(CSI_DRIVER_VERSION).tgz?raw=true \
 		--wait --timeout=5m \
