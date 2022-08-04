@@ -1,7 +1,6 @@
 REGISTRY_NAME?=docker.io/hashicorp
 IMAGE_NAME=vault-csi-provider
-# VERSION defines the next version to build/release
-VERSION?=1.1.1
+VERSION?=0.0.0-dev
 IMAGE_TAG=$(REGISTRY_NAME)/$(IMAGE_NAME):$(VERSION)
 IMAGE_TAG_LATEST=$(REGISTRY_NAME)/$(IMAGE_NAME):latest
 # https://reproducible-builds.org/docs/source-date-epoch/
@@ -20,8 +19,16 @@ K8S_VERSION?=v1.22.2
 CSI_DRIVER_VERSION=1.0.0
 VAULT_HELM_VERSION=0.16.1
 CI_TEST_ARGS?=
+GOLANGCI_LINT_FLAGS?=--disable-all \
+	--timeout=10m \
+	--enable=gofmt \
+	--enable=gosimple \
+	--enable=govet \
+	--enable=errcheck \
+	--enable=ineffassign \
+	--enable=unused
 
-.PHONY: default build test lint image e2e-container e2e-setup e2e-teardown e2e-test mod setup-kind version promote-staging-manifest
+.PHONY: default build test lint lint-flags image e2e-container e2e-setup e2e-teardown e2e-test mod setup-kind version promote-staging-manifest
 
 GO111MODULE?=on
 export GO111MODULE
@@ -29,15 +36,10 @@ export GO111MODULE
 default: test
 
 lint:
-	golangci-lint run -v --concurrency 2 \
-		--disable-all \
-		--timeout 10m \
-		--enable gofmt \
-		--enable gosimple \
-		--enable govet \
-		--enable errcheck \
-		--enable ineffassign \
-		--enable unused
+	golangci-lint run $(GOLANGCI_LINT_FLAGS)
+
+lint-flags:
+	@echo $(GOLANGCI_LINT_FLAGS)
 
 build:
 	CGO_ENABLED=0 go build \
@@ -46,7 +48,7 @@ build:
 		.
 
 test:
-	gotestsum --format=short-verbose $(CI_TEST_ARGS)
+	go test ./...
 
 image:
 	docker build \
