@@ -136,4 +136,4 @@ jobs:
         run: docker image load --input ${{ env.TARBALL_FILE }}
 
       - name: bats tests
-        run: DISPLAY_SETUP_TEARDOWN_LOGS=true make e2e-setup e2e-test e2e-teardown
+        run: DISPLAY_SETUP_TEARDOWN_LOGS=true make e2e-teardown e2e-setup e2e-test
