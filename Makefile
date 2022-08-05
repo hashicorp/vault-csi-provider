@@ -18,7 +18,6 @@ LDFLAGS?="-X '$(PKG).BuildVersion=$(VERSION)' \
 K8S_VERSION?=v1.22.2
 CSI_DRIVER_VERSION=1.0.0
 VAULT_HELM_VERSION=0.16.1
-CI_TEST_ARGS?=
 GOLANGCI_LINT_FLAGS?=--disable-all \
 	--timeout=10m \
 	--enable=gofmt \

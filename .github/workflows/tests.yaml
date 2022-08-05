@@ -131,7 +131,7 @@ jobs:
         with:
           name: vault-csi-provider-image
 
-      - name: Load vault-k8s dev image
+      - name: Load vault-csi-provider dev image
         run: |
           docker image load --input ${{ env.TARBALL_FILE }}
           kind load docker-image e2e/vault-csi-provider:latest
