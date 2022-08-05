@@ -133,9 +133,7 @@ jobs:
           name: vault-csi-provider-image
 
       - name: Load vault-csi-provider dev image
-        run: |
-          docker image load --input ${{ env.TARBALL_FILE }}
-          kind load docker-image e2e/vault-csi-provider:latest
+        run: docker image load --input ${{ env.TARBALL_FILE }}
 
       - name: bats tests
         run: |
