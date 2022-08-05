@@ -124,6 +124,7 @@ jobs:
         uses: helm/kind-action@v1.2.0
         with:
           cluster_name: kind
+          config: test/bats/configs/kind/config.yaml
           node_image: kindest/node:v${{ matrix.kind-k8s-version }}
           version: ${{ env.KIND_VERSION }}
 
