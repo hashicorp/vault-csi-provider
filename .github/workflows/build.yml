@@ -36,7 +36,7 @@ jobs:
       - name: get product version
         id: get-product-version
         run: |
-          VERSION="${{ github.event.inputs.version || '0.0.0-dev+' + github.sha }}"
+          VERSION="${{ github.event.inputs.version || format('0.0.0-dev+{0}', github.sha) }}"
           echo "Using version ${VERSION}"
           echo "::set-output name=product-version::${VERSION}"
   generate-metadata-file:
