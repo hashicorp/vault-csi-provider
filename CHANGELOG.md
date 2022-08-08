@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 1.2.0 (August 8th, 2022)
+
 CHANGES:
 
 * Duplicate object names now trigger an error instead of silently overwriting files. [[GH-148](https://github.com/hashicorp/vault-csi-provider/pull/148)]
@@ -12,6 +14,8 @@ BUGS:
 IMPROVEMENTS:
 
 * Secret versions are now reported as a hash of their input and contents instead of hardcoded to 0. [[GH-148](https://github.com/hashicorp/vault-csi-provider/pull/148)]
+* Bump github.com/stretchr/testify from v1.7.0 to v1.7.2. [[GH-161](https://github.com/hashicorp/vault-csi-provider/pull/161)]
+* Bump gopkg.in/yaml.v3 from v3.0.0-20210107192922-496545a6307b to v3.0.1. [[GH-161](https://github.com/hashicorp/vault-csi-provider/pull/161)]
 
 ## 1.1.0 (April 26th, 2022)
 
