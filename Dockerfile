@@ -5,7 +5,7 @@ ARG ALPINE_VERSION=3.16.2
 
 # devbuild compiles the binary
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/golang:1.17.6 AS devbuild
+FROM docker.mirror.hashicorp.services/golang:1.18.5 AS devbuild
 ENV CGO_ENABLED=0
 # Leave the GOPATH
 WORKDIR /build
