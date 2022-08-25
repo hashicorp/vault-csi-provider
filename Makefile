@@ -51,6 +51,7 @@ test:
 
 image:
 	docker build \
+		--build-arg GO_VERSION=$(shell cat .go-version) \
 		--target dev \
 		--no-cache \
 		--tag $(IMAGE_TAG) \

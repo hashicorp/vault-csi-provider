@@ -2,10 +2,11 @@
 # Use 'docker build --target=<name> .' to build one.
 
 ARG ALPINE_VERSION=3.16.2
+ARG GO_VERSION
 
 # devbuild compiles the binary
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/golang:1.18.5 AS devbuild
+FROM docker.mirror.hashicorp.services/golang:${GO_VERSION} AS devbuild
 ENV CGO_ENABLED=0
 # Leave the GOPATH
 WORKDIR /build
