@@ -1,6 +1,8 @@
 # This Dockerfile contains multiple targets.
 # Use 'docker build --target=<name> .' to build one.
 
+ARG ALPINE_VERSION=3.16.2
+
 # devbuild compiles the binary
 # -----------------------------------
 FROM docker.mirror.hashicorp.services/golang:1.17.6 AS devbuild
@@ -12,13 +14,13 @@ RUN go build -o vault-csi-provider
 
 # dev runs the binary from devbuild
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/alpine:3.15.0 AS dev
+FROM docker.mirror.hashicorp.services/alpine:${ALPINE_VERSION} AS dev
 COPY --from=devbuild /build/vault-csi-provider /bin/
 ENTRYPOINT [ "/bin/vault-csi-provider" ]
 
 # Default release image.
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/alpine:3.15.0 AS default
+FROM docker.mirror.hashicorp.services/alpine:${ALPINE_VERSION} AS default
 
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
