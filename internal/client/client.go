@@ -52,7 +52,7 @@ func overlayConfig(cfg *api.Config, vaultAddr string, tlsConfig api.TLSConfig) e
 }
 
 func Do(ctx context.Context, c *api.Client, req *api.Request) (*api.Secret, error) {
-	resp, err := c.RawRequestWithContext(ctx, req)
+	resp, err := c.RawRequestWithContext(ctx, req) //nolint:all // This method is marked deprecated, but we need it to form arbitrary requests.
 	if err != nil {
 		return nil, err
 	}
