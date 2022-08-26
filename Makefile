@@ -36,15 +36,15 @@ fmt:
 
 lint:
 	golangci-lint run \
-	--disable-all \
-	--timeout=10m \
-	--out-format=$(GOLANGCI_LINT_FORMAT) \
-	--enable=gofmt \
-	--enable=gosimple \
-	--enable=govet \
-	--enable=errcheck \
-	--enable=ineffassign \
-	--enable=unused
+		--disable-all \
+		--timeout=10m \
+		--out-format=$(GOLANGCI_LINT_FORMAT) \
+		--enable=gofmt \
+		--enable=gosimple \
+		--enable=govet \
+		--enable=errcheck \
+		--enable=ineffassign \
+		--enable=unused
 
 build:
 	CGO_ENABLED=0 go build \
