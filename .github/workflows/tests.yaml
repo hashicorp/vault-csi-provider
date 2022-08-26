@@ -11,8 +11,8 @@ env:
   TARBALL_FILE: vault-csi-provider.docker.tar
 
 jobs:
-  get-inputs:
-    name: "Get Go version and lint flags"
+  get-go-version:
+    name: "Determine Go toolchain version"
     runs-on: ubuntu-latest
     outputs:
       go-version: ${{ steps.get-go-version.outputs.go-version }}
@@ -23,15 +23,10 @@ jobs:
         run: |
           echo "Building with Go $(cat .go-version)"
           echo "::set-output name=go-version::$(cat .go-version)"
-      - name: Get lint flags
-        id: get-lint-flags
-        run: |
-          echo "Lint flags: $(make lint-flags)"
-          echo "::set-output name=lint-flags::$(make lint-flags)"
 
   lint:
     needs:
-      - get-inputs
+      - get-go-version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -48,28 +43,34 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: ${{ needs.get-inputs.outputs.go-version }}
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
+
+      - name: Install tools
+        run: make bootstrap
 
       - name: go mod tidy
         run: |
           make mod
           if ! git diff --exit-code; then
-            echo "Git directory has go.mod or go.sum changes"
+            echo "Git directory has go.mod or go.sum changes. Run 'make mod' to fix"
+            exit 1
+          fi
+
+      - name: fmt
+        run: |
+          make fmt
+          if ! git diff --exit-code; then
+            echo "Git directory has formatting changes. Run 'make fmt' to fix"
             exit 1
           fi
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: ${{ env.GOLANGCI_LINT_VERSION }}
-          args: ${{ needs.get-inputs.outputs.lint-flags }}
-          # Caching is covered by the actions/cache step above.
-          skip-cache: true
+        run: make lint GOLANGCI_LINT_FORMAT=github-actions
 
 
   test:
     needs:
-      - get-inputs
+      - get-go-version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -86,7 +87,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: ${{ needs.get-inputs.outputs.go-version }}
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
 
       - name: Build
         run: |

@@ -18,8 +18,10 @@ LDFLAGS?="-X '$(PKG).BuildVersion=$(VERSION)' \
 K8S_VERSION?=v1.22.2
 CSI_DRIVER_VERSION=1.0.0
 VAULT_HELM_VERSION=0.16.1
+GOLANGCI_LINT_FORMAT?=colored-line-number
 GOLANGCI_LINT_FLAGS?=--disable-all \
 	--timeout=10m \
+	--out-format=$(GOLANGCI_LINT_FORMAT) \
 	--enable=gofmt \
 	--enable=gosimple \
 	--enable=govet \
@@ -27,12 +29,19 @@ GOLANGCI_LINT_FLAGS?=--disable-all \
 	--enable=ineffassign \
 	--enable=unused
 
-.PHONY: default build test lint lint-flags image e2e-container e2e-setup e2e-teardown e2e-test mod setup-kind version promote-staging-manifest
+.PHONY: default build test bootstrap fmt lint lint-flags image e2e-container e2e-setup e2e-teardown e2e-test mod setup-kind version promote-staging-manifest
 
 GO111MODULE?=on
 export GO111MODULE
 
 default: test
+
+bootstrap:
+	@echo "Downloading tools..."
+	@go generate -tags tools tools/tools.go
+
+fmt:
+	gofumpt -l -w .
 
 lint:
 	golangci-lint run $(GOLANGCI_LINT_FLAGS)
