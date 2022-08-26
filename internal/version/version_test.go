@@ -12,7 +12,6 @@ func TestGetVersion(t *testing.T) {
 	GoVersion = "go version x.y.z"
 
 	v, err := GetVersion()
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
