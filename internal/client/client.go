@@ -53,10 +53,9 @@ func overlayConfig(cfg *api.Config, vaultAddr string, tlsConfig api.TLSConfig) e
 
 func Do(ctx context.Context, c *api.Client, req *api.Request) (*api.Secret, error) {
 	resp, err := c.RawRequestWithContext(ctx, req)
-	// Comment out error handling to test triggering linter
-	// if err != nil {
-	// 	return nil, err
-	// }
+	if err != nil {
+		return nil, err
+	}
 	if resp == nil {
 		return nil, fmt.Errorf("received empty response from %q", req.URL.Path)
 	}
