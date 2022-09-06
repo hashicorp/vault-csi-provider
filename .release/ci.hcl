@@ -4,7 +4,7 @@ project "vault-csi-provider" {
   team = "vault"
   slack {
     // #vault-releases channel
-    notification_channel = "CRF6FFKEW"
+    notification_channel = "C03RXFX5M4L" // #feed-vault-releases
   }
   github {
     organization = "hashicorp"
