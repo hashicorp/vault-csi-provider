@@ -28,6 +28,8 @@ ARG PRODUCT_REVISION
 ARG PRODUCT_NAME=vault-csi-provider
 ARG TARGETOS TARGETARCH
 
+RUN apk update && apk upgrade
+
 LABEL version=$PRODUCT_VERSION
 LABEL revision=$PRODUCT_REVISION
 
