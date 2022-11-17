@@ -2,7 +2,6 @@ name: build
 
 on:
   push:
-    branches: ["*"]
   workflow_dispatch:
     inputs:
       version:
@@ -20,25 +19,25 @@ jobs:
     outputs:
       go-version: ${{ steps.get-go-version.outputs.go-version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Determine Go version
         id: get-go-version
         run: |
           echo "Building with Go $(cat .go-version)"
-          echo "::set-output name=go-version::$(cat .go-version)"
+          echo "go-version=$(cat .go-version)" >> $GITHUB_OUTPUT
 
   get-product-version:
     runs-on: ubuntu-latest
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: get product version
         id: get-product-version
         run: |
           VERSION="${{ github.event.inputs.version || format('0.0.0-dev+{0}', github.sha) }}"
           echo "Using version ${VERSION}"
-          echo "::set-output name=product-version::${VERSION}"
+          echo "product-version=${VERSION}" >> $GITHUB_OUTPUT
   generate-metadata-file:
     needs: get-product-version
     runs-on: ubuntu-latest
@@ -46,7 +45,7 @@ jobs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
     steps:
       - name: 'Checkout directory'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Generate metadata file
         id: generate-metadata-file
         uses: hashicorp/actions-generate-metadata@v1
@@ -54,7 +53,7 @@ jobs:
           version: ${{ needs.get-product-version.outputs.product-version }}
           product: ${{ env.PKG_NAME }}
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
@@ -72,10 +71,10 @@ jobs:
     name: Go linux ${{ matrix.arch }} build
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
@@ -87,7 +86,7 @@ jobs:
           mkdir dist out
           make build
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_linux_${{ matrix.arch }}.zip dist/
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_linux_${{ matrix.arch }}.zip
           path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_linux_${{ matrix.arch }}.zip
@@ -106,7 +105,7 @@ jobs:
       version: ${{needs.get-product-version.outputs.product-version}}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Docker Build (Action)
         uses: hashicorp/actions-docker-build@v1
         with:

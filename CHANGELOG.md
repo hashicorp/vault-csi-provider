@@ -3,19 +3,18 @@
 CHANGES:
 
 * Updated dependencies:
-  * github.com/hashicorp/go-hclog v1.0.0 -> v1.2.2
-  * github.com/hashicorp/vault/api v1.2.0 -> v1.7.2
-  * github.com/stretchr/testify v1.7.2 -> v1.8.0
-  * google.golang.org/grpc v1.41.0 -> v1.49.0
-  * k8s.io/api v0.22.2 -> v0.25.0
-  * k8s.io/apimachinery v0.22.2 -> v0.25.0
-  * k8s.io/client-go v0.22.2 -> v0.25.0
-  * sigs.k8s.io/secrets-store-csi-driver v1.0.0 -> v1.2.3
+  * github.com/hashicorp/go-hclog v1.0.0 -> v1.3.1
+  * github.com/hashicorp/vault/api v1.2.0 -> v1.8.2
+  * github.com/stretchr/testify v1.7.2 -> v1.8.1
+  * google.golang.org/grpc v1.41.0 -> v1.50.1
+  * k8s.io/api v0.22.2 -> v0.25.4
+  * k8s.io/apimachinery v0.22.2 -> v0.25.4
+  * k8s.io/client-go v0.22.2 -> v0.25.4
+  * sigs.k8s.io/secrets-store-csi-driver v1.0.0 -> v1.2.4
   * golang.org/x/net v0.0.0-20220722155237-a158d28d115b -> v0.0.0-20221012135044-0b7e1fb9d458
   * golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f -> v0.0.0-20220728004956-3c1f35247d10
   * golang.org/x/text v0.3.7 -> v0.3.8
-
-* Updated Docker base image from alpine 3.15.0 -> 3.16.2
+* Updated Docker base image from alpine 3.15.0 -> 3.16.3
 
 ## 1.2.0 (August 8th, 2022)
 
