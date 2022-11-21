@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 1.2.1 (November 21st, 2022)
+
 CHANGES:
 
 * Updated dependencies:
