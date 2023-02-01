@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 wait_for_success() {
     echo $1
     for i in {0..60}; do
