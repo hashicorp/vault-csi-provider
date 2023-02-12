@@ -90,6 +90,7 @@ type Secret struct {
 	Method         string                 `yaml:"method,omitempty"`
 	SecretArgs     map[string]interface{} `yaml:"secretArgs,omitempty"`
 	FilePermission os.FileMode            `yaml:"filePermission,omitempty"`
+	Encoding       string                 `yaml:"encoding,omitempty"`
 }
 
 func Parse(parametersStr, targetPath, permissionStr string) (Config, error) {

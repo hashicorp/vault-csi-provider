@@ -88,6 +88,7 @@ setup(){
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv2 bar2=hello2
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv-sync1 bar1=hello-sync1
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv-sync2 bar2=hello-sync2
+    kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv-sync3 bar3=aGVsbG8tc3luYzM=
     kubectl --namespace=csi exec vault-0 -- vault secrets enable -namespace=acceptance -path=secret -version=2 kv
     kubectl --namespace=csi exec vault-0 -- vault kv put -namespace=acceptance secret/kv1-namespace greeting=hello-namespaces
     kubectl --namespace=csi exec vault-0 -- vault kv put secret/kv-custom-audience bar=hello-custom-audience
@@ -135,6 +136,7 @@ teardown(){
     kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv-custom-audience
     kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv-sync1
     kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv-sync2
+    kubectl --namespace=csi exec vault-0 -- vault kv delete secret/kv-sync3
 
     # Teardown shared k8s resources.
     kubectl delete --ignore-not-found namespace test
@@ -184,6 +186,9 @@ teardown(){
 
     result=$(kubectl --namespace=test exec $POD -- printenv | grep SECRET_USERNAME | awk -F"=" '{ print $2 }' | tr -d '\r\n')
     [[ "$result" == "hello-sync2" ]]
+
+    result=$(kubectl --namespace=test get secret kvsecret -o jsonpath="{.data.username_b64}" | base64 -d)
+    [[ "$result" == "hello-sync3" ]]
 
     result=$(kubectl --namespace=test get secret kvsecret -o jsonpath="{.metadata.labels.environment}")
     [[ "${result//$'\r'}" == "test" ]]

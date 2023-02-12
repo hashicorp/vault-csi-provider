@@ -5,6 +5,7 @@ package provider
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -238,15 +239,6 @@ func TestKeyFromDataMissingKey(t *testing.T) {
 }
 
 func TestHandleMountRequest(t *testing.T) {
-	// SETUP
-	mockVaultServer := httptest.NewServer(http.HandlerFunc(mockVaultHandler()))
-	defer mockVaultServer.Close()
-
-	k8sClient := fake.NewSimpleClientset(
-		&corev1.ServiceAccount{},
-		&authenticationv1.TokenRequest{},
-	)
-
 	spcConfig := config.Config{
 		TargetPath:     "some/unused/path",
 		FilePermission: 0,
@@ -259,6 +251,7 @@ func TestHandleMountRequest(t *testing.T) {
 					SecretKey:  "the-key",
 					Method:     "",
 					SecretArgs: nil,
+					Encoding:   "",
 				},
 				{
 					ObjectName: "object-two",
@@ -266,12 +259,18 @@ func TestHandleMountRequest(t *testing.T) {
 					SecretKey:  "",
 					Method:     "",
 					SecretArgs: nil,
+					Encoding:   "",
+				},
+				{
+					ObjectName: "object-three",
+					SecretPath: "path/three",
+					SecretKey:  "the-key",
+					Method:     "",
+					SecretArgs: nil,
+					Encoding:   "base64",
 				},
 			},
 		},
-	}
-	flagsConfig := config.FlagsConfig{
-		VaultAddr: mockVaultServer.URL,
 	}
 
 	// TEST
@@ -286,18 +285,50 @@ func TestHandleMountRequest(t *testing.T) {
 			Mode:     0,
 			Contents: []byte(`{"request_id":"","lease_id":"","lease_duration":0,"renewable":false,"data":{"the-key":"secret v1 from: /v1/path/two"},"warnings":null}`),
 		},
+		{
+			Path:     "object-three",
+			Mode:     0,
+			Contents: []byte("secret v1 from: /v1/path/three"),
+		},
 	}
 	expectedVersions := []*pb.ObjectVersion{
 		{
 			Id:      "object-one",
-			Version: "NUAYElpND6QqTB7MYXdP_kCAjsXQTxCO24ExLXXsKPk=",
+			Version: "7eM6I4jvRmoPuY8XiQsUuJtEVDQlSE5JCPbXQWXN2tE=",
 		},
 		{
 			Id:      "object-two",
-			Version: "2x2gbSKY0Ot2c9RW8djcD9o3oGuSbwZ1ZXzvnp8ArZg=",
+			Version: "V7eu3GtXFYYNJkbDDEfTNalWWpZl-VTu3Pu-qF9sWi4=",
+		},
+		{
+			Id:      "object-three",
+			Version: "95O8POIdARplTKNAtExps-7jm8jETgDB4idsUA9KcL8=",
 		},
 	}
 
+	// SETUP
+	mockVaultServer := httptest.NewServer(http.HandlerFunc(mockVaultHandler(
+		map[string]func(numberOfCalls int) (string, interface{}){
+			"/v1/path/one": func(numberOfCalls int) (string, interface{}) {
+				return "the-key", fmt.Sprintf("secret v%d from: /v1/path/one", numberOfCalls)
+			},
+			"/v1/path/two": func(numberOfCalls int) (string, interface{}) {
+				return "the-key", fmt.Sprintf("secret v%d from: /v1/path/two", numberOfCalls)
+			},
+			"/v1/path/three": func(numberOfCalls int) (string, interface{}) {
+				return "the-key", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("secret v%d from: /v1/path/three", numberOfCalls)))
+			},
+		},
+	)))
+	flagsConfig := config.FlagsConfig{
+		VaultAddr: mockVaultServer.URL,
+	}
+	defer mockVaultServer.Close()
+
+	k8sClient := fake.NewSimpleClientset(
+		&corev1.ServiceAccount{},
+		&authenticationv1.TokenRequest{},
+	)
 	// While we hit the cache, the secret contents and versions should remain the same.
 	provider := NewProvider(hclog.Default(), k8sClient)
 	for i := 0; i < 3; i++ {
@@ -317,13 +348,15 @@ func TestHandleMountRequest(t *testing.T) {
 	assert.Equal(t, (*v1alpha1.Error)(nil), resp.Error)
 	expectedFiles[0].Contents = []byte("secret v2 from: /v1/path/one")
 	expectedFiles[1].Contents = []byte(`{"request_id":"","lease_id":"","lease_duration":0,"renewable":false,"data":{"the-key":"secret v2 from: /v1/path/two"},"warnings":null}`)
-	expectedVersions[0].Version = "_MwvWQq78rNEsiDtzGPtECvgHmCi2EhlXc6Sdmcemhw="
-	expectedVersions[1].Version = "9Ck2wFZxO5vGIY08Pk_RNSfR8dJh-_QB4ev3KSCDXOg="
+	expectedFiles[2].Contents = []byte("secret v2 from: /v1/path/three")
+	expectedVersions[0].Version = "R-NY6w6nGg5vX510c7i28A5sLZtxlDbu8y9zY92AUPY="
+	expectedVersions[1].Version = "6hCb1c_dfqXbIdYYh7zEuqSG_f8ROpuE_5OmSja5pIk="
+	expectedVersions[2].Version = "rKthxBOUCu5jDLuU6ZwabWnN4OWOiSPG8cnT2PtHqik="
 	assert.Equal(t, expectedFiles, resp.Files)
 	assert.Equal(t, expectedVersions, resp.ObjectVersion)
 }
 
-func mockVaultHandler() func(w http.ResponseWriter, req *http.Request) {
+func mockVaultHandler(pathMapping map[string]func(numberOfCalls int) (string, interface{})) func(w http.ResponseWriter, req *http.Request) {
 	getsPerPath := map[string]int{}
 
 	return func(w http.ResponseWriter, req *http.Request) {
@@ -348,9 +381,11 @@ func mockVaultHandler() func(w http.ResponseWriter, req *http.Request) {
 			// Assume all GETs are secret reads and return a derivative of the request path.
 			path := req.URL.Path
 			getsPerPath[path]++
+			mappingFunc := pathMapping[path]
+			key, value := mappingFunc(getsPerPath[path])
 			body, err := json.Marshal(&api.Secret{
 				Data: map[string]interface{}{
-					"the-key": fmt.Sprintf("secret v%d from: %s", getsPerPath[path], path),
+					key: value,
 				},
 			})
 			if err != nil {

@@ -1,5 +1,9 @@
 ## Unreleased
 
+CHANGES:
+
+* Support utf-8 (default), hex, and base64 encoded secrets
+
 ## 1.2.1 (November 21st, 2022)
 
 CHANGES:
