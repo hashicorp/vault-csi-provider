@@ -1,5 +1,7 @@
 ## Unreleased
 
+CHANGES:
+
 * Vault CSI Provider will use service account tokens passed from the Secrets Store CSI Driver instead of generating one if an appropriate token is provided. [[GH-163](https://github.com/hashicorp/vault-csi-provider/pull/163)]
   * The Secrets Store CSI driver needs to be configured to generate tokens with the correct audience for this feature. Vault CSI Provider
     will look for a token with the audience specified in the SecretProviderClass, or otherwise "vault". To configure the driver to generate
@@ -7,6 +9,10 @@
     [`tokenRequests`](https://github.com/kubernetes-sigs/secrets-store-csi-driver/tree/main/charts/secrets-store-csi-driver#configuration)
     option from the _driver_ helm chart via the flag `--set tokenRequests[0].audience="vault"`. See
     [CSI TokenRequests documentation](https://kubernetes-csi.github.io/docs/token-requests.html) for further details.
+
+IMPROVEMENTS:
+
+* Support utf-8 (default), hex, and base64 encoded secrets [[GH-194](https://github.com/hashicorp/vault-csi-provider/pull/194)]
 
 ## 1.2.1 (November 21st, 2022)
 

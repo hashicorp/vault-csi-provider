@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -48,6 +49,12 @@ type cacheKey struct {
 	secretPath string
 	method     string
 }
+
+const (
+	EncodingBase64 string = "base64"
+	EncodingHex    string = "hex"
+	EncodingUtf8   string = "utf-8"
+)
 
 func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo, audience string) (string, error) {
 	p.logger.Debug("creating service account token bound to pod",
@@ -191,6 +198,18 @@ func keyFromData(rootData map[string]interface{}, secretKey string) ([]byte, err
 	return nil, fmt.Errorf("failed to extract secret content as string or JSON from key %q", secretKey)
 }
 
+func decodeValue(data []byte, encoding string) ([]byte, error) {
+	if len(encoding) == 0 || strings.EqualFold(encoding, EncodingUtf8) {
+		return data, nil
+	} else if strings.EqualFold(encoding, EncodingBase64) {
+		return base64.StdEncoding.DecodeString(string(data))
+	} else if strings.EqualFold(encoding, EncodingHex) {
+		return hex.DecodeString(string(data))
+	}
+
+	return nil, fmt.Errorf("invalid encoding type. Should be utf-8, base64, or hex")
+}
+
 func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConfig config.Secret) ([]byte, error) {
 	var secret *api.Secret
 	var cached bool
@@ -238,7 +257,12 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 		return nil, fmt.Errorf("{%s}: {%w}", secretConfig.SecretPath, err)
 	}
 
-	return value, nil
+	decodedVal, decodeErr := decodeValue(value, secretConfig.Encoding)
+	if decodeErr != nil {
+		return nil, fmt.Errorf("{%s}: {%w}", secretConfig.SecretPath, decodeErr)
+	}
+
+	return decodedVal, nil
 }
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
