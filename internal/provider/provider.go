@@ -194,7 +194,6 @@ func keyFromData(rootData map[string]interface{}, secretKey string) ([]byte, err
 }
 
 func decodeValue(data []byte, encoding string) ([]byte, error) {
-
 	if len(encoding) == 0 || strings.EqualFold(encoding, EncodingUtf8) {
 		return data, nil
 	} else if strings.EqualFold(encoding, EncodingBase64) {
