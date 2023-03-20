@@ -84,19 +84,24 @@ func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo, a
 func (p *provider) login(ctx context.Context, client *api.Client, params config.Parameters) error {
 	p.logger.Debug("performing vault login")
 
-	jwt, err := p.createJWTToken(ctx, params.PodInfo, params.Audience)
-	if err != nil {
-		return err
+	jwt := params.PodInfo.ServiceAccountToken
+	if jwt == "" {
+		p.logger.Debug("no suitable token found in mount request, falling back to generating service account JWT")
+		var err error
+		jwt, err = p.createJWTToken(ctx, params.PodInfo, params.Audience)
+		if err != nil {
+			return err
+		}
 	}
 
 	req := client.NewRequest(http.MethodPost, "/v1/auth/"+params.VaultKubernetesMountPath+"/login")
-	err = req.SetJSONBody(map[string]string{
+	if err := req.SetJSONBody(map[string]string{
 		"role": params.VaultRoleName,
 		"jwt":  jwt,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
+
 	secret, err := vaultclient.Do(ctx, client, req)
 	if err != nil {
 		return fmt.Errorf("failed to login: %w", err)

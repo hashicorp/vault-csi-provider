@@ -15,8 +15,8 @@ PKG=github.com/hashicorp/vault-csi-provider/internal/version
 LDFLAGS?="-X '$(PKG).BuildVersion=$(VERSION)' \
 	-X '$(PKG).BuildDate=$(BUILD_DATE)' \
 	-X '$(PKG).GoVersion=$(shell go version)'"
-CSI_DRIVER_VERSION=1.2.4
-VAULT_HELM_VERSION=0.22.1
+CSI_DRIVER_VERSION=1.3.1
+VAULT_HELM_VERSION=0.23.0
 GOLANGCI_LINT_FORMAT?=colored-line-number
 
 .PHONY: default build test bootstrap fmt lint image e2e-image e2e-setup e2e-teardown e2e-test mod setup-kind promote-staging-manifest
@@ -76,7 +76,8 @@ e2e-setup:
 		--wait --timeout=5m \
 		--namespace=csi \
 		--set linux.image.pullPolicy="IfNotPresent" \
-		--set syncSecret.enabled=true
+		--set syncSecret.enabled=true \
+		--set tokenRequests[0].audience="vault"
 	helm install vault-bootstrap test/bats/configs/vault \
 		--namespace=csi
 	helm install vault vault \

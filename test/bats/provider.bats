@@ -43,11 +43,13 @@ setup(){
     kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/db-role \
         bound_service_account_names=nginx-db \
         bound_service_account_namespaces=test \
+        audience=vault \
         policies=db-policy \
         ttl=20m
     kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/kv-role \
         bound_service_account_names=nginx-kv \
         bound_service_account_namespaces=test \
+        audience=vault \
         policies=kv-policy \
         ttl=20m
     kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/kv-custom-audience-role \
@@ -59,16 +61,19 @@ setup(){
     kubectl --namespace=csi exec vault-0 -- vault write -namespace=acceptance auth/kubernetes/role/kv-namespace-role \
         bound_service_account_names=nginx-kv-namespace \
         bound_service_account_namespaces=test \
+        audience=vault \
         policies=kv-namespace-policy \
         ttl=20m
     kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/pki-role \
         bound_service_account_names=nginx-pki \
         bound_service_account_namespaces=test \
+        audience=vault \
         policies=pki-policy \
         ttl=20m
     kubectl --namespace=csi exec vault-0 -- vault write auth/kubernetes/role/all-role \
         bound_service_account_names=nginx-all \
         bound_service_account_namespaces=test \
+        audience=vault \
         policies=db-policy,kv-policy,pki-policy \
         ttl=20m
 
