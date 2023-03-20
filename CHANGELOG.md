@@ -24,9 +24,9 @@ CHANGES:
 
 * Duplicate object names now trigger an error instead of silently overwriting files. [[GH-148](https://github.com/hashicorp/vault-csi-provider/pull/148)]
 * Vault CSI Provider will use service account tokens passed from the Secrets Store CSI Driver instead of generating one if an appropriate token is provided. [[GH-163](https://github.com/hashicorp/vault-csi-provider/pull/163)]
-  * **NOTE:** Generating service account tokens within the Vault CSI Provider is deprecated and will be removed in **2.0.0**.
-    The Secrets Store CSI driver will need to be configured to generate tokens for the "vault" audience, but you can
-    opt-in to use the new behavior before that release. To do so, use the
+  * The Secrets Store CSI driver needs to be configured to generate tokens with the correct audience for this feature. Vault CSI Provider
+    will look for a token with the audience specified in the SecretProviderClass, or otherwise "vault". To configure the driver to generate
+    a token with the correct audience, use the
     [`tokenRequests`](https://github.com/kubernetes-sigs/secrets-store-csi-driver/tree/main/charts/secrets-store-csi-driver#configuration)
     option from the _driver_ helm chart via the flag `--set tokenRequests[0].audience="vault"`. See
     [CSI TokenRequests documentation](https://kubernetes-csi.github.io/docs/token-requests.html) for further details.
