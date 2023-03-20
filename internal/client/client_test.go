@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package client
 
 import (
@@ -22,7 +25,7 @@ import (
 var caPath = filepath.Join("testdata", "ca.pem")
 
 func TestNew(t *testing.T) {
-	err := os.Mkdir("testdata", 0755)
+	err := os.Mkdir("testdata", 0o755)
 	if err != nil && !os.IsExist(err) {
 		t.Fatal("failed to make testdata folder", err)
 	}

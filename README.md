@@ -57,3 +57,44 @@ provider pod running on the same node as your application pod:
 
 Pass `-debug=true` to the provider to get more detailed logs. When installing
 via helm, you can use `--set "csi.debug=true"`.
+
+## Developing
+
+The Makefile has targets to automate building and testing:
+
+```bash
+make build test
+```
+
+The project also uses some linting and formatting tools. To install the tools:
+
+```bash
+make bootstrap
+```
+
+You can then run the additional checks:
+
+```bash
+make fmt lint mod
+```
+
+To run a full set of integration tests on a local kind cluster, ensure you have
+the following additional dependencies installed:
+
+* `docker`
+* [`kind`](https://github.com/kubernetes-sigs/kind)
+* [`kubectl`](https://kubernetes.io/docs/tasks/tools/)
+* [`helm`](https://helm.sh/docs/intro/install/)
+* [`bats`](https://bats-core.readthedocs.io/en/stable/installation.html)
+
+You can then run:
+
+```bash
+make setup-kind e2e-image e2e-setup e2e-test
+```
+
+Finally tidy up the resources created in the kind cluster with:
+
+```bash
+make e2e-teardown
+```

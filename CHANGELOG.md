@@ -1,5 +1,25 @@
 ## Unreleased
 
+## 1.2.1 (November 21st, 2022)
+
+CHANGES:
+
+* Updated dependencies:
+  * github.com/hashicorp/go-hclog v1.0.0 -> v1.3.1
+  * github.com/hashicorp/vault/api v1.2.0 -> v1.8.2
+  * github.com/stretchr/testify v1.7.2 -> v1.8.1
+  * google.golang.org/grpc v1.41.0 -> v1.50.1
+  * k8s.io/api v0.22.2 -> v0.25.4
+  * k8s.io/apimachinery v0.22.2 -> v0.25.4
+  * k8s.io/client-go v0.22.2 -> v0.25.4
+  * sigs.k8s.io/secrets-store-csi-driver v1.0.0 -> v1.2.4
+  * golang.org/x/net v0.0.0-20220722155237-a158d28d115b -> v0.0.0-20221012135044-0b7e1fb9d458
+  * golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f -> v0.0.0-20220728004956-3c1f35247d10
+  * golang.org/x/text v0.3.7 -> v0.3.8
+* Updated Docker base image from alpine 3.15.0 -> 3.16.3
+
+## 1.2.0 (August 8th, 2022)
+
 CHANGES:
 
 * Duplicate object names now trigger an error instead of silently overwriting files. [[GH-148](https://github.com/hashicorp/vault-csi-provider/pull/148)]
@@ -14,10 +34,13 @@ CHANGES:
 BUGS:
 
 * `VAULT_ADDR` environment variable can now be used to set the Vault address. [[GH-160](https://github.com/hashicorp/vault-csi-provider/pull/160)]
+* Secret mounting correctly fails now if the secret path exists but the requested secret key does not. [[GH-166](https://github.com/hashicorp/vault-csi-provider/issues/166)]
 
 IMPROVEMENTS:
 
 * Secret versions are now reported as a hash of their input and contents instead of hardcoded to 0. [[GH-148](https://github.com/hashicorp/vault-csi-provider/pull/148)]
+* Bump github.com/stretchr/testify from v1.7.0 to v1.7.2. [[GH-161](https://github.com/hashicorp/vault-csi-provider/pull/161)]
+* Bump gopkg.in/yaml.v3 from v3.0.0-20210107192922-496545a6307b to v3.0.1. [[GH-161](https://github.com/hashicorp/vault-csi-provider/pull/161)]
 
 ## 1.1.0 (April 26th, 2022)
 

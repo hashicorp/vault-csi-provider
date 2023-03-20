@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package version
 
 import (
@@ -12,7 +15,6 @@ func TestGetVersion(t *testing.T) {
 	GoVersion = "go version x.y.z"
 
 	v, err := GetVersion()
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package server
 
 import (
@@ -12,9 +15,7 @@ import (
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
-var (
-	_ pb.CSIDriverProviderServer = (*Server)(nil)
-)
+var _ pb.CSIDriverProviderServer = (*Server)(nil)
 
 // Server implements the secrets-store-csi-driver provider gRPC service interface.
 type Server struct {

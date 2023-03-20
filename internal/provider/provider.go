@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package provider
 
 import (
@@ -166,6 +169,11 @@ func keyFromData(rootData map[string]interface{}, secretKey string) ([]byte, err
 		data = rootData
 	}
 
+	// Fail early if a the key does not exist in the secret
+	if _, ok := data[secretKey]; !ok {
+		return nil, fmt.Errorf("key %q does not exist at the secret path", secretKey)
+	}
+
 	// Special-case the most common format of strings so the contents are
 	// returned plainly without quotes that json.Marshal would add.
 	if content, ok := data[secretKey].(string); ok {
@@ -225,7 +233,12 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 		return content, nil
 	}
 
-	return keyFromData(secret.Data, secretConfig.SecretKey)
+	value, err := keyFromData(secret.Data, secretConfig.SecretKey)
+	if err != nil {
+		return nil, fmt.Errorf("{%s}: {%w}", secretConfig.SecretPath, err)
+	}
+
+	return value, nil
 }
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path

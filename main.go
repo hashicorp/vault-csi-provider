@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package main
 
 import (
@@ -32,7 +35,7 @@ func main() {
 }
 
 func realMain(logger hclog.Logger) error {
-	var flags = config.FlagsConfig{}
+	flags := config.FlagsConfig{}
 	flag.StringVar(&flags.Endpoint, "endpoint", "/tmp/vault.sock", "Path to socket on which to listen for driver gRPC calls.")
 	flag.BoolVar(&flags.Debug, "debug", false, "Sets log to debug level.")
 	flag.BoolVar(&flags.Version, "version", false, "Prints the version information.")

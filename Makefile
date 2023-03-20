@@ -1,7 +1,6 @@
 REGISTRY_NAME?=docker.io/hashicorp
 IMAGE_NAME=vault-csi-provider
-# VERSION defines the next version to build/release
-VERSION?=1.2.0
+VERSION?=0.0.0-dev
 IMAGE_TAG=$(REGISTRY_NAME)/$(IMAGE_NAME):$(VERSION)
 IMAGE_TAG_LATEST=$(REGISTRY_NAME)/$(IMAGE_NAME):latest
 # https://reproducible-builds.org/docs/source-date-epoch/
@@ -16,28 +15,35 @@ PKG=github.com/hashicorp/vault-csi-provider/internal/version
 LDFLAGS?="-X '$(PKG).BuildVersion=$(VERSION)' \
 	-X '$(PKG).BuildDate=$(BUILD_DATE)' \
 	-X '$(PKG).GoVersion=$(shell go version)'"
-K8S_VERSION?=v1.22.2
-CSI_DRIVER_VERSION=1.1.2
-VAULT_HELM_VERSION=0.16.1
-CI_TEST_ARGS?=
+CSI_DRIVER_VERSION=1.3.1
+VAULT_HELM_VERSION=0.23.0
+GOLANGCI_LINT_FORMAT?=colored-line-number
 
-.PHONY: default build test lint image e2e-container e2e-setup e2e-teardown e2e-test mod setup-kind version promote-staging-manifest
+.PHONY: default build test bootstrap fmt lint image e2e-image e2e-setup e2e-teardown e2e-test mod setup-kind promote-staging-manifest
 
 GO111MODULE?=on
 export GO111MODULE
 
 default: test
 
+bootstrap:
+	@echo "Downloading tools..."
+	@go generate -tags tools tools/tools.go
+
+fmt:
+	gofumpt -l -w .
+
 lint:
-	golangci-lint run -v --concurrency 2 \
+	golangci-lint run \
 		--disable-all \
-		--timeout 10m \
-		--enable gofmt \
-		--enable gosimple \
-		--enable govet \
-		--enable errcheck \
-		--enable ineffassign \
-		--enable unused
+		--timeout=10m \
+		--out-format=$(GOLANGCI_LINT_FORMAT) \
+		--enable=gofmt \
+		--enable=gosimple \
+		--enable=govet \
+		--enable=errcheck \
+		--enable=ineffassign \
+		--enable=unused
 
 build:
 	CGO_ENABLED=0 go build \
@@ -46,25 +52,27 @@ build:
 		.
 
 test:
-	gotestsum --format=short-verbose $(CI_TEST_ARGS)
+	go test ./...
 
 image:
 	docker build \
+		--build-arg GO_VERSION=$(shell cat .go-version) \
 		--target dev \
 		--no-cache \
 		--tag $(IMAGE_TAG) \
 		.
 
-e2e-container:
+e2e-image:
 	REGISTRY_NAME="e2e" VERSION="latest" make image
-	kind load docker-image e2e/vault-csi-provider:latest
 
 setup-kind:
-	kind create cluster --image kindest/node:${K8S_VERSION}
+	kind create cluster
 
 e2e-setup:
+	kind load docker-image e2e/vault-csi-provider:latest
 	kubectl create namespace csi
-	helm install secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts/secrets-store-csi-driver-$(CSI_DRIVER_VERSION).tgz?raw=true \
+	helm install secrets-store-csi-driver secrets-store-csi-driver \
+		--repo https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts --version=$(CSI_DRIVER_VERSION) \
 		--wait --timeout=5m \
 		--namespace=csi \
 		--set linux.image.pullPolicy="IfNotPresent" \
@@ -72,7 +80,8 @@ e2e-setup:
 		--set tokenRequests[0].audience="vault"
 	helm install vault-bootstrap test/bats/configs/vault \
 		--namespace=csi
-	helm install vault https://github.com/hashicorp/vault-helm/archive/v$(VAULT_HELM_VERSION).tar.gz \
+	helm install vault vault \
+		--repo https://helm.releases.hashicorp.com --version=$(VAULT_HELM_VERSION) \
 		--wait --timeout=5m \
 		--namespace=csi \
 		--values=test/bats/configs/vault/vault.values.yaml
@@ -95,6 +104,3 @@ mod:
 promote-staging-manifest: #promote staging manifests to release dir
 	@rm -rf deployment
 	@cp -r manifest_staging/deployment .
-
-version:
-	@echo $(VERSION)
