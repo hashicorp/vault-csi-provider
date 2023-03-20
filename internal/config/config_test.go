@@ -96,8 +96,8 @@ func TestParseParameters(t *testing.T) {
 			Insecure: true,
 		},
 		Secrets: []Secret{
-			{"bar1", "v1/secret/foo1", "", http.MethodGet, nil, 0},
-			{"bar2", "v1/secret/foo2", "", "", nil, 0},
+			{"bar1", "v1/secret/foo1", "", http.MethodGet, nil, 0, ""},
+			{"bar2", "v1/secret/foo2", "", "", nil, 0, ""},
 		},
 		PodInfo: PodInfo{
 			Name:               "nginx-secrets-store-inline",
@@ -135,7 +135,7 @@ func TestParseConfig(t *testing.T) {
 					expected.VaultRoleName = roleName
 					expected.VaultTLSConfig.Insecure = true
 					expected.Secrets = []Secret{
-						{"bar1", "v1/secret/foo1", "", "", nil, 0o600},
+						{"bar1", "v1/secret/foo1", "", "", nil, 0o600, ""},
 					}
 					return expected
 				}(),
@@ -172,7 +172,7 @@ func TestParseConfig(t *testing.T) {
 					VaultNamespace:           "my-vault-namespace",
 					VaultKubernetesMountPath: "my-mount-path",
 					Secrets: []Secret{
-						{"bar1", "v1/secret/foo1", "", "", nil, 0o600},
+						{"bar1", "v1/secret/foo1", "", "", nil, 0o600, ""},
 					},
 					VaultTLSConfig: api.TLSConfig{
 						CACert:        "my-ca-cert-path",

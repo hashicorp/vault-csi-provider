@@ -1,5 +1,9 @@
 ## Unreleased
 
+CHANGES:
+
+* Support utf-8 (default), hex, and base64 encoded secrets [[GH-194](https://github.com/hashicorp/vault-csi-provider/pull/194)]
+
 ## 1.2.1 (November 21st, 2022)
 
 CHANGES:
