@@ -33,6 +33,8 @@ type FlagsConfig struct {
 	Version    bool
 	HealthAddr string
 
+	HMACSecretName string
+
 	VaultAddr      string
 	VaultMount     string
 	VaultNamespace string

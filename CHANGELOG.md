@@ -9,6 +9,10 @@ CHANGES:
     [`tokenRequests`](https://github.com/kubernetes-sigs/secrets-store-csi-driver/tree/main/charts/secrets-store-csi-driver#configuration)
     option from the _driver_ helm chart via the flag `--set tokenRequests[0].audience="vault"`. See
     [CSI TokenRequests documentation](https://kubernetes-csi.github.io/docs/token-requests.html) for further details.
+* Vault CSI Provider now creates a Kubernetes secret with an HMAC key to produce consistent hashes for secret versions. [[GH-198](https://github.com/hashicorp/vault-csi-provider/pull/198)]
+  * Requires RBAC permissions to create secrets, and read the same specific secret back. Versions are not generated otherwise and a warning
+    is logged on each mount that fails to generate a version.
+  * Supports creating the secret with custom name via `-hmac-secret-name`
 
 IMPROVEMENTS:
 
