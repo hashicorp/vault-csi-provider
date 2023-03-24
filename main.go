@@ -120,7 +120,7 @@ func realMain(logger hclog.Logger) error {
 	}
 	hmacSecretSpec := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      *&flags.HMACSecretName,
+			Name:      flags.HMACSecretName,
 			Namespace: string(namespace),
 			// TODO: Configurable labels and annotations?
 		},
