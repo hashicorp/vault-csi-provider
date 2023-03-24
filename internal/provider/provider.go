@@ -333,7 +333,14 @@ func generateObjectVersion(secret config.Secret, hmacKey []byte, content []byte)
 	// We include the secret config in the hash input to avoid leaking information
 	// about different secrets that could have the same content.
 	hash := hmac.New(sha256.New, hmacKey)
-	if _, err := hash.Write([]byte(fmt.Sprintf("%v:%s", secret, content))); err != nil {
+	cfg, err := json.Marshal(secret)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := hash.Write(cfg); err != nil {
+		return nil, err
+	}
+	if _, err := hash.Write(content); err != nil {
 		return nil, err
 	}
 
