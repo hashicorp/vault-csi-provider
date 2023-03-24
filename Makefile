@@ -78,6 +78,7 @@ e2e-setup:
 		--set linux.image.pullPolicy="IfNotPresent" \
 		--set syncSecret.enabled=true \
 		--set tokenRequests[0].audience="vault"
+	kubectl apply --namespace=csi -f test/bats/configs/vault/hmac-secret-role.yaml
 	helm install vault-bootstrap test/bats/configs/vault \
 		--namespace=csi
 	helm install vault vault \
