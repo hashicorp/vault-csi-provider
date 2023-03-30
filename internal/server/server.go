@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
+	"github.com/hashicorp/vault-csi-provider/internal/hmac"
 	"github.com/hashicorp/vault-csi-provider/internal/provider"
 	"github.com/hashicorp/vault-csi-provider/internal/version"
 	"k8s.io/client-go/kubernetes"
@@ -19,16 +20,18 @@ var _ pb.CSIDriverProviderServer = (*Server)(nil)
 
 // Server implements the secrets-store-csi-driver provider gRPC service interface.
 type Server struct {
-	logger      hclog.Logger
-	flagsConfig config.FlagsConfig
-	k8sClient   kubernetes.Interface
+	logger        hclog.Logger
+	flagsConfig   config.FlagsConfig
+	k8sClient     kubernetes.Interface
+	hmacGenerator *hmac.HMACGenerator
 }
 
-func NewServer(logger hclog.Logger, flagsConfig config.FlagsConfig, k8sClient kubernetes.Interface) *Server {
+func NewServer(logger hclog.Logger, flagsConfig config.FlagsConfig, k8sClient kubernetes.Interface, hmacGenerator *hmac.HMACGenerator) *Server {
 	return &Server{
-		logger:      logger,
-		flagsConfig: flagsConfig,
-		k8sClient:   k8sClient,
+		logger:        logger,
+		flagsConfig:   flagsConfig,
+		k8sClient:     k8sClient,
+		hmacGenerator: hmacGenerator,
 	}
 }
 
@@ -46,7 +49,7 @@ func (s *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResp
 		return nil, err
 	}
 
-	provider := provider.NewProvider(s.logger.Named("provider"), s.k8sClient)
+	provider := provider.NewProvider(s.logger.Named("provider"), s.k8sClient, s.hmacGenerator)
 	resp, err := provider.HandleMountRequest(ctx, cfg, s.flagsConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error making mount request: %w", err)

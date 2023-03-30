@@ -5,6 +5,7 @@ package provider
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -18,6 +19,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	vaultclient "github.com/hashicorp/vault-csi-provider/internal/client"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
+	hmacgen "github.com/hashicorp/vault-csi-provider/internal/hmac"
 	"github.com/hashicorp/vault/api"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,14 +34,16 @@ type provider struct {
 	cache  map[cacheKey]*api.Secret
 
 	// Allows mocking Kubernetes API for tests.
-	k8sClient kubernetes.Interface
+	k8sClient     kubernetes.Interface
+	hmacGenerator *hmacgen.HMACGenerator
 }
 
-func NewProvider(logger hclog.Logger, k8sClient kubernetes.Interface) *provider {
+func NewProvider(logger hclog.Logger, k8sClient kubernetes.Interface, hmacGenerator *hmacgen.HMACGenerator) *provider {
 	p := &provider{
-		logger:    logger,
-		cache:     make(map[cacheKey]*api.Secret),
-		k8sClient: k8sClient,
+		logger:        logger,
+		cache:         make(map[cacheKey]*api.Secret),
+		k8sClient:     k8sClient,
+		hmacGenerator: hmacGenerator,
 	}
 
 	return p
@@ -234,7 +238,7 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 		}
 
 		for _, w := range secret.Warnings {
-			p.logger.Warn("warning in response from Vault API", "warning", w)
+			p.logger.Warn("Warning in response from Vault API", "warning", w)
 		}
 
 		p.cache[key] = secret
@@ -267,6 +271,10 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 
 // MountSecretsStoreObjectContent mounts content of the vault object to target path
 func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, flagsConfig config.FlagsConfig) (*pb.MountResponse, error) {
+	hmacKey, err := p.hmacGenerator.GetOrCreateHMACKey(ctx)
+	if err != nil {
+		p.logger.Warn("Error generating HMAC key. Mounted secrets will not be assigned a version", "error", err)
+	}
 	client, err := vaultclient.New(cfg.Parameters, flagsConfig)
 	if err != nil {
 		return nil, err
@@ -291,7 +299,7 @@ func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, fl
 			return nil, err
 		}
 
-		version, err := generateObjectVersion(secret, content)
+		version, err := generateObjectVersion(secret, hmacKey, content)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate version for object name %q: %w", secret.ObjectName, err)
 		}
@@ -311,12 +319,28 @@ func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, fl
 	}, nil
 }
 
-func generateObjectVersion(secret config.Secret, content []byte) (*pb.ObjectVersion, error) {
-	hash := sha256.New()
+func generateObjectVersion(secret config.Secret, hmacKey []byte, content []byte) (*pb.ObjectVersion, error) {
+	// If something went wrong with generating the HMAC key, we log the error and
+	// treat generating the version as best-effort instead, as delivering the secret
+	// is generally more critical to workloads than assigning a version for it.
+	if hmacKey == nil {
+		return &pb.ObjectVersion{
+			Id:      secret.ObjectName,
+			Version: "",
+		}, nil
+	}
+
 	// We include the secret config in the hash input to avoid leaking information
 	// about different secrets that could have the same content.
-	_, err := hash.Write([]byte(fmt.Sprintf("%v:%s", secret, content)))
+	hash := hmac.New(sha256.New, hmacKey)
+	cfg, err := json.Marshal(secret)
 	if err != nil {
+		return nil, err
+	}
+	if _, err := hash.Write(cfg); err != nil {
+		return nil, err
+	}
+	if _, err := hash.Write(content); err != nil {
 		return nil, err
 	}
 

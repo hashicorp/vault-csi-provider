@@ -16,13 +16,21 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
+	"github.com/hashicorp/vault-csi-provider/internal/hmac"
 	providerserver "github.com/hashicorp/vault-csi-provider/internal/server"
 	"github.com/hashicorp/vault-csi-provider/internal/version"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/pointer"
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
+)
+
+const (
+	namespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
 
 func main() {
@@ -40,6 +48,8 @@ func realMain(logger hclog.Logger) error {
 	flag.BoolVar(&flags.Debug, "debug", false, "Sets log to debug level.")
 	flag.BoolVar(&flags.Version, "version", false, "Prints the version information.")
 	flag.StringVar(&flags.HealthAddr, "health-addr", ":8080", "Configure http listener for reporting health.")
+
+	flag.StringVar(&flags.HMACSecretName, "hmac-secret-name", "vault-csi-provider-hmac-key", "Configure the Kubernetes secret name that the provider creates to store an HMAC key for generating secret version hashes")
 
 	flag.StringVar(&flags.VaultAddr, "vault-addr", "", "Default address for connecting to Vault. Can also be specified via the VAULT_ADDR environment variable.")
 	flag.StringVar(&flags.VaultMount, "vault-mount", "kubernetes", "Default Vault mount path for Kubernetes authentication.")
@@ -95,16 +105,30 @@ func realMain(logger hclog.Logger) error {
 	}
 	defer listener.Close()
 
-	config, err := rest.InClusterConfig()
+	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		return err
 	}
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return err
 	}
 
-	srv := providerserver.NewServer(serverLogger, flags, clientset)
+	namespace, err := os.ReadFile(namespaceFile)
+	if err != nil {
+		return fmt.Errorf("failed to read namespace from file: %w", err)
+	}
+	hmacSecretSpec := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      flags.HMACSecretName,
+			Namespace: string(namespace),
+			// TODO: Configurable labels and annotations?
+		},
+		Immutable: pointer.Bool(true),
+	}
+	hmacGenerator := hmac.NewHMACGenerator(clientset, hmacSecretSpec)
+
+	srv := providerserver.NewServer(serverLogger, flags, clientset, hmacGenerator)
 	pb.RegisterCSIDriverProviderServer(server, srv)
 
 	// Create health handler

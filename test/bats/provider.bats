@@ -341,3 +341,46 @@ teardown(){
     result=$(kubectl --namespace=test exec nginx-kv-custom-audience -- cat /mnt/secrets-store/secret)
     [[ "$result" == "hello-custom-audience" ]]
 }
+
+@test "11 Consistent version hashes" {
+    helm --namespace=test install nginx $CONFIGS/nginx \
+        --set engine=kv --set sa=kv \
+        --wait --timeout=5m
+
+    # HMAC secret should exist.
+    kubectl --namespace=csi get secrets vault-csi-provider-hmac-key
+
+    # Save the status UID and secret versions.
+    statusUID1=$(kubectl --namespace=test get secretproviderclasspodstatus nginx-kv-test-vault-kv -o jsonpath='{.metadata.uid}')
+    versions1=$(kubectl --namespace=test get secretproviderclasspodstatus nginx-kv-test-vault-kv -o jsonpath='{.status.objects[*].version}')
+
+    # Recreate the pod, which should remount the secrets and recreate the status object.
+    helm --namespace=test uninstall nginx
+    helm --namespace=test install nginx $CONFIGS/nginx \
+        --set engine=kv --set sa=kv \
+        --wait --timeout=5m
+
+    # Now the uid should be different, but versions should still be the same.
+    statusUID2=$(kubectl --namespace=test get secretproviderclasspodstatus nginx-kv-test-vault-kv -o jsonpath='{.metadata.uid}')
+    versions2=$(kubectl --namespace=test get secretproviderclasspodstatus nginx-kv-test-vault-kv -o jsonpath='{.status.objects[*].version}')
+
+    [[ "$statusUID1" != "$statusUID2" ]]
+    [[ "$versions1" == "$versions2" ]]
+
+    # Finally, delete the HMAC secret and recreate the pod one more time.
+    # The HMAC secret should get regenerated and the secret versions should then change.
+    kubectl --namespace=csi delete secret vault-csi-provider-hmac-key
+    helm --namespace=test uninstall nginx
+    helm --namespace=test install nginx $CONFIGS/nginx \
+        --set engine=kv --set sa=kv \
+        --wait --timeout=5m
+
+    kubectl --namespace=csi get secrets vault-csi-provider-hmac-key
+
+    statusUID3=$(kubectl --namespace=test get secretproviderclasspodstatus nginx-kv-test-vault-kv -o jsonpath='{.metadata.uid}')
+    versions3=$(kubectl --namespace=test get secretproviderclasspodstatus nginx-kv-test-vault-kv -o jsonpath='{.status.objects[*].version}')
+
+    [[ "$statusUID1" != "$statusUID3" ]]
+    [[ "$statusUID2" != "$statusUID3" ]]
+    [[ "$versions2" != "$versions3" ]]
+}

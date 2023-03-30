@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
+	"github.com/hashicorp/vault-csi-provider/internal/hmac"
 	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -291,20 +292,8 @@ func TestHandleMountRequest(t *testing.T) {
 			Contents: []byte("secret v1 from: /v1/path/three"),
 		},
 	}
-	expectedVersions := []*pb.ObjectVersion{
-		{
-			Id:      "object-one",
-			Version: "7eM6I4jvRmoPuY8XiQsUuJtEVDQlSE5JCPbXQWXN2tE=",
-		},
-		{
-			Id:      "object-two",
-			Version: "V7eu3GtXFYYNJkbDDEfTNalWWpZl-VTu3Pu-qF9sWi4=",
-		},
-		{
-			Id:      "object-three",
-			Version: "95O8POIdARplTKNAtExps-7jm8jETgDB4idsUA9KcL8=",
-		},
-	}
+	expectedVersionIDs := []string{"object-one", "object-two", "object-three"}
+	versionsSeen := map[string]struct{}{}
 
 	// SETUP
 	mockVaultServer := httptest.NewServer(http.HandlerFunc(mockVaultHandler(
@@ -329,31 +318,39 @@ func TestHandleMountRequest(t *testing.T) {
 		&corev1.ServiceAccount{},
 		&authenticationv1.TokenRequest{},
 	)
+	hmacGenerator := hmac.NewHMACGenerator(k8sClient, &corev1.Secret{})
 	// While we hit the cache, the secret contents and versions should remain the same.
-	provider := NewProvider(hclog.Default(), k8sClient)
+	provider := NewProvider(hclog.Default(), k8sClient, hmacGenerator)
 	for i := 0; i < 3; i++ {
 		resp, err := provider.HandleMountRequest(context.Background(), spcConfig, flagsConfig)
 		require.NoError(t, err)
 
 		assert.Equal(t, (*v1alpha1.Error)(nil), resp.Error)
 		assert.Equal(t, expectedFiles, resp.Files)
-		assert.Equal(t, expectedVersions, resp.ObjectVersion)
+		assert.Equal(t, expectedVersionIDs[i], resp.ObjectVersion[i].Id)
+		assert.NotEmpty(t, resp.ObjectVersion[i].Version)
+		_, seen := versionsSeen[resp.ObjectVersion[i].Version]
+		assert.False(t, seen)
+		versionsSeen[resp.ObjectVersion[i].Version] = struct{}{}
 	}
 
 	// The mockVaultHandler function below includes a dynamic counter in the content of secrets.
 	// That means mounting again with a fresh provider will update the contents of the secrets, which should update the version.
-	resp, err := NewProvider(hclog.Default(), k8sClient).HandleMountRequest(context.Background(), spcConfig, flagsConfig)
+	resp, err := NewProvider(hclog.Default(), k8sClient, hmacGenerator).HandleMountRequest(context.Background(), spcConfig, flagsConfig)
 	require.NoError(t, err)
 
 	assert.Equal(t, (*v1alpha1.Error)(nil), resp.Error)
 	expectedFiles[0].Contents = []byte("secret v2 from: /v1/path/one")
 	expectedFiles[1].Contents = []byte(`{"request_id":"","lease_id":"","lease_duration":0,"renewable":false,"data":{"the-key":"secret v2 from: /v1/path/two"},"warnings":null}`)
 	expectedFiles[2].Contents = []byte("secret v2 from: /v1/path/three")
-	expectedVersions[0].Version = "R-NY6w6nGg5vX510c7i28A5sLZtxlDbu8y9zY92AUPY="
-	expectedVersions[1].Version = "6hCb1c_dfqXbIdYYh7zEuqSG_f8ROpuE_5OmSja5pIk="
-	expectedVersions[2].Version = "rKthxBOUCu5jDLuU6ZwabWnN4OWOiSPG8cnT2PtHqik="
 	assert.Equal(t, expectedFiles, resp.Files)
-	assert.Equal(t, expectedVersions, resp.ObjectVersion)
+	for i := 0; i < len(expectedFiles); i++ {
+		assert.Equal(t, expectedVersionIDs[i], resp.ObjectVersion[i].Id)
+		assert.NotEmpty(t, resp.ObjectVersion[i].Version)
+		_, seen := versionsSeen[resp.ObjectVersion[i].Version]
+		assert.False(t, seen)
+		versionsSeen[resp.ObjectVersion[i].Version] = struct{}{}
+	}
 }
 
 func mockVaultHandler(pathMapping map[string]func(numberOfCalls int) (string, interface{})) func(w http.ResponseWriter, req *http.Request) {
