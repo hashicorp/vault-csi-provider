@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 1.3.0 (April 5th, 2023)
+
 CHANGES:
 
 * Vault CSI Provider will use service account tokens passed from the Secrets Store CSI Driver instead of generating one if an appropriate token is provided. [[GH-163](https://github.com/hashicorp/vault-csi-provider/pull/163)]
