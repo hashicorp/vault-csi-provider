@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: MPL-2.0
 
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: csi
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: vault-csi-provider
@@ -32,11 +37,40 @@ subjects:
   name: vault-csi-provider
   namespace: csi
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vault-csi-provider-role
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+  resourceNames:
+  - vault-csi-provider-hmac-key
+# 'create' permissions cannot be restricted by resource name:
+# https://kubernetes.io/docs/reference/access-authn-authz/rbac/#referring-to-resources
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vault-csi-provider-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: vault-csi-provider-role
+subjects:
+- kind: ServiceAccount
+  name: vault-csi-provider
+  namespace: csi
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    app: vault-csi-provider
+    app.kubernetes.io/name: vault-csi-provider
   name: vault-csi-provider
   namespace: csi
 spec:
@@ -44,17 +78,17 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: vault-csi-provider
+      app.kubernetes.io/name: vault-csi-provider
   template:
     metadata:
       labels:
-        app: vault-csi-provider
+        app.kubernetes.io/name: vault-csi-provider
     spec:
       serviceAccountName: vault-csi-provider
       tolerations:
       containers:
         - name: provider-vault-installer
-          image: hashicorp/vault-csi-provider:1.1.0
+          image: hashicorp/vault-csi-provider:1.3.0
           imagePullPolicy: Always
           args:
             - -endpoint=/provider/vault.sock

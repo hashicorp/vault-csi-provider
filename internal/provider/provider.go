@@ -103,6 +103,8 @@ func (p *provider) login(ctx context.Context, client *api.Client, params config.
 		if err != nil {
 			return err
 		}
+	} else {
+		p.logger.Debug("using token from mount request for login")
 	}
 
 	req := client.NewRequest(http.MethodPost, "/v1/auth/"+params.VaultKubernetesMountPath+"/login")
