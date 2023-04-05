@@ -15,6 +15,19 @@ CHANGES:
   * Requires RBAC permissions to create secrets, and read the same specific secret back. Versions are not generated otherwise and a warning
     is logged on each mount that fails to generate a version.
   * Supports creating the secret with custom name via `-hmac-secret-name`
+* Updated Docker base image from alpine 3.16.3 -> 3.17.3
+* Build with Go v1.20.3
+* Updated dependencies:
+  * github.com/hashicorp/go-hclog v1.3.1 -> v1.5.0
+  * github.com/hashicorp/vault/api v1.8.2 -> v1.9.0
+  * github.com/stretchr/testify v1.8.1 -> v1.8.2
+  * google.golang.org/grpc v1.50.1 -> v1.54.0
+  * k8s.io/api v0.25.4 -> v0.26.3
+  * k8s.io/apimachinery v0.25.4 -> v0.26.3
+  * k8s.io/client-go v0.25.4 -> v0.26.3
+  * k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed -> v0.0.0-20230313181309-38a27ef9d749
+  * sigs.k8s.io/secrets-store-csi-driver v1.2.4 -> v1.3.2
+* Tests are now run against Kubernetes versions: 1.22.17, 1.23.17, 1.24.12, 1.25.8, 1.26.3
 
 IMPROVEMENTS:
 
