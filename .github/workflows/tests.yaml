@@ -3,9 +3,9 @@ name: Tests
 on: [push, workflow_dispatch]
 
 env:
-  KIND_VERSION: "v0.16.0"
-  BATS_VERSION: "1.8.2"
-  NODE_VERSION: "16"
+  KIND_VERSION: "v0.18.0"
+  BATS_VERSION: "1.9.0"
+  NODE_VERSION: "19.8.1"
   TARBALL_FILE: vault-csi-provider.docker.tar
 
 jobs:
@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kind-k8s-version: [1.21.14, 1.22.15, 1.23.13, 1.24.7, 1.25.3]
+        kind-k8s-version: [1.22.17, 1.23.17, 1.24.12, 1.25.8, 1.26.3]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
