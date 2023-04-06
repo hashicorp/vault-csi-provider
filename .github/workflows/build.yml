@@ -1,4 +1,5 @@
 name: build
+run-name: v${{ inputs.version }} release
 
 on:
   push:

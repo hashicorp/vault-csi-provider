@@ -17,7 +17,15 @@ LDFLAGS?="-X '$(PKG).BuildVersion=$(VERSION)' \
 	-X '$(PKG).GoVersion=$(shell go version)'"
 CSI_DRIVER_VERSION=1.3.2
 VAULT_HELM_VERSION=0.23.0
+VAULT_VERSION=1.13.1
 GOLANGCI_LINT_FORMAT?=colored-line-number
+
+VAULT_VERSION_ARGS=--set server.image.tag=$(VAULT_VERSION)
+ifdef VAULT_LICENSE
+	VAULT_VERSION_ARGS=--set server.image.repository=docker.mirror.hashicorp.services/hashicorp/vault-enterprise \
+		--set server.image.tag=$(VAULT_VERSION)-ent \
+		--set server.enterpriseLicense.secretName=vault-ent-license
+endif
 
 .PHONY: default build test bootstrap fmt lint image e2e-image e2e-setup e2e-teardown e2e-test mod setup-kind promote-staging-manifest
 
@@ -79,13 +87,17 @@ e2e-setup:
 		--set syncSecret.enabled=true \
 		--set tokenRequests[0].audience="vault"
 	kubectl apply --namespace=csi -f test/bats/configs/vault/hmac-secret-role.yaml
+	@if [ -n "$(VAULT_LICENSE)" ]; then\
+        kubectl create --namespace=csi secret generic vault-ent-license --from-literal="license=${VAULT_LICENSE}";\
+    fi
 	helm install vault-bootstrap test/bats/configs/vault \
 		--namespace=csi
 	helm install vault vault \
 		--repo https://helm.releases.hashicorp.com --version=$(VAULT_HELM_VERSION) \
 		--wait --timeout=5m \
 		--namespace=csi \
-		--values=test/bats/configs/vault/vault.values.yaml
+		--values=test/bats/configs/vault/vault.values.yaml \
+		$(VAULT_VERSION_ARGS)
 	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app.kubernetes.io/name=vault
 	kubectl exec -i --namespace=csi vault-0 -- /bin/sh /mnt/bootstrap/bootstrap.sh
 	kubectl wait --namespace=csi --for=condition=Ready --timeout=5m pod -l app.kubernetes.io/name=vault-csi-provider
