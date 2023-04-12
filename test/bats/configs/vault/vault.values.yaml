@@ -64,21 +64,7 @@ csi:
   - name: vault-client-tls
     secret:
       secretName: vault-client-tls
-  # TODO: Delete this volume when helm chart has it baked in.
-  - name: metadata
-    downwardAPI:
-      items:
-        - path: "labels"
-          fieldRef:
-            fieldPath: metadata.labels
-        - path: "annotations"
-          fieldRef:
-            fieldPath: metadata.annotations
   volumeMounts:
   - name: vault-client-tls
     mountPath: /mnt/tls
-    readOnly: true
-  # TODO: Delete this mount when helm chart has it baked in.
-  - name: metadata
-    mountPath: "/var/run/metadata/kubernetes.io/pod"
     readOnly: true

@@ -16,7 +16,7 @@ LDFLAGS?="-X '$(PKG).BuildVersion=$(VERSION)' \
 	-X '$(PKG).BuildDate=$(BUILD_DATE)' \
 	-X '$(PKG).GoVersion=$(shell go version)'"
 CSI_DRIVER_VERSION=1.3.2
-VAULT_HELM_VERSION=0.23.0
+VAULT_HELM_VERSION=0.24.0
 VAULT_VERSION=1.13.1
 GOLANGCI_LINT_FORMAT?=colored-line-number
 
@@ -86,7 +86,6 @@ e2e-setup:
 		--set linux.image.pullPolicy="IfNotPresent" \
 		--set syncSecret.enabled=true \
 		--set tokenRequests[0].audience="vault"
-	kubectl apply --namespace=csi -f test/bats/configs/vault/hmac-secret-role.yaml
 	@if [ -n "$(VAULT_LICENSE)" ]; then\
         kubectl create --namespace=csi secret generic vault-ent-license --from-literal="license=${VAULT_LICENSE}";\
     fi
