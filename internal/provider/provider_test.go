@@ -15,10 +15,10 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
 	"github.com/hashicorp/vault-csi-provider/internal/hmac"
+	"github.com/hashicorp/vault-csi-provider/internal/tokencache"
 	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
@@ -316,11 +316,11 @@ func TestHandleMountRequest(t *testing.T) {
 
 	k8sClient := fake.NewSimpleClientset(
 		&corev1.ServiceAccount{},
-		&authenticationv1.TokenRequest{},
 	)
 	hmacGenerator := hmac.NewHMACGenerator(k8sClient, &corev1.Secret{})
+	tokenCache := tokencache.NewTokenCache(hclog.Default(), k8sClient)
 	// While we hit the cache, the secret contents and versions should remain the same.
-	provider := NewProvider(hclog.Default(), k8sClient, hmacGenerator)
+	provider := NewProvider(hclog.Default(), hmacGenerator, tokenCache)
 	for i := 0; i < 3; i++ {
 		resp, err := provider.HandleMountRequest(context.Background(), spcConfig, flagsConfig)
 		require.NoError(t, err)
@@ -336,7 +336,7 @@ func TestHandleMountRequest(t *testing.T) {
 
 	// The mockVaultHandler function below includes a dynamic counter in the content of secrets.
 	// That means mounting again with a fresh provider will update the contents of the secrets, which should update the version.
-	resp, err := NewProvider(hclog.Default(), k8sClient, hmacGenerator).HandleMountRequest(context.Background(), spcConfig, flagsConfig)
+	resp, err := NewProvider(hclog.Default(), hmacGenerator, tokenCache).HandleMountRequest(context.Background(), spcConfig, flagsConfig)
 	require.NoError(t, err)
 
 	assert.Equal(t, (*v1alpha1.Error)(nil), resp.Error)

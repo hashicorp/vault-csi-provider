@@ -14,42 +14,38 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/go-hclog"
 	vaultclient "github.com/hashicorp/vault-csi-provider/internal/client"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
 	hmacgen "github.com/hashicorp/vault-csi-provider/internal/hmac"
+	"github.com/hashicorp/vault-csi-provider/internal/tokencache"
 	"github.com/hashicorp/vault/api"
-	authenticationv1 "k8s.io/api/authentication/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
 // provider implements the secrets-store-csi-driver provider interface
 // and communicates with the Vault API.
 type provider struct {
-	logger hclog.Logger
-	cache  map[cacheKey]*api.Secret
+	logger             hclog.Logger
+	vaultResponseCache map[vaultResponseCacheKey]*api.Secret
 
-	// Allows mocking Kubernetes API for tests.
-	k8sClient     kubernetes.Interface
 	hmacGenerator *hmacgen.HMACGenerator
+	tokenCache    *tokencache.TokenCache
 }
 
-func NewProvider(logger hclog.Logger, k8sClient kubernetes.Interface, hmacGenerator *hmacgen.HMACGenerator) *provider {
+func NewProvider(logger hclog.Logger, hmacGenerator *hmacgen.HMACGenerator, tokenCache *tokencache.TokenCache) *provider {
 	p := &provider{
-		logger:        logger,
-		cache:         make(map[cacheKey]*api.Secret),
-		k8sClient:     k8sClient,
-		hmacGenerator: hmacGenerator,
+		logger:             logger,
+		vaultResponseCache: make(map[vaultResponseCacheKey]*api.Secret),
+		hmacGenerator:      hmacGenerator,
+		tokenCache:         tokenCache,
 	}
 
 	return p
 }
 
-type cacheKey struct {
+type vaultResponseCacheKey struct {
 	secretPath string
 	method     string
 }
@@ -60,46 +56,14 @@ const (
 	EncodingUtf8   string = "utf-8"
 )
 
-func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo, audience string) (string, error) {
-	p.logger.Debug("creating service account token bound to pod",
-		"namespace", podInfo.Namespace,
-		"serviceAccountName", podInfo.ServiceAccountName,
-		"podName", podInfo.Name,
-		"podUID", podInfo.UID)
-
-	ttl := int64((15 * time.Minute).Seconds())
-	audiences := []string{}
-	if audience != "" {
-		audiences = []string{audience}
-	}
-	resp, err := p.k8sClient.CoreV1().ServiceAccounts(podInfo.Namespace).CreateToken(ctx, podInfo.ServiceAccountName, &authenticationv1.TokenRequest{
-		Spec: authenticationv1.TokenRequestSpec{
-			ExpirationSeconds: &ttl,
-			Audiences:         audiences,
-			BoundObjectRef: &authenticationv1.BoundObjectReference{
-				Kind:       "Pod",
-				APIVersion: "v1",
-				Name:       podInfo.Name,
-				UID:        podInfo.UID,
-			},
-		},
-	}, metav1.CreateOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to create a service account token for requesting pod %v: %w", podInfo, err)
-	}
-
-	p.logger.Debug("service account token creation successful")
-	return resp.Status.Token, nil
-}
-
 func (p *provider) login(ctx context.Context, client *api.Client, params config.Parameters) error {
 	p.logger.Debug("performing vault login")
 
 	jwt := params.PodInfo.ServiceAccountToken
 	if jwt == "" {
-		p.logger.Debug("no suitable token found in mount request, falling back to generating service account JWT")
+		p.logger.Debug("no suitable token found in mount request, using self-generated service account JWT")
 		var err error
-		jwt, err = p.createJWTToken(ctx, params.PodInfo, params.Audience)
+		jwt, err = p.tokenCache.GetOrCreateKubernetesToken(ctx, params.PodInfo, params.Audience)
 		if err != nil {
 			return err
 		}
@@ -219,8 +183,8 @@ func decodeValue(data []byte, encoding string) ([]byte, error) {
 func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConfig config.Secret) ([]byte, error) {
 	var secret *api.Secret
 	var cached bool
-	key := cacheKey{secretPath: secretConfig.SecretPath, method: secretConfig.Method}
-	if secret, cached = p.cache[key]; !cached {
+	key := vaultResponseCacheKey{secretPath: secretConfig.SecretPath, method: secretConfig.Method}
+	if secret, cached = p.vaultResponseCache[key]; !cached {
 		req, err := generateRequest(client, secretConfig)
 		if err != nil {
 			return nil, err
@@ -243,7 +207,7 @@ func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConf
 			p.logger.Warn("Warning in response from Vault API", "warning", w)
 		}
 
-		p.cache[key] = secret
+		p.vaultResponseCache[key] = secret
 	} else {
 		p.logger.Debug("Secret fetched from cache", "secretConfig", secretConfig)
 	}

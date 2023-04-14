@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/vault-csi-provider/internal/config"
 	"github.com/hashicorp/vault-csi-provider/internal/hmac"
 	"github.com/hashicorp/vault-csi-provider/internal/provider"
+	"github.com/hashicorp/vault-csi-provider/internal/tokencache"
 	"github.com/hashicorp/vault-csi-provider/internal/version"
 	"k8s.io/client-go/kubernetes"
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
@@ -24,6 +25,7 @@ type Server struct {
 	flagsConfig   config.FlagsConfig
 	k8sClient     kubernetes.Interface
 	hmacGenerator *hmac.HMACGenerator
+	tokenCache    *tokencache.TokenCache
 }
 
 func NewServer(logger hclog.Logger, flagsConfig config.FlagsConfig, k8sClient kubernetes.Interface, hmacGenerator *hmac.HMACGenerator) *Server {
@@ -32,6 +34,7 @@ func NewServer(logger hclog.Logger, flagsConfig config.FlagsConfig, k8sClient ku
 		flagsConfig:   flagsConfig,
 		k8sClient:     k8sClient,
 		hmacGenerator: hmacGenerator,
+		tokenCache:    tokencache.NewTokenCache(logger.Named("tokencache"), k8sClient),
 	}
 }
 
@@ -49,7 +52,7 @@ func (s *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResp
 		return nil, err
 	}
 
-	provider := provider.NewProvider(s.logger.Named("provider"), s.k8sClient, s.hmacGenerator)
+	provider := provider.NewProvider(s.logger.Named("provider"), s.hmacGenerator, s.tokenCache)
 	resp, err := provider.HandleMountRequest(ctx, cfg, s.flagsConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error making mount request: %w", err)
