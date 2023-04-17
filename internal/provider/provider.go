@@ -10,17 +10,20 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	vaultclient "github.com/hashicorp/vault-csi-provider/internal/client"
+	"github.com/hashicorp/vault-csi-provider/internal/clientcache"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
 	hmacgen "github.com/hashicorp/vault-csi-provider/internal/hmac"
-	"github.com/hashicorp/vault-csi-provider/internal/tokencache"
 	"github.com/hashicorp/vault/api"
+	authenticationv1 "k8s.io/api/authentication/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
@@ -30,16 +33,20 @@ type provider struct {
 	logger             hclog.Logger
 	vaultResponseCache map[vaultResponseCacheKey]*api.Secret
 
+	// Allows mocking Kubernetes API for tests.
+	k8sClient     kubernetes.Interface
 	hmacGenerator *hmacgen.HMACGenerator
-	tokenCache    *tokencache.TokenCache
+	clientCache   *clientcache.ClientCache
 }
 
-func NewProvider(logger hclog.Logger, hmacGenerator *hmacgen.HMACGenerator, tokenCache *tokencache.TokenCache) *provider {
+func NewProvider(logger hclog.Logger, k8sClient kubernetes.Interface, hmacGenerator *hmacgen.HMACGenerator, clientCache *clientcache.ClientCache) *provider {
 	p := &provider{
 		logger:             logger,
 		vaultResponseCache: make(map[vaultResponseCacheKey]*api.Secret),
-		hmacGenerator:      hmacGenerator,
-		tokenCache:         tokenCache,
+
+		k8sClient:     k8sClient,
+		hmacGenerator: hmacGenerator,
+		clientCache:   clientCache,
 	}
 
 	return p
@@ -56,14 +63,46 @@ const (
 	EncodingUtf8   string = "utf-8"
 )
 
-func (p *provider) login(ctx context.Context, client *api.Client, params config.Parameters) error {
+func (p *provider) createJWTToken(ctx context.Context, podInfo config.PodInfo, audience string) (string, error) {
+	p.logger.Debug("creating service account token bound to pod",
+		"namespace", podInfo.Namespace,
+		"serviceAccountName", podInfo.ServiceAccountName,
+		"podUID", podInfo.UID,
+		"audience", audience)
+
+	ttl := int64((15 * time.Minute).Seconds())
+	audiences := []string{}
+	if audience != "" {
+		audiences = []string{audience}
+	}
+	resp, err := p.k8sClient.CoreV1().ServiceAccounts(podInfo.Namespace).CreateToken(ctx, podInfo.ServiceAccountName, &authenticationv1.TokenRequest{
+		Spec: authenticationv1.TokenRequestSpec{
+			ExpirationSeconds: &ttl,
+			Audiences:         audiences,
+			BoundObjectRef: &authenticationv1.BoundObjectReference{
+				Kind:       "Pod",
+				APIVersion: "v1",
+				Name:       podInfo.Name,
+				UID:        podInfo.UID,
+			},
+		},
+	}, metav1.CreateOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to create a service account token for requesting pod %v: %w", podInfo, err)
+	}
+
+	p.logger.Debug("service account token creation successful")
+	return resp.Status.Token, nil
+}
+
+func (p *provider) login(ctx context.Context, client *vaultclient.Client, podInfo config.PodInfo, audience string) error {
 	p.logger.Debug("performing vault login")
 
-	jwt := params.PodInfo.ServiceAccountToken
+	jwt := podInfo.ServiceAccountToken
 	if jwt == "" {
 		p.logger.Debug("no suitable token found in mount request, using self-generated service account JWT")
 		var err error
-		jwt, err = p.tokenCache.GetOrCreateKubernetesToken(ctx, params.PodInfo, params.Audience)
+		jwt, err = p.createJWTToken(ctx, podInfo, audience)
 		if err != nil {
 			return err
 		}
@@ -71,67 +110,12 @@ func (p *provider) login(ctx context.Context, client *api.Client, params config.
 		p.logger.Debug("using token from mount request for login")
 	}
 
-	req := client.NewRequest(http.MethodPost, "/v1/auth/"+params.VaultKubernetesMountPath+"/login")
-	if err := req.SetJSONBody(map[string]string{
-		"role": params.VaultRoleName,
-		"jwt":  jwt,
-	}); err != nil {
+	if err := client.Login(ctx, jwt); err != nil {
 		return err
 	}
 
-	secret, err := vaultclient.Do(ctx, client, req)
-	if err != nil {
-		return fmt.Errorf("failed to login: %w", err)
-	}
-
-	client.SetToken(secret.Auth.ClientToken)
-
 	p.logger.Debug("vault login successful")
 	return nil
-}
-
-func ensureV1Prefix(s string) string {
-	switch {
-	case strings.HasPrefix(s, "/v1/"):
-		return s
-	case strings.HasPrefix(s, "v1/"):
-		return "/" + s
-	case strings.HasPrefix(s, "/"):
-		return "/v1" + s
-	default:
-		return "/v1/" + s
-	}
-}
-
-func generateRequest(client *api.Client, secret config.Secret) (*api.Request, error) {
-	secretPath := ensureV1Prefix(secret.SecretPath)
-	queryIndex := strings.Index(secretPath, "?")
-	var queryParams map[string][]string
-	if queryIndex != -1 {
-		var err error
-		queryParams, err = url.ParseQuery(secretPath[queryIndex+1:])
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse query parameters from secretPath %q for objectName %q: %w", secretPath, secret.ObjectName, err)
-		}
-		secretPath = secretPath[:queryIndex]
-	}
-	method := http.MethodGet
-	if secret.Method != "" {
-		method = secret.Method
-	}
-
-	req := client.NewRequest(method, secretPath)
-	if queryParams != nil {
-		req.Params = queryParams
-	}
-	if secret.SecretArgs != nil {
-		err := req.SetJSONBody(secret.SecretArgs)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return req, nil
 }
 
 func keyFromData(rootData map[string]interface{}, secretKey string) ([]byte, error) {
@@ -180,27 +164,28 @@ func decodeValue(data []byte, encoding string) ([]byte, error) {
 	return nil, fmt.Errorf("invalid encoding type. Should be utf-8, base64, or hex")
 }
 
-func (p *provider) getSecret(ctx context.Context, client *api.Client, secretConfig config.Secret) ([]byte, error) {
+func (p *provider) getSecret(ctx context.Context, client *vaultclient.Client, reauth func() error, secretConfig config.Secret) ([]byte, error) {
 	var secret *api.Secret
 	var cached bool
 	key := vaultResponseCacheKey{secretPath: secretConfig.SecretPath, method: secretConfig.Method}
 	if secret, cached = p.vaultResponseCache[key]; !cached {
-		req, err := generateRequest(client, secretConfig)
+		var err error
+		secret, err = client.RequestSecret(ctx, secretConfig)
 		if err != nil {
-			return nil, err
-		}
-		p.logger.Debug("Requesting secret", "secretConfig", secretConfig, "method", req.Method, "path", req.URL.Path, "params", req.Params)
-
-		if err != nil {
-			return nil, fmt.Errorf("could not generate request: %v", err)
-		}
-
-		secret, err = vaultclient.Do(ctx, client, req)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't read secret %q: %w", secretConfig.ObjectName, err)
+			if errors.Is(err, vaultclient.ErrPermissionDenied) {
+				p.logger.Debug("cached client unauthenticated, reauthenticating", "error", err)
+				err = reauth()
+				if err != nil {
+					return nil, err
+				}
+				secret, err = client.RequestSecret(ctx, secretConfig)
+			}
+			if err != nil {
+				return nil, fmt.Errorf("couldn't read secret %q: %w", secretConfig.ObjectName, err)
+			}
 		}
 		if secret == nil || secret.Data == nil {
-			return nil, fmt.Errorf("empty response from %q, warnings: %v", req.URL.Path, secret.Warnings)
+			return nil, fmt.Errorf("empty response from %q, warnings: %v", secretConfig.SecretPath, secret.Warnings)
 		}
 
 		for _, w := range secret.Warnings {
@@ -241,26 +226,28 @@ func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, fl
 	if err != nil {
 		p.logger.Warn("Error generating HMAC key. Mounted secrets will not be assigned a version", "error", err)
 	}
-	client, err := vaultclient.New(cfg.Parameters, flagsConfig)
+	client, created, err := p.clientCache.GetOrCreateClient(cfg.Parameters, flagsConfig)
 	if err != nil {
 		return nil, err
 	}
-
-	// Set default k8s auth path if unset.
-	if cfg.Parameters.VaultKubernetesMountPath == "" {
-		cfg.Parameters.VaultKubernetesMountPath = flagsConfig.VaultMount
+	auth := func() error {
+		return p.login(ctx, client, cfg.Parameters.PodInfo, cfg.Parameters.Audience)
 	}
 
-	// Authenticate to vault using the jwt token
-	err = p.login(ctx, client, cfg.Parameters)
-	if err != nil {
-		return nil, err
+	// If the client was freshly created, authenticate. Otherwise, it should
+	// already have a Vault token which we can try fetching secrets with and
+	// only reauthenticate if we find that it's expired.
+	if created {
+		err = auth()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var files []*pb.File
 	var objectVersions []*pb.ObjectVersion
 	for _, secret := range cfg.Parameters.Secrets {
-		content, err := p.getSecret(ctx, client, secret)
+		content, err := p.getSecret(ctx, client, auth, secret)
 		if err != nil {
 			return nil, err
 		}
