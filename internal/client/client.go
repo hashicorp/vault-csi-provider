@@ -5,6 +5,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -15,12 +16,11 @@ import (
 	"github.com/hashicorp/vault-csi-provider/internal/auth"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
 	"github.com/hashicorp/vault/api"
-	vaultapi "github.com/hashicorp/vault/api"
 )
 
 type Client struct {
 	logger hclog.Logger
-	inner  *vaultapi.Client
+	inner  *api.Client
 
 	mtx sync.Mutex
 }
@@ -29,7 +29,7 @@ type Client struct {
 // Config is read from environment variables first, then flags, then the SPC in
 // ascending order of precedence.
 func New(logger hclog.Logger, spcParameters config.Parameters, flagsConfig config.FlagsConfig) (*Client, error) {
-	cfg := vaultapi.DefaultConfig()
+	cfg := api.DefaultConfig()
 	if cfg.Error != nil {
 		return nil, cfg.Error
 	}
@@ -40,7 +40,7 @@ func New(logger hclog.Logger, spcParameters config.Parameters, flagsConfig confi
 		return nil, err
 	}
 
-	inner, err := vaultapi.NewClient(cfg)
+	inner, err := api.NewClient(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func New(logger hclog.Logger, spcParameters config.Parameters, flagsConfig confi
 	}, nil
 }
 
-func overlayConfig(cfg *vaultapi.Config, vaultAddr string, tlsConfig vaultapi.TLSConfig) error {
+func overlayConfig(cfg *api.Config, vaultAddr string, tlsConfig api.TLSConfig) error {
 	err := cfg.ConfigureTLS(&tlsConfig)
 	if err != nil {
 		return err
@@ -69,6 +69,55 @@ func overlayConfig(cfg *vaultapi.Config, vaultAddr string, tlsConfig vaultapi.TL
 	}
 
 	return nil
+}
+
+// RequestSecret fetches a single secret response from Vault. It will trigger
+// an initial authentication attempt if the client doesn't already have a Vault
+// token. Otherwise, if it gets a 403 response from Vault it will attempt
+// to reauthenticate and retry fetching the secret, on the assumption that
+// the pre-existing token may have expired.
+//
+// We follow this pattern because we assume Vault Agent is caching and renewing
+// our auth token, and we have no universal way to check it's still valid and
+// in the Agent's cache before making a request.
+func (c *Client) RequestSecret(ctx context.Context, authMethod *auth.KubernetesAuth, secretConfig config.Secret) (*api.Secret, error) {
+	// Ensure we have a token available.
+	authed, err := c.auth(ctx, authMethod, "")
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := c.generateSecretRequest(secretConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	c.logger.Debug("Requesting secret", "secretConfig", secretConfig, "method", req.Method, "path", req.URL.Path, "params", req.Params)
+
+	var resp *api.Response
+	for i := 0; i < 2; i++ {
+		resp, err = c.doInternal(ctx, req)
+		if err != nil {
+			var apiErr *api.ResponseError
+			if !authed && i == 0 && errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusForbidden {
+				// This may just mean our token has expired.
+				// Retry and ensure the next request uses a new token.
+				if _, authErr := c.auth(ctx, authMethod, req.ClientToken); authErr != nil {
+					return nil, fmt.Errorf("failed to fetch secret: %w; and failed to reauthenticate: %w", err, authErr)
+				}
+				req.ClientToken = c.inner.Token()
+				continue
+			}
+			return nil, fmt.Errorf("error requesting secret: %w", err)
+		}
+
+		break
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("failed to fetch secret object %s", secretConfig.ObjectName)
+	}
+	return api.ParseSecret(resp.Body)
 }
 
 // auth handles authenticating to Vault and setting the client's token.
@@ -101,7 +150,7 @@ func (c *Client) auth(ctx context.Context, authMethod *auth.KubernetesAuth, fail
 	if err != nil {
 		return false, fmt.Errorf("failed to login: %w", err)
 	}
-	secret, err := vaultapi.ParseSecret(resp.Body)
+	secret, err := api.ParseSecret(resp.Body)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse login response: %w", err)
 	}
@@ -112,55 +161,7 @@ func (c *Client) auth(ctx context.Context, authMethod *auth.KubernetesAuth, fail
 	return true, nil
 }
 
-// RequestSecret fetches a single secret response from Vault. It will trigger
-// an initial authentication attempt if the client doesn't already have a Vault
-// token. Otherwise, if it gets a 403 response from Vault it will attempt
-// to reauthenticate and retry fetching the secret, on the assumption that
-// the pre-existing token may have expired.
-//
-// We follow this pattern because we assume Vault Agent is caching and renewing
-// our auth token, and we have no universal way to check it's still valid and
-// in the Agent's cache before making a request.
-func (c *Client) RequestSecret(ctx context.Context, authMethod *auth.KubernetesAuth, secretConfig config.Secret) (*vaultapi.Secret, error) {
-	// Ensure we have a token available.
-	authed, err := c.auth(ctx, authMethod, "")
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := c.generateSecretRequest(secretConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	c.logger.Debug("Requesting secret", "secretConfig", secretConfig, "method", req.Method, "path", req.URL.Path, "params", req.Params)
-
-	var resp *vaultapi.Response
-	for i := 0; i < 2; i++ {
-		resp, err = c.doInternal(ctx, req)
-		if err != nil {
-			if !authed && i == 0 && resp != nil && resp.StatusCode == http.StatusForbidden {
-				// This may just mean our token has expired.
-				// Retry and ensure the next request uses a new token.
-				if _, authErr := c.auth(ctx, authMethod, req.ClientToken); authErr != nil {
-					return nil, fmt.Errorf("failed to fetch secret: %w; and failed to reauthenticate: %w", err, authErr)
-				}
-				req.ClientToken = c.inner.Token()
-				continue
-			}
-			return nil, fmt.Errorf("error requesting secret: %w", err)
-		}
-
-		break
-	}
-
-	if resp == nil {
-		return nil, fmt.Errorf("failed to fetch secret object %s", secretConfig.ObjectName)
-	}
-	return vaultapi.ParseSecret(resp.Body)
-}
-
-func (c *Client) doInternal(ctx context.Context, req *vaultapi.Request) (*vaultapi.Response, error) {
+func (c *Client) doInternal(ctx context.Context, req *api.Request) (*api.Response, error) {
 	resp, err := c.inner.RawRequestWithContext(ctx, req)
 	if err != nil {
 		return nil, err

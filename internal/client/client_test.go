@@ -4,24 +4,32 @@
 package client
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"math"
 	"math/big"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/vault-csi-provider/internal/auth"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
 	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 var caPath = filepath.Join("testdata", "ca.pem")
@@ -86,12 +94,84 @@ func TestConfigPrecedence(t *testing.T) {
 }
 
 func TestNew_Error(t *testing.T) {
-	_, err := New(hclog.NewNullLogger(), config.Parameters{
+	dir := t.TempDir()
+	err := os.WriteFile(path.Join(dir, "not-a-ca.pem"), []byte("Hello"), 0o644)
+	require.NoError(t, err)
+
+	_, err = New(hclog.NewNullLogger(), config.Parameters{
 		VaultTLSConfig: api.TLSConfig{
-			CAPath: "bad_directory",
+			CAPath: dir,
 		},
 	}, config.FlagsConfig{})
 	require.Error(t, err)
+}
+
+func TestRequestSecret_OnlyAuthenticatesOnce(t *testing.T) {
+	var auths, reads int
+	mockVaultServer := httptest.NewServer(http.HandlerFunc(mockVaultHandler(t, &auths, &reads)))
+	flagsConfig := config.FlagsConfig{
+		VaultAddr: mockVaultServer.URL,
+	}
+	defer mockVaultServer.Close()
+
+	k8sClient := fake.NewSimpleClientset(
+		&corev1.ServiceAccount{},
+	)
+	authMethod := auth.NewKubernetesAuth(hclog.Default(), k8sClient, config.Parameters{}, "")
+	client, err := New(hclog.Default(), config.Parameters{}, flagsConfig)
+	require.NoError(t, err)
+
+	for name, tc := range map[string]struct {
+		initialToken  string
+		expectedReads int
+	}{
+		"unauthenticated": {"", 1},
+		"expired token":   {"footoken", 2},
+	} {
+		t.Run(name, func(t *testing.T) {
+			auths = 0
+			reads = 0
+			client.inner.SetToken(tc.initialToken)
+
+			_, err = client.RequestSecret(context.Background(), authMethod, config.Secret{})
+			assert.Error(t, err)
+			t.Log(err)
+
+			assert.Equal(t, 1, auths)
+			assert.Equal(t, tc.expectedReads, reads)
+		})
+	}
+}
+
+func mockVaultHandler(t *testing.T, auths, reads *int) func(w http.ResponseWriter, req *http.Request) {
+	t.Helper()
+
+	return func(w http.ResponseWriter, req *http.Request) {
+		t.Helper()
+		switch req.Method {
+		case http.MethodPost:
+			*auths++
+			// Assume all POSTs are login requests and return a token.
+			body, err := json.Marshal(&api.Secret{
+				Auth: &api.SecretAuth{
+					ClientToken: fmt.Sprintf("my-vault-client-token-%d", *auths),
+				},
+			})
+			require.NoError(t, err)
+			_, err = w.Write(body)
+			require.NoError(t, err)
+		case http.MethodGet:
+			*reads++
+			// Return 403 for all secret reads to test out the retry logic.
+			body, err := json.Marshal(&api.ErrorResponse{
+				Errors: []string{"permission denied"},
+			})
+			require.NoError(t, err)
+			w.WriteHeader(http.StatusForbidden)
+			_, err = w.Write(body)
+			require.NoError(t, err)
+		}
+	}
 }
 
 func generateCA(t *testing.T, path string) {
