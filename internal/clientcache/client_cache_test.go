@@ -3,7 +3,6 @@ package clientcache
 import (
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"testing"
 
 	"github.com/hashicorp/go-hclog"
@@ -16,7 +15,6 @@ import (
 func TestParallelCacheAccess(t *testing.T) {
 	cache := NewClientCache(hclog.Default())
 
-	var createdCount int32
 	var startWG, endWG sync.WaitGroup
 	startWG.Add(1)
 	for i := 0; i < 100; i++ {
@@ -24,18 +22,14 @@ func TestParallelCacheAccess(t *testing.T) {
 		go func() {
 			defer endWG.Done()
 			startWG.Wait()
-			_, created, err := cache.GetOrCreateClient(config.Parameters{}, config.FlagsConfig{})
+			_, err := cache.GetOrCreateClient(config.Parameters{}, config.FlagsConfig{})
 			require.NoError(t, err)
-			if created {
-				atomic.AddInt32(&createdCount, 1)
-			}
 		}()
 	}
 
 	// Unblock all the goroutines at once.
 	startWG.Done()
 	endWG.Wait()
-	assert.Equal(t, int32(1), createdCount)
 	assert.Len(t, cache.cache, 1)
 }
 
@@ -48,8 +42,16 @@ func TestCacheKeyedOnCorrectFields(t *testing.T) {
 			Insecure: true,
 		},
 		Secrets: []config.Secret{
-			{"bar1", "v1/secret/foo1", "", http.MethodGet, nil, 0, ""},
-			{"bar2", "v1/secret/foo2", "", "", nil, 0, ""},
+			{
+				ObjectName: "bar1",
+				SecretPath: "v1/secret/foo1",
+				Method:     http.MethodGet,
+			},
+			{
+				ObjectName: "bar2",
+				SecretPath: "v1/secret/foo2",
+				Method:     http.MethodGet,
+			},
 		},
 		PodInfo: config.PodInfo{
 			Name:                "nginx-secrets-store-inline",
@@ -61,9 +63,8 @@ func TestCacheKeyedOnCorrectFields(t *testing.T) {
 		Audience: "testaudience",
 	}
 
-	_, created, err := cache.GetOrCreateClient(params, config.FlagsConfig{})
+	_, err := cache.GetOrCreateClient(params, config.FlagsConfig{})
 	require.NoError(t, err)
-	assert.Equal(t, true, created)
 	assert.Len(t, cache.cache, 1)
 
 	// Shouldn't have modified the original params struct
@@ -73,9 +74,8 @@ func TestCacheKeyedOnCorrectFields(t *testing.T) {
 	params.Secrets = append(params.Secrets, config.Secret{})
 	params.PodInfo.ServiceAccountToken = "bartoken"
 
-	_, created, err = cache.GetOrCreateClient(params, config.FlagsConfig{})
+	_, err = cache.GetOrCreateClient(params, config.FlagsConfig{})
 	require.NoError(t, err)
-	assert.Equal(t, false, created)
 	assert.Len(t, cache.cache, 1)
 
 	// Still shouldn't have modified the updated params struct
@@ -84,8 +84,7 @@ func TestCacheKeyedOnCorrectFields(t *testing.T) {
 
 	params.PodInfo.UID = "new-uid"
 
-	_, created, err = cache.GetOrCreateClient(params, config.FlagsConfig{})
+	_, err = cache.GetOrCreateClient(params, config.FlagsConfig{})
 	require.NoError(t, err)
-	assert.Equal(t, true, created)
 	assert.Len(t, cache.cache, 2)
 }

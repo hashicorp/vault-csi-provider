@@ -26,24 +26,24 @@ func NewClientCache(logger hclog.Logger) *ClientCache {
 	}
 }
 
-func (c *ClientCache) GetOrCreateClient(params config.Parameters, flagsConfig config.FlagsConfig) (client *vaultclient.Client, created bool, err error) {
+func (c *ClientCache) GetOrCreateClient(params config.Parameters, flagsConfig config.FlagsConfig) (*vaultclient.Client, error) {
 	key, err := makeCacheKey(params)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
 	if cachedClient, ok := c.cache[key]; ok {
-		return cachedClient, false, nil
+		return cachedClient, nil
 	}
 
-	client, err = vaultclient.New(c.logger, params, flagsConfig)
+	client, err := vaultclient.New(c.logger, params, flagsConfig)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
 	c.cache[key] = client
-	return client, true, nil
+	return client, nil
 }

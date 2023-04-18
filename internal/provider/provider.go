@@ -157,7 +157,7 @@ func (p *provider) HandleMountRequest(ctx context.Context, cfg config.Config, fl
 	if err != nil {
 		p.logger.Warn("Error generating HMAC key. Mounted secrets will not be assigned a version", "error", err)
 	}
-	client, _, err := p.clientCache.GetOrCreateClient(cfg.Parameters, flagsConfig)
+	client, err := p.clientCache.GetOrCreateClient(cfg.Parameters, flagsConfig)
 	if err != nil {
 		return nil, err
 	}

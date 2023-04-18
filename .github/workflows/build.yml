@@ -1,5 +1,5 @@
 name: build
-run-name: v${{ inputs.version }} release
+run-name: Build v${{ inputs.version || format('0.0.0-dev+{0}', github.sha) }}
 
 on:
   push:

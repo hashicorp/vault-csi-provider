@@ -46,7 +46,7 @@ func (k *KubernetesAuth) AuthRequest(ctx context.Context) (path string, body map
 		mountPath = k.defaultMountPath
 	}
 
-	return mountPath, map[string]string{
+	return fmt.Sprintf("/v1/auth/%s/login", mountPath), map[string]string{
 		"jwt":  jwt,
 		"role": k.params.VaultRoleName,
 	}, nil
