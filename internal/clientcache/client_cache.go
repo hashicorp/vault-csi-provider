@@ -14,7 +14,7 @@ import (
 type ClientCache struct {
 	logger hclog.Logger
 
-	mtx   sync.RWMutex
+	mtx   sync.Mutex
 	cache map[cacheKey]*vaultclient.Client
 }
 
@@ -32,17 +32,9 @@ func (c *ClientCache) GetOrCreateClient(params config.Parameters, flagsConfig co
 		return nil, false, err
 	}
 
-	c.mtx.RLock()
-	cachedClient, ok := c.cache[key]
-	c.mtx.RUnlock()
-	if ok {
-		return cachedClient, false, nil
-	}
-
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	// Check cache once more with the write lock held.
 	if cachedClient, ok := c.cache[key]; ok {
 		return cachedClient, false, nil
 	}

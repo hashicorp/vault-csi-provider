@@ -5,28 +5,24 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/vault-csi-provider/internal/auth"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
 	"github.com/hashicorp/vault/api"
 	vaultapi "github.com/hashicorp/vault/api"
-)
-
-var (
-	ErrPermissionDenied = errors.New("permission denied")
 )
 
 type Client struct {
 	logger hclog.Logger
 	inner  *vaultapi.Client
 
-	k8sAuthMountPath string
-	roleName         string
+	mtx sync.Mutex
 }
 
 // New creates a Vault client configured for a specific SecretProviderClass (SPC).
@@ -44,29 +40,22 @@ func New(logger hclog.Logger, spcParameters config.Parameters, flagsConfig confi
 		return nil, err
 	}
 
-	client, err := vaultapi.NewClient(cfg)
+	inner, err := vaultapi.NewClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	// Set Vault namespace if configured.
 	if flagsConfig.VaultNamespace != "" {
-		client.SetNamespace(flagsConfig.VaultNamespace)
+		inner.SetNamespace(flagsConfig.VaultNamespace)
 	}
 	if spcParameters.VaultNamespace != "" {
-		client.SetNamespace(spcParameters.VaultNamespace)
-	}
-	k8sAuthMountPath := spcParameters.VaultKubernetesMountPath
-	if k8sAuthMountPath == "" {
-		k8sAuthMountPath = flagsConfig.VaultMount
+		inner.SetNamespace(spcParameters.VaultNamespace)
 	}
 
 	return &Client{
 		logger: logger,
-		inner:  client,
-
-		k8sAuthMountPath: k8sAuthMountPath,
-		roleName:         spcParameters.VaultRoleName,
+		inner:  inner,
 	}, nil
 }
 
@@ -82,12 +71,30 @@ func overlayConfig(cfg *vaultapi.Config, vaultAddr string, tlsConfig vaultapi.TL
 	return nil
 }
 
-func (c *Client) Login(ctx context.Context, jwt string) error {
-	req := c.inner.NewRequest(http.MethodPost, "/v1/auth/"+c.k8sAuthMountPath+"/login")
-	if err := req.SetJSONBody(map[string]string{
-		"jwt":  jwt,
-		"role": c.roleName,
-	}); err != nil {
+// auth handles authenticating to Vault and setting the client's token. It
+// should be called on client creation, or on getting a 403 for a secret.
+// All requests from one client share the same token. This function serializes
+// authentications so that when a token expires, multiple consumers asking it
+// to reauthenticate at the same time only trigger one new authentication with
+// Vault.
+func (c *Client) auth(ctx context.Context, authMethod *auth.KubernetesAuth, failedToken string) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	// If we already have a token and it's not the failed one we've been told
+	// to replace, then there's no work to do.
+	if c.inner.Token() != "" && c.inner.Token() != failedToken {
+		return nil
+	}
+
+	c.logger.Debug("performing vault login")
+	path, body, err := authMethod.AuthRequest(ctx)
+	if err != nil {
+		return err
+	}
+
+	req := c.inner.NewRequest(http.MethodPost, path)
+	if err := req.SetJSONBody(body); err != nil {
 		return err
 	}
 
@@ -100,27 +107,47 @@ func (c *Client) Login(ctx context.Context, jwt string) error {
 		return fmt.Errorf("failed to parse login response: %w", err)
 	}
 
+	c.logger.Debug("vault login successful")
 	c.inner.SetToken(secret.Auth.ClientToken)
 
 	return nil
 }
 
-func (c *Client) RequestSecret(ctx context.Context, secretConfig config.Secret) (*vaultapi.Secret, error) {
-	req, err := c.generateRequest(secretConfig)
+func (c *Client) RequestSecret(ctx context.Context, authMethod *auth.KubernetesAuth, secretConfig config.Secret) (*vaultapi.Secret, error) {
+	// Ensure we have a token available.
+	if err := c.auth(ctx, authMethod, ""); err != nil {
+		return nil, err
+	}
+
+	req, err := c.generateSecretRequest(secretConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	c.logger.Debug("Requesting secret", "secretConfig", secretConfig, "method", req.Method, "path", req.URL.Path, "params", req.Params)
 
-	resp, err := c.doInternal(ctx, req)
-	if err != nil && resp != nil && resp.StatusCode == http.StatusForbidden {
-		return nil, fmt.Errorf("%w: %w", ErrPermissionDenied, err)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("error requesting secret: %w", err)
+	var resp *vaultapi.Response
+	for i := 0; i < 2; i++ {
+		resp, err = c.doInternal(ctx, req)
+		if err != nil {
+			if i == 0 && resp != nil && resp.StatusCode == http.StatusForbidden {
+				// This may just mean our token has expired.
+				// Retry and ensure the next request uses a new token.
+				if authErr := c.auth(ctx, authMethod, req.ClientToken); authErr != nil {
+					return nil, fmt.Errorf("failed to fetch secret: %w; and failed to reauthenticate: %w", err, authErr)
+				}
+				req.ClientToken = c.inner.Token()
+				continue
+			}
+			return nil, fmt.Errorf("error requesting secret: %w", err)
+		}
+
+		break
 	}
 
+	if resp == nil {
+		return nil, fmt.Errorf("failed to fetch secret object %s", secretConfig.ObjectName)
+	}
 	return vaultapi.ParseSecret(resp.Body)
 }
 
@@ -136,7 +163,7 @@ func (c *Client) doInternal(ctx context.Context, req *vaultapi.Request) (*vaulta
 	return resp, nil
 }
 
-func (c *Client) generateRequest(secret config.Secret) (*api.Request, error) {
+func (c *Client) generateSecretRequest(secret config.Secret) (*api.Request, error) {
 	secretPath := ensureV1Prefix(secret.SecretPath)
 	queryIndex := strings.Index(secretPath, "?")
 	var queryParams map[string][]string

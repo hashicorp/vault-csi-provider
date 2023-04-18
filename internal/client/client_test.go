@@ -201,7 +201,7 @@ func TestGenerateRequest(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			req, err := client.generateRequest(tc.secret)
+			req, err := client.generateSecretRequest(tc.secret)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected.method, req.Method)
 			assert.Equal(t, tc.expected.path, req.URL.Path)
