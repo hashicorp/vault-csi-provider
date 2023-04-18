@@ -71,51 +71,60 @@ func overlayConfig(cfg *vaultapi.Config, vaultAddr string, tlsConfig vaultapi.TL
 	return nil
 }
 
-// auth handles authenticating to Vault and setting the client's token. It
-// should be called on client creation, or on getting a 403 for a secret.
+// auth handles authenticating to Vault and setting the client's token.
 // All requests from one client share the same token. This function serializes
 // authentications so that when a token expires, multiple consumers asking it
 // to reauthenticate at the same time only trigger one new authentication with
 // Vault.
-func (c *Client) auth(ctx context.Context, authMethod *auth.KubernetesAuth, failedToken string) error {
+func (c *Client) auth(ctx context.Context, authMethod *auth.KubernetesAuth, failedToken string) (authed bool, err error) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
 	// If we already have a token and it's not the failed one we've been told
 	// to replace, then there's no work to do.
 	if c.inner.Token() != "" && c.inner.Token() != failedToken {
-		return nil
+		return false, nil
 	}
 
 	c.logger.Debug("performing vault login")
 	path, body, err := authMethod.AuthRequest(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	req := c.inner.NewRequest(http.MethodPost, path)
 	if err := req.SetJSONBody(body); err != nil {
-		return err
+		return false, err
 	}
 
 	resp, err := c.doInternal(ctx, req)
 	if err != nil {
-		return fmt.Errorf("failed to login: %w", err)
+		return false, fmt.Errorf("failed to login: %w", err)
 	}
 	secret, err := vaultapi.ParseSecret(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to parse login response: %w", err)
+		return false, fmt.Errorf("failed to parse login response: %w", err)
 	}
 
 	c.logger.Debug("vault login successful")
 	c.inner.SetToken(secret.Auth.ClientToken)
 
-	return nil
+	return true, nil
 }
 
+// RequestSecret fetches a single secret response from Vault. It will trigger
+// an initial authentication attempt if the client doesn't already have a Vault
+// token. Otherwise, if it gets a 403 response from Vault it will attempt
+// to reauthenticate and retry fetching the secret, on the assumption that
+// the pre-existing token may have expired.
+//
+// We follow this pattern because we assume Vault Agent is caching and renewing
+// our auth token, and we have no universal way to check it's still valid and
+// in the Agent's cache before making a request.
 func (c *Client) RequestSecret(ctx context.Context, authMethod *auth.KubernetesAuth, secretConfig config.Secret) (*vaultapi.Secret, error) {
 	// Ensure we have a token available.
-	if err := c.auth(ctx, authMethod, ""); err != nil {
+	authed, err := c.auth(ctx, authMethod, "")
+	if err != nil {
 		return nil, err
 	}
 
@@ -130,10 +139,10 @@ func (c *Client) RequestSecret(ctx context.Context, authMethod *auth.KubernetesA
 	for i := 0; i < 2; i++ {
 		resp, err = c.doInternal(ctx, req)
 		if err != nil {
-			if i == 0 && resp != nil && resp.StatusCode == http.StatusForbidden {
+			if !authed && i == 0 && resp != nil && resp.StatusCode == http.StatusForbidden {
 				// This may just mean our token has expired.
 				// Retry and ensure the next request uses a new token.
-				if authErr := c.auth(ctx, authMethod, req.ClientToken); authErr != nil {
+				if _, authErr := c.auth(ctx, authMethod, req.ClientToken); authErr != nil {
 					return nil, fmt.Errorf("failed to fetch secret: %w; and failed to reauthenticate: %w", err, authErr)
 				}
 				req.ClientToken = c.inner.Token()

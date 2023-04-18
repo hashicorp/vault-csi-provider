@@ -28,6 +28,9 @@ func NewKubernetesAuth(logger hclog.Logger, k8sClient kubernetes.Interface, para
 	}
 }
 
+// AuthRequest returns the request path and body required to authenticate
+// using the configured kubernetes auth role in Vault. If no appropriate
+// JWT is provided in the CSI mount request, it will create a new one.
 func (k *KubernetesAuth) AuthRequest(ctx context.Context) (path string, body map[string]string, err error) {
 	jwt := k.params.PodInfo.ServiceAccountToken
 	if jwt == "" {

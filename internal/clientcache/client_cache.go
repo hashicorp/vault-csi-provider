@@ -8,9 +8,6 @@ import (
 	"github.com/hashicorp/vault-csi-provider/internal/config"
 )
 
-// ClientCache is an in-memory cache of tokens created by the Provider, tied to
-// the lifetime of each Provider process. Repeated calls to Token for the same
-// _pod_ should produce the same token for as long as its TTL has >10% remaining.
 type ClientCache struct {
 	logger hclog.Logger
 
@@ -18,7 +15,10 @@ type ClientCache struct {
 	cache map[cacheKey]*vaultclient.Client
 }
 
-// NewClientCache intializes a new token cache.
+// NewClientCache intializes a new client cache. The cache's lifetime
+// should be tied to the provider process (i.e. longer than a single
+// mount request) so that Vault tokens stored in the clients are cached
+// and reused across different mount requests for the same pod.
 func NewClientCache(logger hclog.Logger) *ClientCache {
 	return &ClientCache{
 		logger: logger,
