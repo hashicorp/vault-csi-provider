@@ -1,5 +1,9 @@
 ## Unreleased
 
+FEATURES:
+
+* The Provider will cache a Vault token per requesting pod in memory and re-use ut until it expires. [[GH-202](https://github.com/hashicorp/vault-csi-provider/pull/202)]
+
 ## 1.3.0 (April 5th, 2023)
 
 CHANGES:
