@@ -108,6 +108,7 @@ func TestCache_CanBeDisabled(t *testing.T) {
 			flags := config.FlagsConfig{}
 
 			c1, err := cache.GetOrCreateClient(params, flags)
+			require.NoError(t, err)
 			c2, err := cache.GetOrCreateClient(params, flags)
 			require.NoError(t, err)
 			if tc.expectedCaching {
