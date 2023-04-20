@@ -29,13 +29,13 @@ type Server struct {
 	clientCache   *clientcache.ClientCache
 }
 
-func NewServer(logger hclog.Logger, flagsConfig config.FlagsConfig, k8sClient kubernetes.Interface, hmacGenerator *hmac.HMACGenerator) *Server {
+func NewServer(logger hclog.Logger, flagsConfig config.FlagsConfig, k8sClient kubernetes.Interface, hmacGenerator *hmac.HMACGenerator, clientCache *clientcache.ClientCache) *Server {
 	return &Server{
 		logger:        logger,
 		flagsConfig:   flagsConfig,
 		k8sClient:     k8sClient,
 		hmacGenerator: hmacGenerator,
-		clientCache:   clientcache.NewClientCache(logger.Named("vaultclient")),
+		clientCache:   clientCache,
 	}
 }
 

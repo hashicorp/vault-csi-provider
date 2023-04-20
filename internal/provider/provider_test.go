@@ -233,7 +233,8 @@ func TestHandleMountRequest(t *testing.T) {
 	)
 	authMethod := auth.NewKubernetesAuth(hclog.Default(), k8sClient, spcConfig.Parameters, "")
 	hmacGenerator := hmac.NewHMACGenerator(k8sClient, &corev1.Secret{})
-	clientCache := clientcache.NewClientCache(hclog.Default())
+	clientCache, err := clientcache.NewClientCache(hclog.Default(), 10)
+	require.NoError(t, err)
 	// While we hit the cache, the secret contents and versions should remain the same.
 	provider := NewProvider(hclog.Default(), authMethod, hmacGenerator, clientCache)
 	for i := 0; i < 3; i++ {

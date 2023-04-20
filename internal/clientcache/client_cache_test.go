@@ -13,7 +13,8 @@ import (
 )
 
 func TestParallelCacheAccess(t *testing.T) {
-	cache := NewClientCache(hclog.Default())
+	cache, err := NewClientCache(hclog.Default(), 1000)
+	require.NoError(t, err)
 
 	var startWG, endWG sync.WaitGroup
 	startWG.Add(1)
@@ -30,11 +31,12 @@ func TestParallelCacheAccess(t *testing.T) {
 	// Unblock all the goroutines at once.
 	startWG.Done()
 	endWG.Wait()
-	assert.Len(t, cache.cache, 1)
+	assert.Equal(t, 1, cache.cache.Len())
 }
 
 func TestCacheKeyedOnCorrectFields(t *testing.T) {
-	cache := NewClientCache(hclog.Default())
+	cache, err := NewClientCache(hclog.Default(), 10)
+	require.NoError(t, err)
 	params := config.Parameters{
 		VaultRoleName: "example-role",
 		VaultAddress:  "http://vault:8200",
@@ -63,9 +65,9 @@ func TestCacheKeyedOnCorrectFields(t *testing.T) {
 		Audience: "testaudience",
 	}
 
-	_, err := cache.GetOrCreateClient(params, config.FlagsConfig{})
+	_, err = cache.GetOrCreateClient(params, config.FlagsConfig{})
 	require.NoError(t, err)
-	assert.Len(t, cache.cache, 1)
+	assert.Equal(t, 1, cache.cache.Len())
 
 	// Shouldn't have modified the original params struct
 	assert.Equal(t, "footoken", params.PodInfo.ServiceAccountToken)
@@ -76,7 +78,7 @@ func TestCacheKeyedOnCorrectFields(t *testing.T) {
 
 	_, err = cache.GetOrCreateClient(params, config.FlagsConfig{})
 	require.NoError(t, err)
-	assert.Len(t, cache.cache, 1)
+	assert.Equal(t, 1, cache.cache.Len())
 
 	// Still shouldn't have modified the updated params struct
 	assert.Equal(t, "bartoken", params.PodInfo.ServiceAccountToken)
@@ -86,5 +88,35 @@ func TestCacheKeyedOnCorrectFields(t *testing.T) {
 
 	_, err = cache.GetOrCreateClient(params, config.FlagsConfig{})
 	require.NoError(t, err)
-	assert.Len(t, cache.cache, 2)
+	assert.Equal(t, 2, cache.cache.Len())
+}
+
+func TestCache_CanBeDisabled(t *testing.T) {
+	for name, tc := range map[string]struct {
+		size            int
+		expectedCaching bool
+	}{
+		"-10": {-10, false},
+		"-1":  {-1, false},
+		"0":   {0, false},
+		"1":   {1, true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cache, err := NewClientCache(hclog.Default(), tc.size)
+			require.NoError(t, err)
+			params := config.Parameters{}
+			flags := config.FlagsConfig{}
+
+			c1, err := cache.GetOrCreateClient(params, flags)
+			c2, err := cache.GetOrCreateClient(params, flags)
+			require.NoError(t, err)
+			if tc.expectedCaching {
+				assert.Equal(t, 1, cache.cache.Len())
+				assert.Equal(t, c1, c2)
+			} else {
+				assert.Nil(t, cache.cache)
+				assert.NotEqual(t, c1, c2)
+			}
+		})
+	}
 }
