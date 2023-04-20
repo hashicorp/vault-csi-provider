@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/vault-csi-provider/internal/clientcache"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
 	"github.com/hashicorp/vault-csi-provider/internal/hmac"
 	providerserver "github.com/hashicorp/vault-csi-provider/internal/server"
@@ -50,6 +51,8 @@ func realMain(logger hclog.Logger) error {
 	flag.StringVar(&flags.HealthAddr, "health-addr", ":8080", "Configure http listener for reporting health.")
 
 	flag.StringVar(&flags.HMACSecretName, "hmac-secret-name", "vault-csi-provider-hmac-key", "Configure the Kubernetes secret name that the provider creates to store an HMAC key for generating secret version hashes")
+
+	flag.IntVar(&flags.CacheSize, "cache-size", 1000, "Set the maximum number of Vault tokens that will be cached in-memory. One Vault token will be stored for each pod on the same node that mounts secrets.")
 
 	flag.StringVar(&flags.VaultAddr, "vault-addr", "", "Default address for connecting to Vault. Can also be specified via the VAULT_ADDR environment variable.")
 	flag.StringVar(&flags.VaultMount, "vault-mount", "kubernetes", "Default Vault mount path for Kubernetes authentication.")
@@ -128,7 +131,12 @@ func realMain(logger hclog.Logger) error {
 	}
 	hmacGenerator := hmac.NewHMACGenerator(clientset, hmacSecretSpec)
 
-	srv := providerserver.NewServer(serverLogger, flags, clientset, hmacGenerator)
+	clientCache, err := clientcache.NewClientCache(serverLogger.Named("vaultclient"), flags.CacheSize)
+	if err != nil {
+		return fmt.Errorf("failed to initialize the cache: %w", err)
+	}
+
+	srv := providerserver.NewServer(serverLogger, flags, clientset, hmacGenerator, clientCache)
 	pb.RegisterCSIDriverProviderServer(server, srv)
 
 	// Create health handler

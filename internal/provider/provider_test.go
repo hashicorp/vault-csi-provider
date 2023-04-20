@@ -13,104 +13,18 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/vault-csi-provider/internal/auth"
+	"github.com/hashicorp/vault-csi-provider/internal/clientcache"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
 	"github.com/hashicorp/vault-csi-provider/internal/hmac"
 	"github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
-
-func TestEnsureV1Prefix(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{"no prefix", "secret/foo", "/v1/secret/foo"},
-		{"leading slash", "/secret/foo", "/v1/secret/foo"},
-		{"leading v1", "v1/secret/foo", "/v1/secret/foo"},
-		{"leading /v1/", "/v1/secret/foo", "/v1/secret/foo"},
-		// These will mostly be invalid paths, but testing reasonable behaviour.
-		{"empty string", "", "/v1/"},
-		{"just /v1/", "/v1/", "/v1/"},
-		{"leading 1", "1/secret/foo", "/v1/1/secret/foo"},
-		{"2* /v1/", "/v1/v1/", "/v1/v1/"},
-		{"v2", "/v2/secret/foo", "/v1/v2/secret/foo"},
-	} {
-		assert.Equal(t, tc.expected, ensureV1Prefix(tc.input), tc.name)
-	}
-}
-
-func TestGenerateRequest(t *testing.T) {
-	type expected struct {
-		method string
-		path   string
-		params string
-		body   string
-	}
-	client, err := api.NewClient(nil)
-	require.NoError(t, err)
-	for _, tc := range []struct {
-		name     string
-		secret   config.Secret
-		expected expected
-	}{
-		{
-			name: "base case",
-			secret: config.Secret{
-				SecretPath: "secret/foo",
-			},
-			expected: expected{http.MethodGet, "/v1/secret/foo", "", ""},
-		},
-		{
-			name: "zero-length query string",
-			secret: config.Secret{
-				SecretPath: "secret/foo?",
-			},
-			expected: expected{http.MethodGet, "/v1/secret/foo", "", ""},
-		},
-		{
-			name: "query string",
-			secret: config.Secret{
-				SecretPath: "secret/foo?bar=true&baz=maybe&zap=0",
-			},
-			expected: expected{http.MethodGet, "/v1/secret/foo", "bar=true&baz=maybe&zap=0", ""},
-		},
-		{
-			name: "method specified",
-			secret: config.Secret{
-				SecretPath: "secret/foo",
-				Method:     "PUT",
-			},
-			expected: expected{"PUT", "/v1/secret/foo", "", ""},
-		},
-		{
-			name: "body specified",
-			secret: config.Secret{
-				SecretPath: "secret/foo",
-				Method:     http.MethodPost,
-				SecretArgs: map[string]interface{}{
-					"bar": true,
-					"baz": 10,
-					"zap": "a string",
-				},
-			},
-			expected: expected{http.MethodPost, "/v1/secret/foo", "", `{"bar":true,"baz":10,"zap":"a string"}`},
-		},
-	} {
-		req, err := generateRequest(client, tc.secret)
-		require.NoError(t, err, tc.name)
-		assert.Equal(t, req.Method, tc.expected.method, tc.name)
-		assert.Equal(t, req.URL.Path, tc.expected.path, tc.name)
-		assert.Equal(t, req.Params.Encode(), tc.expected.params, tc.name)
-		assert.Equal(t, tc.expected.body, string(req.BodyBytes), tc.name)
-	}
-}
 
 func TestKeyFromData(t *testing.T) {
 	data := map[string]interface{}{
@@ -316,11 +230,13 @@ func TestHandleMountRequest(t *testing.T) {
 
 	k8sClient := fake.NewSimpleClientset(
 		&corev1.ServiceAccount{},
-		&authenticationv1.TokenRequest{},
 	)
+	authMethod := auth.NewKubernetesAuth(hclog.Default(), k8sClient, spcConfig.Parameters, "")
 	hmacGenerator := hmac.NewHMACGenerator(k8sClient, &corev1.Secret{})
+	clientCache, err := clientcache.NewClientCache(hclog.Default(), 10)
+	require.NoError(t, err)
 	// While we hit the cache, the secret contents and versions should remain the same.
-	provider := NewProvider(hclog.Default(), k8sClient, hmacGenerator)
+	provider := NewProvider(hclog.Default(), authMethod, hmacGenerator, clientCache)
 	for i := 0; i < 3; i++ {
 		resp, err := provider.HandleMountRequest(context.Background(), spcConfig, flagsConfig)
 		require.NoError(t, err)
@@ -336,7 +252,7 @@ func TestHandleMountRequest(t *testing.T) {
 
 	// The mockVaultHandler function below includes a dynamic counter in the content of secrets.
 	// That means mounting again with a fresh provider will update the contents of the secrets, which should update the version.
-	resp, err := NewProvider(hclog.Default(), k8sClient, hmacGenerator).HandleMountRequest(context.Background(), spcConfig, flagsConfig)
+	resp, err := NewProvider(hclog.Default(), authMethod, hmacGenerator, clientCache).HandleMountRequest(context.Background(), spcConfig, flagsConfig)
 	require.NoError(t, err)
 
 	assert.Equal(t, (*v1alpha1.Error)(nil), resp.Error)
