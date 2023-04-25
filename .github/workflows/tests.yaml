@@ -10,7 +10,7 @@ env:
 
 jobs:
   copyright:
-    uses: hashicorp/vault-workflows-common/.github/workflows/copyright-headers.yaml@add-copyright-headers-check
+    uses: hashicorp/vault-workflows-common/.github/workflows/copyright-headers.yaml@main
   go-checks:
     uses: hashicorp/vault-workflows-common/.github/workflows/go-checks.yaml@main
   lint:
