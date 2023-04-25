@@ -9,6 +9,10 @@ env:
   TARBALL_FILE: vault-csi-provider.docker.tar
 
 jobs:
+  copyright:
+    uses: hashicorp/vault-workflows-common/.github/workflows/copyright-headers.yaml@add-copyright-headers-check
+  go-checks:
+    uses: hashicorp/vault-workflows-common/.github/workflows/go-checks.yaml@main
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -20,14 +24,8 @@ jobs:
       - name: Install tools
         run: make bootstrap
 
-      - name: go-checks
-        uses: hashicorp/vault-workflows-common/.github/workflows/go-checks.yaml@main
-
       - name: Lint
         run: make lint GOLANGCI_LINT_FORMAT=github-actions
-
-      - name: copyright
-        uses: hashicorp/vault-workflows-common/.github/workflows/copyright-headers.yaml@add-copyright-headers-check
 
   test:
     runs-on: ubuntu-latest
