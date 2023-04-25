@@ -16,18 +16,30 @@ jobs:
       - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version-file: .go-version
+          cache: true
 
       - name: Install tools
         run: make bootstrap
 
-      - name: go-checks
-        uses: hashicorp/vault-workflows-common/.github/workflows/go-checks.yaml@main
+      - name: go mod tidy
+        run: |
+          make mod
+          if ! git diff --exit-code; then
+            echo "Git directory has go.mod or go.sum changes. Run 'make mod' to fix"
+            exit 1
+          fi
+
+      - name: fmt
+        run: |
+          make fmt
+          if ! git diff --exit-code; then
+            echo "Git directory has formatting changes. Run 'make fmt' to fix"
+            exit 1
+          fi
 
       - name: Lint
         run: make lint GOLANGCI_LINT_FORMAT=github-actions
 
-      - name: copyright
-        uses: hashicorp/vault-workflows-common/.github/workflows/copyright-headers.yaml@add-copyright-headers-check
 
   test:
     runs-on: ubuntu-latest
@@ -36,6 +48,7 @@ jobs:
       - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version-file: .go-version
+          cache: true
 
       - name: Build
         run: |
