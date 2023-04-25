@@ -27,7 +27,7 @@ ifdef VAULT_LICENSE
 		--set server.enterpriseLicense.secretName=vault-ent-license
 endif
 
-.PHONY: default build test bootstrap fmt lint image e2e-image e2e-setup e2e-teardown e2e-test mod setup-kind promote-staging-manifest
+.PHONY: default build test bootstrap fmt lint image e2e-image e2e-setup e2e-teardown e2e-test mod setup-kind promote-staging-manifest copyright
 
 GO111MODULE?=on
 export GO111MODULE
@@ -116,3 +116,6 @@ mod:
 promote-staging-manifest: #promote staging manifests to release dir
 	@rm -rf deployment
 	@cp -r manifest_staging/deployment .
+
+copyright:
+	copywrite headers

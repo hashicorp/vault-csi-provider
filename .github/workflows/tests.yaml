@@ -9,6 +9,10 @@ env:
   TARBALL_FILE: vault-csi-provider.docker.tar
 
 jobs:
+  copyright:
+    uses: hashicorp/vault-workflows-common/.github/workflows/copyright-headers.yaml@main
+  go-checks:
+    uses: hashicorp/vault-workflows-common/.github/workflows/go-checks.yaml@main
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -21,25 +25,8 @@ jobs:
       - name: Install tools
         run: make bootstrap
 
-      - name: go mod tidy
-        run: |
-          make mod
-          if ! git diff --exit-code; then
-            echo "Git directory has go.mod or go.sum changes. Run 'make mod' to fix"
-            exit 1
-          fi
-
-      - name: fmt
-        run: |
-          make fmt
-          if ! git diff --exit-code; then
-            echo "Git directory has formatting changes. Run 'make fmt' to fix"
-            exit 1
-          fi
-
       - name: Lint
         run: make lint GOLANGCI_LINT_FORMAT=github-actions
-
 
   test:
     runs-on: ubuntu-latest
