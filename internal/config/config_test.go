@@ -167,10 +167,10 @@ func TestParseConfig(t *testing.T) {
 				TargetPath:     targetPath,
 				FilePermission: 420,
 				Parameters: Parameters{
-					VaultRoleName:            roleName,
-					VaultAddress:             "my-vault-address",
-					VaultNamespace:           "my-vault-namespace",
-					VaultKubernetesMountPath: "my-mount-path",
+					VaultRoleName:      roleName,
+					VaultAddress:       "my-vault-address",
+					VaultNamespace:     "my-vault-namespace",
+					VaultAuthMountPath: "my-mount-path",
 					Secrets: []Secret{
 						{"bar1", "v1/secret/foo1", "", "", nil, 0o600, ""},
 					},
@@ -203,31 +203,40 @@ func TestParseConfig(t *testing.T) {
 }
 
 func TestParseConfig_Errors(t *testing.T) {
-	for _, tc := range []struct {
+	for name, tc := range map[string]struct {
 		name       string
 		targetPath string
 		parameters map[string]string
 	}{
-		{
-			name: "no roleName",
+		"no roleName": {
 			parameters: map[string]string{
 				"vaultSkipTLSVerify": "true",
 				"objects":            objects,
 			},
 		},
-		{
-			name: "no secrets configured",
+		"no secrets configured": {
 			parameters: map[string]string{
 				"roleName":           "example-role",
 				"vaultSkipTLSVerify": "true",
 				"objects":            "",
 			},
 		},
+		"both vaultAuthMountPath and vaultKubernetesMountPath specified": {
+			parameters: map[string]string{
+				"roleName":                 "example-role",
+				"vaultSkipTLSVerify":       "true",
+				"vaultAuthMountPath":       "foo",
+				"vaultKubernetesMountPath": "bar",
+				"objects":                  objects,
+			},
+		},
 	} {
-		parametersStr, err := json.Marshal(tc.parameters)
-		require.NoError(t, err)
-		_, err = Parse(string(parametersStr), "/some/path", "420")
-		require.Error(t, err, tc.name)
+		t.Run(name, func(t *testing.T) {
+			parametersStr, err := json.Marshal(tc.parameters)
+			require.NoError(t, err)
+			_, err = Parse(string(parametersStr), "/some/path", "420")
+			require.Error(t, err, tc.name)
+		})
 	}
 }
 

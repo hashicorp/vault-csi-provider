@@ -24,7 +24,7 @@ setup(){
     fi
     cat $CONFIGS/vault-policy-kv-custom-audience.hcl | kubectl --namespace=csi exec -i vault-0 -- vault policy write kv-custom-audience-policy -
 
-    # 1. b) Setup kubernetes auth engine.
+    # 1. b) i) Setup kubernetes auth engine.
     kubectl --namespace=csi exec vault-0 -- vault auth enable kubernetes
     kubectl --namespace=csi exec vault-0 -- sh -c 'vault write auth/kubernetes/config \
         kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443"'
@@ -71,6 +71,19 @@ setup(){
         audience=vault \
         policies=db-policy,kv-policy,pki-policy \
         ttl=20m
+
+    # 1. b) ii) Setup JWT auth
+    kubectl --namespace=csi exec vault-0 -- vault auth enable jwt
+    kubectl --namespace=csi exec vault-0 -- vault write auth/jwt/config \
+        oidc_discovery_url=https://kubernetes.default.svc.cluster.local \
+        oidc_discovery_ca_pem=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    kubectl --namespace=csi exec vault-0 -- vault write auth/jwt/role/jwt-kv-role \
+        role_type="jwt" \
+        bound_audiences="vault" \
+        user_claim="sub" \
+        bound_subject="system:serviceaccount:test:nginx-kv" \
+        policies="kv-policy" \
+        ttl="1h"
 
     # 1. c) Setup pki secrets engine.
     kubectl --namespace=csi exec vault-0 -- vault secrets enable pki
@@ -385,4 +398,13 @@ teardown(){
     [[ "$statusUID1" != "$statusUID3" ]]
     [[ "$statusUID2" != "$statusUID3" ]]
     [[ "$versions2" != "$versions3" ]]
+}
+
+@test "12 JWT auth" {
+    helm --namespace=test install nginx $CONFIGS/nginx \
+        --set engine=kv --set sa=kv \
+        --wait --timeout=5m
+
+    result=$(kubectl --namespace=test exec nginx-kv -- cat /mnt/secrets-store/secret-1)
+    [[ "$result" == "hello1" ]]
 }
