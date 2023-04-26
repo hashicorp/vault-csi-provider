@@ -144,6 +144,7 @@ teardown(){
         kubectl --namespace=csi exec vault-0 -- vault namespace delete acceptance
     fi
     kubectl --namespace=csi exec vault-0 -- vault auth disable kubernetes
+    kubectl --namespace=csi exec vault-0 -- vault auth disable jwt
     kubectl --namespace=csi exec vault-0 -- vault secrets disable secret
     kubectl --namespace=csi exec vault-0 -- vault secrets disable pki
     kubectl --namespace=csi exec vault-0 -- vault secrets disable database
