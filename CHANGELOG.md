@@ -2,12 +2,12 @@
 
 CHANGES:
 
-* SecretProviderClass objects now also accept `spec.parameters.vaultAuthMountPath` as an alternative to `spec.parameters.vaultKubernetesMountPath`. [[GH-209](https://github.com/hashicorp/vault-csi-provider/pull/209)]
+* SecretProviderClass objects now also accept `spec.parameters.vaultAuthMountPath` as an alternative to `spec.parameters.vaultKubernetesMountPath`. [[GH-210](https://github.com/hashicorp/vault-csi-provider/pull/210)]
 
 FEATURES:
 
 * The Provider will cache a Vault token per requesting pod in memory and re-use it until it expires. [[GH-202](https://github.com/hashicorp/vault-csi-provider/pull/202)]
-* JWT auth is supported by setting role name and auth mount path in the same way as for Kubernetes auth. [[GH-209](https://github.com/hashicorp/vault-csi-provider/pull/209)]
+* JWT auth is supported by setting role name and auth mount path in the same way as for Kubernetes auth. [[GH-210](https://github.com/hashicorp/vault-csi-provider/pull/210)]
 
 ## 1.3.0 (April 5th, 2023)
 
