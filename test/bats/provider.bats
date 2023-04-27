@@ -115,6 +115,7 @@ setup(){
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-custom-audience-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-namespace-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-secretproviderclass.yaml
+    kubectl --namespace=test apply -f $CONFIGS/vault-kv-secretproviderclass-jwt-auth.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-sync-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-kv-sync-multiple-secretproviderclass.yaml
     kubectl --namespace=test apply -f $CONFIGS/vault-pki-secretproviderclass.yaml
@@ -403,9 +404,9 @@ teardown(){
 
 @test "12 JWT auth" {
     helm --namespace=test install nginx $CONFIGS/nginx \
-        --set engine=kv --set sa=kv \
+        --set engine=kv-jwt-auth --set sa=kv \
         --wait --timeout=5m
 
-    result=$(kubectl --namespace=test exec nginx-kv -- cat /mnt/secrets-store/secret-1)
+    result=$(kubectl --namespace=test exec nginx-kv-jwt-auth -- cat /mnt/secrets-store/secret-1)
     [[ "$result" == "hello1" ]]
 }
