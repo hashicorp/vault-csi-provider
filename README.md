@@ -7,11 +7,8 @@ Vault and use the Secrets Store CSI driver interface to mount them into Kubernet
 
 ### Prerequisites
 
-* Kubernetes 1.16+ for both the master and worker nodes (Linux-only)
+* Supported Kubernetes version, see the [documentation](https://developer.hashicorp.com/vault/docs/platform/k8s/csi#supported-kubernetes-versions) (runs on Linux nodes only)
 * [Secrets store CSI driver](https://secrets-store-csi-driver.sigs.k8s.io/getting-started/installation.html) installed
-* `TokenRequest` endpoint available, which requires setting the flags
-  `--service-account-signing-key-file` and `--service-account-issuer` for
-  `kube-apiserver`. Set by default from 1.20+ and earlier in most managed services.
 
 ### Using helm
 

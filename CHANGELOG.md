@@ -1,5 +1,7 @@
 ## Unreleased
 
+# 1.4.0 (April 28th, 2023)
+
 CHANGES:
 
 * SecretProviderClass objects now also accept `spec.parameters.vaultAuthMountPath` as an alternative to `spec.parameters.vaultKubernetesMountPath`. [[GH-210](https://github.com/hashicorp/vault-csi-provider/pull/210)]
