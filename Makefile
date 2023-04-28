@@ -78,7 +78,7 @@ setup-kind:
 
 e2e-setup:
 	kind load docker-image e2e/vault-csi-provider:latest
-	kubectl create namespace csi
+	kubectl apply -f test/bats/configs/cluster-resources.yaml
 	helm install secrets-store-csi-driver secrets-store-csi-driver \
 		--repo https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts --version=$(CSI_DRIVER_VERSION) \
 		--wait --timeout=5m \
@@ -105,7 +105,7 @@ e2e-teardown:
 	helm uninstall --namespace=csi vault || true
 	helm uninstall --namespace=csi vault-bootstrap || true
 	helm uninstall --namespace=csi secrets-store-csi-driver || true
-	kubectl delete --ignore-not-found namespace csi
+	kubectl delete --ignore-not-found -f test/bats/configs/cluster-resources.yaml
 
 e2e-test:
 	bats test/bats/provider.bats

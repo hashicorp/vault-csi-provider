@@ -70,14 +70,14 @@ func (fc FlagsConfig) TLSConfig() api.TLSConfig {
 //
 // So we just deserialise by hand to avoid complexity and two passes.
 type Parameters struct {
-	VaultAddress             string
-	VaultRoleName            string
-	VaultKubernetesMountPath string
-	VaultNamespace           string
-	VaultTLSConfig           api.TLSConfig
-	Secrets                  []Secret
-	PodInfo                  PodInfo
-	Audience                 string
+	VaultAddress       string
+	VaultRoleName      string
+	VaultAuthMountPath string
+	VaultNamespace     string
+	VaultTLSConfig     api.TLSConfig
+	Secrets            []Secret
+	PodInfo            PodInfo
+	Audience           string
 }
 
 type PodInfo struct {
@@ -136,7 +136,16 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	parameters.VaultTLSConfig.TLSServerName = params["vaultTLSServerName"]
 	parameters.VaultTLSConfig.ClientCert = params["vaultTLSClientCertPath"]
 	parameters.VaultTLSConfig.ClientKey = params["vaultTLSClientKeyPath"]
-	parameters.VaultKubernetesMountPath = params["vaultKubernetesMountPath"]
+	k8sMountPath, k8sSet := params["vaultKubernetesMountPath"]
+	authMountPath, authSet := params["vaultAuthMountPath"]
+	switch {
+	case k8sSet && authSet:
+		return Parameters{}, fmt.Errorf("cannot set both vaultKubernetesMountPath and vaultAuthMountPath")
+	case k8sSet:
+		parameters.VaultAuthMountPath = k8sMountPath
+	case authSet:
+		parameters.VaultAuthMountPath = authMountPath
+	}
 	parameters.PodInfo.Name = params["csi.storage.k8s.io/pod.name"]
 	parameters.PodInfo.UID = types.UID(params["csi.storage.k8s.io/pod.uid"])
 	parameters.PodInfo.Namespace = params["csi.storage.k8s.io/pod.namespace"]

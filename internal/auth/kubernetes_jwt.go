@@ -15,15 +15,18 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type KubernetesAuth struct {
+// KubernetesJWTAuth implements both Kubernetes and JWT auth, as both have
+// exactly the same login endpoint. If their login endpoints ever diverge, this
+// struct may need splitting.
+type KubernetesJWTAuth struct {
 	logger           hclog.Logger
 	k8sClient        kubernetes.Interface
 	params           config.Parameters
 	defaultMountPath string
 }
 
-func NewKubernetesAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath string) *KubernetesAuth {
-	return &KubernetesAuth{
+func NewKubernetesJWTAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath string) *KubernetesJWTAuth {
+	return &KubernetesJWTAuth{
 		logger:           logger,
 		k8sClient:        k8sClient,
 		params:           params,
@@ -32,9 +35,9 @@ func NewKubernetesAuth(logger hclog.Logger, k8sClient kubernetes.Interface, para
 }
 
 // AuthRequest returns the request path and body required to authenticate
-// using the configured kubernetes auth role in Vault. If no appropriate
-// JWT is provided in the CSI mount request, it will create a new one.
-func (k *KubernetesAuth) AuthRequest(ctx context.Context) (path string, body map[string]string, err error) {
+// using the configured auth role in Vault. If no appropriate JWT is provided
+// in the CSI mount request, it will create a new one.
+func (k *KubernetesJWTAuth) AuthRequest(ctx context.Context) (path string, body map[string]string, err error) {
 	jwt := k.params.PodInfo.ServiceAccountToken
 	if jwt == "" {
 		k.logger.Debug("no suitable token found in mount request, using self-generated service account JWT")
@@ -47,7 +50,7 @@ func (k *KubernetesAuth) AuthRequest(ctx context.Context) (path string, body map
 		k.logger.Debug("using token from mount request for login")
 	}
 
-	mountPath := k.params.VaultKubernetesMountPath
+	mountPath := k.params.VaultAuthMountPath
 	if mountPath == "" {
 		mountPath = k.defaultMountPath
 	}
@@ -58,7 +61,7 @@ func (k *KubernetesAuth) AuthRequest(ctx context.Context) (path string, body map
 	}, nil
 }
 
-func (k *KubernetesAuth) createJWTToken(ctx context.Context, podInfo config.PodInfo, audience string) (string, error) {
+func (k *KubernetesJWTAuth) createJWTToken(ctx context.Context, podInfo config.PodInfo, audience string) (string, error) {
 	k.logger.Debug("creating service account token bound to pod",
 		"namespace", podInfo.Namespace,
 		"serviceAccountName", podInfo.ServiceAccountName,
