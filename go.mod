@@ -13,7 +13,7 @@ require (
 	k8s.io/apimachinery v0.26.3
 	k8s.io/client-go v0.26.3
 	k8s.io/utils v0.0.0-20230313181309-38a27ef9d749
-	sigs.k8s.io/secrets-store-csi-driver v1.3.2
+	sigs.k8s.io/secrets-store-csi-driver v1.3.3
 )
 
 require (
