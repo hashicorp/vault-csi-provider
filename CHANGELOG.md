@@ -1,5 +1,11 @@
 ## Unreleased
 
+CHANGES:
+
+* Build with Go v1.20.5
+* Test with K8s 1.23-1.27
+* Updated Docker base image from alpine 3.17.3 -> 3.18.2
+
 # 1.4.0 (April 28th, 2023)
 
 CHANGES:

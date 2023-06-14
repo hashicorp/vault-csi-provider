@@ -3,7 +3,7 @@ name: Tests
 on: [push, workflow_dispatch]
 
 env:
-  KIND_VERSION: "v0.18.0"
+  KIND_VERSION: "v0.19.0"
   BATS_VERSION: "1.9.0"
   NODE_VERSION: "19.8.1"
   TARBALL_FILE: vault-csi-provider.docker.tar
@@ -17,10 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+      - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
         with:
           go-version-file: .go-version
-          cache: true
 
       - name: Install tools
         run: make bootstrap
@@ -32,10 +31,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+      - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
         with:
           go-version-file: .go-version
-          cache: true
 
       - name: Build
         run: |
@@ -57,7 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kind-k8s-version: [1.22.17, 1.23.17, 1.24.12, 1.25.8, 1.26.3]
+        kind-k8s-version: [1.23.17, 1.24.13, 1.25.9, 1.26.4, 1.27.2]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
@@ -70,7 +68,7 @@ jobs:
         shell: bash
 
       - name: Create Kind Cluster
-        uses: helm/kind-action@d8ccf8fb623ce1bb360ae2f45f323d9d5c5e9f00 # v1.5.0
+        uses: helm/kind-action@fa81e57adff234b2908110485695db0f181f3c67 # v1.7.0
         with:
           cluster_name: kind
           config: test/bats/configs/kind/config.yaml
