@@ -1,4 +1,8 @@
+# default owner
+
+*       @hashicorp/vault-ecosystem-foundations
+
 # release configuration
 
-/.release/                              @hashicorp/release-engineering @hashicorp/github-secure-vault-ecosystem
-/.github/workflows/build.yml            @hashicorp/release-engineering @hashicorp/github-secure-vault-ecosystem
+/.release/                              @hashicorp/release-engineering @hashicorp/vault-ecosystem-foundations
+/.github/workflows/build.yml            @hashicorp/release-engineering @hashicorp/vault-ecosystem-foundations

@@ -15,9 +15,9 @@ PKG=github.com/hashicorp/vault-csi-provider/internal/version
 LDFLAGS?="-X '$(PKG).BuildVersion=$(VERSION)' \
 	-X '$(PKG).BuildDate=$(BUILD_DATE)' \
 	-X '$(PKG).GoVersion=$(shell go version)'"
-CSI_DRIVER_VERSION=1.3.2
-VAULT_HELM_VERSION=0.24.1
-VAULT_VERSION=1.13.3
+CSI_DRIVER_VERSION=1.3.4
+VAULT_HELM_VERSION=0.25.0
+VAULT_VERSION=1.14.1
 GOLANGCI_LINT_FORMAT?=colored-line-number
 
 VAULT_VERSION_ARGS=--set server.image.tag=$(VAULT_VERSION)
