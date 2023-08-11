@@ -2,9 +2,15 @@
 
 CHANGES:
 
-* Build with Go v1.20.5
+* Build with Go v1.20.7
 * Test with K8s 1.23-1.27
-* Updated Docker base image from alpine 3.17.3 -> 3.18.2
+* Updated Docker base image from alpine 3.17.3 -> 3.18.3
+* Updated dependencies:
+  * golang.org/x/crypto v0.6.0 -> v0.12.0
+  * golang.org/x/net v0.8.0 -> v0.14.0
+  * golang.org/x/sys v0.6.0 -> v0.11.0
+  * golang.org/x/term v0.6.0 -> v0.11.0
+  * golang.org/x/text v0.8.0 -> v0.12.0
 
 # 1.4.0 (April 28th, 2023)
 

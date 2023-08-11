@@ -4,7 +4,7 @@
 # This Dockerfile contains multiple targets.
 # Use 'docker build --target=<name> .' to build one.
 
-ARG ALPINE_VERSION=3.18.2
+ARG ALPINE_VERSION=3.18.3
 ARG GO_VERSION=latest
 
 # devbuild compiles the binary
