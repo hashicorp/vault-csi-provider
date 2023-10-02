@@ -4,7 +4,7 @@ CHANGES:
 
 * Build with Go v1.20.7
 * Test with K8s 1.23-1.27
-* Updated Docker base image from alpine 3.17.3 -> 3.18.3
+* Updated Docker base image from alpine 3.17.3 -> 3.18.4
 * Updated dependencies:
   * golang.org/x/crypto v0.6.0 -> v0.12.0
   * golang.org/x/net v0.8.0 -> v0.14.0
