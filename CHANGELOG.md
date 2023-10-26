@@ -1,5 +1,7 @@
 ## Unreleased
 
+# 1.4.1 (October 26th, 2023)
+
 CHANGES:
 
 * Build with Go v1.21.3
@@ -11,6 +13,8 @@ CHANGES:
   * golang.org/x/sys v0.6.0 -> v0.13.0
   * golang.org/x/term v0.6.0 -> v0.13.0
   * golang.org/x/text v0.8.0 -> v0.13.0
+  * google.golang.org/grpc v1.54.0 -> v1.56.3
+  * sigs.k8s.io/secrets-store-csi-driver v1.3.2 -> v1.3.3
 
 # 1.4.0 (April 28th, 2023)
 
