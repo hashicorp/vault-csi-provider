@@ -1,5 +1,7 @@
 ## Unreleased
 
+# 1.4.1 (October 26th, 2023)
+
 CHANGES:
 
 * Build with Go v1.21.3
