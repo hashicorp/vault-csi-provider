@@ -47,6 +47,8 @@ type FlagsConfig struct {
 	TLSClientCert  string
 	TLSClientKey   string
 	TLSSkipVerify  bool
+
+	LogFormat string
 }
 
 func (fc FlagsConfig) TLSConfig() api.TLSConfig {
