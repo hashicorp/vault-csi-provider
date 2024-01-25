@@ -200,6 +200,9 @@ func (c *Client) generateSecretRequest(secret config.Secret) (*api.Request, erro
 			return nil, err
 		}
 	}
+	if secret.SecretNamespace != "" {
+		req.Headers.Add("X-Vault-Namespace", secret.SecretNamespace)
+	}
 
 	return req, nil
 }

@@ -49,8 +49,9 @@ func NewProvider(logger hclog.Logger, authMethod *auth.KubernetesJWTAuth, hmacGe
 }
 
 type vaultResponseCacheKey struct {
-	secretPath string
-	method     string
+	secretNamespace string
+	secretPath      string
+	method          string
 }
 
 const (
@@ -108,7 +109,7 @@ func decodeValue(data []byte, encoding string) ([]byte, error) {
 func (p *provider) getSecret(ctx context.Context, client *vaultclient.Client, secretConfig config.Secret) ([]byte, error) {
 	var secret *api.Secret
 	var cached bool
-	key := vaultResponseCacheKey{secretPath: secretConfig.SecretPath, method: secretConfig.Method}
+	key := vaultResponseCacheKey{secretPath: secretConfig.SecretPath, secretNamespace: secretConfig.SecretNamespace, method: secretConfig.Method}
 	if secret, cached = p.vaultResponseCache[key]; !cached {
 		var err error
 		secret, err = client.RequestSecret(ctx, p.authMethod, secretConfig)

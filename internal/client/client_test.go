@@ -224,11 +224,13 @@ func TestEnsureV1Prefix(t *testing.T) {
 }
 
 func TestGenerateRequest(t *testing.T) {
+	defaultHeaders := http.Header{"X-Vault-Request": []string{"true"}}
 	type expected struct {
-		method string
-		path   string
-		params string
-		body   string
+		method  string
+		path    string
+		params  string
+		body    string
+		headers http.Header
 	}
 	client, err := New(hclog.NewNullLogger(), config.Parameters{}, config.FlagsConfig{})
 	require.NoError(t, err)
@@ -242,21 +244,29 @@ func TestGenerateRequest(t *testing.T) {
 			secret: config.Secret{
 				SecretPath: "secret/foo",
 			},
-			expected: expected{http.MethodGet, "/v1/secret/foo", "", ""},
+			expected: expected{http.MethodGet, "/v1/secret/foo", "", "", defaultHeaders},
+		},
+		{
+			name: "with secret namespace specified",
+			secret: config.Secret{
+				SecretPath:      "secret/foo",
+				SecretNamespace: "baz",
+			},
+			expected: expected{http.MethodGet, "/v1/secret/foo", "", "", http.Header{"X-Vault-Namespace": []string{"baz"}, "X-Vault-Request": []string{"true"}}},
 		},
 		{
 			name: "zero-length query string",
 			secret: config.Secret{
 				SecretPath: "secret/foo?",
 			},
-			expected: expected{http.MethodGet, "/v1/secret/foo", "", ""},
+			expected: expected{http.MethodGet, "/v1/secret/foo", "", "", defaultHeaders},
 		},
 		{
 			name: "query string",
 			secret: config.Secret{
 				SecretPath: "secret/foo?bar=true&baz=maybe&zap=0",
 			},
-			expected: expected{http.MethodGet, "/v1/secret/foo", "bar=true&baz=maybe&zap=0", ""},
+			expected: expected{http.MethodGet, "/v1/secret/foo", "bar=true&baz=maybe&zap=0", "", defaultHeaders},
 		},
 		{
 			name: "method specified",
@@ -264,7 +274,7 @@ func TestGenerateRequest(t *testing.T) {
 				SecretPath: "secret/foo",
 				Method:     "PUT",
 			},
-			expected: expected{"PUT", "/v1/secret/foo", "", ""},
+			expected: expected{"PUT", "/v1/secret/foo", "", "", defaultHeaders},
 		},
 		{
 			name: "body specified",
@@ -277,7 +287,7 @@ func TestGenerateRequest(t *testing.T) {
 					"zap": "a string",
 				},
 			},
-			expected: expected{http.MethodPost, "/v1/secret/foo", "", `{"bar":true,"baz":10,"zap":"a string"}`},
+			expected: expected{http.MethodPost, "/v1/secret/foo", "", `{"bar":true,"baz":10,"zap":"a string"}`, defaultHeaders},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -287,6 +297,7 @@ func TestGenerateRequest(t *testing.T) {
 			assert.Equal(t, tc.expected.path, req.URL.Path)
 			assert.Equal(t, tc.expected.params, req.Params.Encode())
 			assert.Equal(t, tc.expected.body, string(req.BodyBytes))
+			assert.Equal(t, tc.expected.headers, req.Headers)
 		})
 	}
 }
