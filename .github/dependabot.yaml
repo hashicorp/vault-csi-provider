@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 # Dependabot config that checks version updates for go.mod packages and docker
-# images, and also checks only for security updates for github actions.
+# images, and also checks only for security updates for GitHub actions.
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
@@ -15,10 +15,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    # Disable version updates and only check security updates for github
+    # Disable version updates and only check security updates for GitHub
     # actions, since we can't bump the versions until they're on our allow-list
     open-pull-requests-limit: 0
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
