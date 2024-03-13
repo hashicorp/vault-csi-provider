@@ -89,7 +89,7 @@ jobs:
           - "${{ needs.vault-versions.outputs.VAULT_N_2 }}"
           - "${{ needs.vault-versions.outputs.VAULT_N_1 }}"
           - "${{ needs.vault-versions.outputs.VAULT_N }}"
-        # Note: We want to test the operator with the different k8s versions,
+        # Note: We want to test the provider with the different k8s versions,
         # and with the different vault versions, but we don't care about testing
         # all the k8s versions against all the vault versions.
         # Combos to exclude:
