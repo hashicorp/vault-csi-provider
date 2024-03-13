@@ -68,7 +68,7 @@ jobs:
 
     name: vault:${{ matrix.vault-version }} kind:${{ matrix.kind-k8s-version }}
     steps:
-      - uses: ./integration-test.yaml
+      - uses: ./.github/actions/integration-test
         with:
           vault-version: ${{ matrix.vault-version }}
           k8s-version: ${{ matrix.k8s-version }}
