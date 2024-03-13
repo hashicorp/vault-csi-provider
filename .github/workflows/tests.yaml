@@ -7,6 +7,14 @@ env:
   BATS_VERSION: "1.9.0"
   NODE_VERSION: "19.8.1"
   TARBALL_FILE: vault-csi-provider.docker.tar
+  VAULT_N: "1.15.6"
+  VAULT_N_1: "1.14.10"
+  VAULT_N_2: "1.13.13"
+  K8S_N: "1.29.2"
+  K8S_N_1: "1.28.7"
+  K8S_N_2: "1.27.11"
+  K8S_N_3: "1.26.14"
+  K8S_N_4: "1.25.16"
 
 jobs:
   copyright:
@@ -48,100 +56,19 @@ jobs:
           name: vault-csi-provider-image
           path: ${{ env.TARBALL_FILE }}
 
-  vault-versions:
+  integration-test-n:
     runs-on: ubuntu-latest
-    steps:
-      - run: echo "setting vault versions"
-    outputs:
-      VAULT_N_2: 1.13.13
-      VAULT_N_1: 1.14.10
-      VAULT_N: 1.15.6
-
-  k8s-versions:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "setting k8s versions"
-    outputs:
-      K8S_1_25: 1.25.16
-      K8S_1_26: 1.26.14
-      K8S_1_27: 1.27.11
-      K8S_1_28: 1.28.7
-      K8S_1_29: 1.29.2
-
-  integration-test:
-    runs-on: ubuntu-latest
-    needs:
-      - lint
-      - test
-      - vault-versions
-      - k8s-versions
     strategy:
       fail-fast: false
       matrix:
-        # test matrix setup is based off of https://github.com/hashicorp/vault-secrets-operator/blob/716db60e20c7873774374e6908c535e3f5f3e31a/.github/workflows/build.yaml#L261
         kind-k8s-version:
-          - "${{ needs.k8s-versions.outputs.K8S_1_25 }}"
-          - "${{ needs.k8s-versions.outputs.K8S_1_26 }}"
-          - "${{ needs.k8s-versions.outputs.K8S_1_27 }}"
-          - "${{ needs.k8s-versions.outputs.K8S_1_28 }}"
-          - "${{ needs.k8s-versions.outputs.K8S_1_29 }}"
+          - 1.29.2
         vault-version:
-          - "${{ needs.vault-versions.outputs.VAULT_N_2 }}"
-          - "${{ needs.vault-versions.outputs.VAULT_N_1 }}"
-          - "${{ needs.vault-versions.outputs.VAULT_N }}"
-        # Note: We want to test the provider with the different k8s versions,
-        # and with the different vault versions, but we don't care about testing
-        # all the k8s versions against all the vault versions.
-        # Combos to exclude:
-        #   kind-k8s-version: [K8S_1_25, K8S_1_26, K8S_1_27, K8S_1_28]
-        #   vault-version: [VAULT_N_2, VAULT_N_1]
-        exclude:
-          # vault version N-2
-          - kind-k8s-version: ${{ needs.k8s-versions.outputs.K8S_1_28 }}
-            vault-version: ${{ needs.vault-versions.outputs.VAULT_N_2 }}
-          - kind-k8s-version: ${{ needs.k8s-versions.outputs.K8S_1_27 }}
-            vault-version: ${{ needs.vault-versions.outputs.VAULT_N_2 }}
-          - kind-k8s-version: ${{ needs.k8s-versions.outputs.K8S_1_26 }}
-            vault-version: ${{ needs.vault-versions.outputs.VAULT_N_2 }}
-          - kind-k8s-version: ${{ needs.k8s-versions.outputs.K8S_1_25 }}
-            vault-version: ${{ needs.vault-versions.outputs.VAULT_N_2 }}
-          # vault version N-1
-          - kind-k8s-version: ${{ needs.k8s-versions.outputs.K8S_1_28 }}
-            vault-version: ${{ needs.vault-versions.outputs.VAULT_N_1 }}
-          - kind-k8s-version: ${{ needs.k8s-versions.outputs.K8S_1_27 }}
-            vault-version: ${{ needs.vault-versions.outputs.VAULT_N_1 }}
-          - kind-k8s-version: ${{ needs.k8s-versions.outputs.K8S_1_26 }}
-            vault-version: ${{ needs.vault-versions.outputs.VAULT_N_1 }}
-          - kind-k8s-version: ${{ needs.k8s-versions.outputs.K8S_1_25 }}
-            vault-version: ${{ needs.vault-versions.outputs.VAULT_N_1 }}
+          - 1.15.6
 
     name: vault:${{ matrix.vault-version }} kind:${{ matrix.kind-k8s-version }}
     steps:
-      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
-      - uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+      - uses: ./integration-test.yaml
         with:
-          node-version: ${{ env.NODE_VERSION }}
-      - run: npm install -g bats@${{ env.BATS_VERSION }}
-        shell: bash
-      - run: bats -v
-        shell: bash
-
-      - name: Create Kind Cluster
-        uses: helm/kind-action@dda0770415bac9fc20092cacbc54aa298604d140 # v1.8.0
-        with:
-          cluster_name: kind
-          config: test/bats/configs/kind/config.yaml
-          node_image: kindest/node:v${{ matrix.kind-k8s-version }}
-          version: ${{ env.KIND_VERSION }}
-
-      - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
-        with:
-          name: vault-csi-provider-image
-
-      - name: Load vault-csi-provider dev image
-        run: docker image load --input ${{ env.TARBALL_FILE }}
-
-      - name: bats tests
-        env:
-          VAULT_LICENSE: "${{ secrets.VAULT_LICENSE_CI }}"
-        run: make e2e-teardown e2e-setup e2e-test DISPLAY_SETUP_TEARDOWN_LOGS=true VAULT_VERSION="${{ matrix.vault-version }}"
+          vault-version: ${{ matrix.vault-version }}
+          k8s-version: ${{ matrix.k8s-version }}

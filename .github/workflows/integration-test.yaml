@@ -1,0 +1,51 @@
+name: Integration Test (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      k8s-version:
+        required: true
+        type: string
+      vault-version:
+        required: true
+        type: string
+
+env:
+  KIND_VERSION: "v0.22.0"
+  BATS_VERSION: "1.9.0"
+  NODE_VERSION: "19.8.1"
+  TARBALL_FILE: vault-csi-provider.docker.tar
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    name: vault:${{ inputs.vault-version }} kind:${{ inputs.k8s-version }}
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
+      - uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm install -g bats@${{ env.BATS_VERSION }}
+        shell: bash
+      - run: bats -v
+        shell: bash
+
+      - name: Create Kind Cluster
+        uses: helm/kind-action@dda0770415bac9fc20092cacbc54aa298604d140 # v1.8.0
+        with:
+          cluster_name: kind
+          config: test/bats/configs/kind/config.yaml
+          node_image: kindest/node:v${{ inputs.k8s-version }}
+          version: ${{ env.KIND_VERSION }}
+
+      - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
+        with:
+          name: vault-csi-provider-image
+
+      - name: Load vault-csi-provider dev image
+        run: docker image load --input ${{ env.TARBALL_FILE }}
+
+      - name: bats tests
+        env:
+          VAULT_LICENSE: "${{ secrets.VAULT_LICENSE_CI }}"
+        run: make e2e-teardown e2e-setup e2e-test DISPLAY_SETUP_TEARDOWN_LOGS=true VAULT_VERSION="${{ inputs.vault-version }}"
