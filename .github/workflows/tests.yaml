@@ -7,16 +7,17 @@ env:
   BATS_VERSION: "1.9.0"
   NODE_VERSION: "19.8.1"
   TARBALL_FILE: vault-csi-provider.docker.tar
-  VAULT_N: "1.15.6"
-  VAULT_N_1: "1.14.10"
-  VAULT_N_2: "1.13.13"
-  K8S_N: "1.29.2"
-  K8S_N_1: "1.28.7"
-  K8S_N_2: "1.27.11"
-  K8S_N_3: "1.26.14"
-  K8S_N_4: "1.25.16"
+  K8S_VERSIONS: '["1.29.2", "1.28.7", "1.27.11", "1.26.14", "1.25.16"]'
+  VAULT_VERSIONS: '["1.15.6", "1.14.10", "1.13.13"]'
 
 jobs:
+  versions:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "setting versions"
+    outputs:
+      K8S_VERSIONS: ${{ env.K8S_VERSIONS }}
+      VAULT_VERSIONS: ${{ env.VAULT_VERSIONS }}
   copyright:
     uses: hashicorp/vault-workflows-common/.github/workflows/copyright-headers.yaml@main
   go-checks:
@@ -35,7 +36,7 @@ jobs:
       - name: Lint
         run: make lint GOLANGCI_LINT_FORMAT=github-actions
 
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
@@ -56,19 +57,19 @@ jobs:
           name: vault-csi-provider-image
           path: ${{ env.TARBALL_FILE }}
 
-  integration-test-n:
-    runs-on: ubuntu-latest
+  integration-test-k8s-versions:
+    needs:
+      - versions
+      - lint
+      - build-and-test
     strategy:
-      fail-fast: false
-      matrix:
-        kind-k8s-version:
-          - 1.29.2
-        vault-version:
-          - 1.15.6
-
-    name: vault:${{ matrix.vault-version }} kind:${{ matrix.kind-k8s-version }}
-    steps:
-      - uses: ./.github/actions/integration-test
-        with:
-          vault-version: ${{ matrix.vault-version }}
-          k8s-version: ${{ matrix.k8s-version }}
+        fail-fast: false
+        matrix:
+          k8s-version: ${{ fromJson(needs.versions.outputs.K8S_VERSIONS) }}
+          vault-version:
+            - ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS)[0] }}
+  
+    uses: ./.github/workflows/integration-test.yml
+    with:
+      vault-version: ${{ matrix.vault-version }}
+      k8s-version: ${{ matrix.k8s-version }}

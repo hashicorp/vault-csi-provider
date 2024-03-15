@@ -1,4 +1,4 @@
-name: Integration Test (reusable)
+name: Integration test
 
 on:
   workflow_call:
@@ -19,7 +19,7 @@ env:
 jobs:
   integration-test:
     runs-on: ubuntu-latest
-    name: vault:${{ inputs.vault-version }} kind:${{ inputs.k8s-version }}
+    name: vault:${{ inputs.vault-version }} k8s:${{ inputs.k8s-version }}
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
       - uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
