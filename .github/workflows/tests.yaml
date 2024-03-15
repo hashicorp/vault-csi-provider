@@ -39,14 +39,25 @@ jobs:
       TARBALL_FILE: ${{ env.TARBALL_FILE }}
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
-      - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+      - name: setup-go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
           go-version-file: .go-version
 
-      - name: Build
-        run: |
-          make e2e-image
-          docker save --output "${TARBALL_FILE}" e2e/vault-csi-provider:latest
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@2b51285047da1547ffb1b2203d8be4c0af6b1f20 # v3.2.0
+      - name: Build Docker image
+        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
+        with:
+          context: .
+          build-args: |
+            GO_VERSION=${{ steps.setup-go.outputs.go-version }}
+          target: dev
+          push: false
+          tags: e2e/vault-csi-provider:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=tar,dest=${{ env.TARBALL_FILE }}
 
       - name: Test
         run: make test
