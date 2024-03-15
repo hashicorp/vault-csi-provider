@@ -69,6 +69,7 @@ jobs:
             - ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS)[0] }}
   
     uses: ./.github/workflows/integration-test.yml
+    secrets: inherit
     with:
       k8s-version: ${{ matrix.k8s-version }}
       vault-version: ${{ matrix.vault-version }}
@@ -87,6 +88,7 @@ jobs:
           vault-version: ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS) }}
   
     uses: ./.github/workflows/integration-test.yml
+    secrets: inherit
     with:
       k8s-version: ${{ matrix.k8s-version }}
       vault-version: ${{ matrix.vault-version }}

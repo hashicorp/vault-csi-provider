@@ -87,7 +87,7 @@ e2e-setup:
 		--set syncSecret.enabled=true \
 		--set tokenRequests[0].audience="vault"
 	@if [ -n "$(VAULT_LICENSE)" ]; then\
-        kubectl create --namespace=csi secret generic vault-ent-license --from-literal="license=${VAULT_LICENSE}";\
+        kubectl create --namespace=csi secret generic vault-ent-license --from-literal="license=$(VAULT_LICENSE)";\
     fi
 	helm install vault-bootstrap test/bats/configs/vault \
 		--namespace=csi
