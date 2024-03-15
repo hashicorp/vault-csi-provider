@@ -43,24 +43,21 @@ jobs:
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
           go-version-file: .go-version
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@2b51285047da1547ffb1b2203d8be4c0af6b1f20 # v3.2.0
+
+      - name: Build and test
+        run: make build test
+
       - name: Build Docker image
         uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
         with:
           context: .
-          build-args: |
-            GO_VERSION=${{ steps.setup-go.outputs.go-version }}
-          target: dev
           push: false
           tags: e2e/vault-csi-provider:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           outputs: type=tar,dest=${{ env.TARBALL_FILE }}
-
-      - name: Test
-        run: make test
 
       - uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
         with:
@@ -69,6 +66,7 @@ jobs:
 
   integration-test-k8s-versions:
     runs-on: ubuntu-latest
+    name: k8s:${{ matrix.k8s-version }} vault:${{ matrix.vault-version }}
     needs:
       - versions
       - lint
@@ -89,21 +87,25 @@ jobs:
           tarball-file: ${{ needs.build-and-test.outputs.TARBALL_FILE }}
           vault-license: ${{ secrets.VAULT_LICENSE_CI }}
 
-  # integration-test-vault-versions:
-  #   needs:
-  #     - versions
-  #     - lint
-  #     - build-and-test
-  #   strategy:
-  #       fail-fast: false
-  #       matrix:
-  #         k8s-version:
-  #           - ${{ fromJson(needs.versions.outputs.K8S_VERSIONS)[0] }}
-  #         vault-version: ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS) }}
+  integration-test-vault-versions:
+    runs-on: ubuntu-latest
+    name: k8s:${{ matrix.k8s-version }} vault:${{ matrix.vault-version }}
+    needs:
+      - versions
+      - lint
+      - build-and-test
+    strategy:
+        fail-fast: false
+        matrix:
+          k8s-version:
+            - ${{ fromJson(needs.versions.outputs.K8S_VERSIONS)[0] }}
+          vault-version: ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS) }}
   
-  #   uses: ./.github/workflows/integration-test.yml
-  #   secrets: inherit
-  #   with:
-  #     k8s-version: ${{ matrix.k8s-version }}
-  #     vault-version: ${{ matrix.vault-version }}
-  #     tarball-file: ${{ needs.build-and-test.outputs.TARBALL_FILE }}
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
+      - uses: ./.github/actions/integration-test
+        with:
+          k8s-version: ${{ matrix.k8s-version }}
+          vault-version: ${{ matrix.vault-version }}
+          tarball-file: ${{ needs.build-and-test.outputs.TARBALL_FILE }}
+          vault-license: ${{ secrets.VAULT_LICENSE_CI }}

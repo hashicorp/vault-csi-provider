@@ -19,6 +19,8 @@ CSI_DRIVER_VERSION=1.3.4
 VAULT_HELM_VERSION=0.25.0
 VAULT_VERSION=1.15.6
 GOLANGCI_LINT_FORMAT?=colored-line-number
+GOOS ?= $(shell go env GOOS)
+GOARCH ?= $(shell go env GOARCH)
 
 VAULT_VERSION_ARGS=--set server.image.tag=$(VAULT_VERSION)
 ifdef VAULT_LICENSE
@@ -56,16 +58,15 @@ lint:
 build:
 	CGO_ENABLED=0 go build \
 		-ldflags $(LDFLAGS) \
-		-o dist/ \
+		-o dist/$(GOOS)/$(GOARCH)/ \
 		.
 
 test:
 	go test ./...
 
 image:
+	GOOS=linux make build
 	docker build \
-		--build-arg GO_VERSION=$(shell cat .go-version) \
-		--target dev \
 		--tag $(IMAGE_TAG) \
 		.
 
