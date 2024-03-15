@@ -49,5 +49,5 @@ jobs:
 
       - name: bats tests
         env:
-          VAULT_LICENSE: "${{ secrets.VAULT_LICENSE_CI }}"
-        run: make e2e-teardown e2e-setup e2e-test DISPLAY_SETUP_TEARDOWN_LOGS=true VAULT_VERSION="${{ inputs.vault-version }}"
+          VAULT_LICENSE: ${{ secrets.VAULT_LICENSE_CI }}
+        run: make e2e-teardown e2e-setup e2e-test DISPLAY_SETUP_TEARDOWN_LOGS=true VAULT_VERSION="${{ inputs.vault-version }}" VAULT_LICENSE="${VAULT_LICENSE}"
