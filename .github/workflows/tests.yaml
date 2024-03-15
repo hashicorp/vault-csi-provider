@@ -3,9 +3,6 @@ name: Tests
 on: [push, workflow_dispatch]
 
 env:
-  KIND_VERSION: "v0.22.0"
-  BATS_VERSION: "1.9.0"
-  NODE_VERSION: "19.8.1"
   TARBALL_FILE: vault-csi-provider.docker.tar
   K8S_VERSIONS: '["1.29.2", "1.28.7", "1.27.11", "1.26.14", "1.25.16"]'
   VAULT_VERSIONS: '["1.15.6", "1.14.10", "1.13.13"]'
@@ -38,6 +35,8 @@ jobs:
 
   build-and-test:
     runs-on: ubuntu-latest
+    outputs:
+      TARBALL_FILE: ${{ env.TARBALL_FILE }}
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
       - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
@@ -71,5 +70,24 @@ jobs:
   
     uses: ./.github/workflows/integration-test.yml
     with:
-      vault-version: ${{ matrix.vault-version }}
       k8s-version: ${{ matrix.k8s-version }}
+      vault-version: ${{ matrix.vault-version }}
+      tarball-file: ${{ needs.build-and-test.outputs.TARBALL_FILE }}
+
+  integration-test-vault-versions:
+    needs:
+      - versions
+      - lint
+      - build-and-test
+    strategy:
+        fail-fast: false
+        matrix:
+          k8s-version:
+            - ${{ fromJson(needs.versions.outputs.K8S_VERSIONS)[0] }}
+          vault-version: ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS) }}
+  
+    uses: ./.github/workflows/integration-test.yml
+    with:
+      k8s-version: ${{ matrix.k8s-version }}
+      vault-version: ${{ matrix.vault-version }}
+      tarball-file: ${{ needs.build-and-test.outputs.TARBALL_FILE }}

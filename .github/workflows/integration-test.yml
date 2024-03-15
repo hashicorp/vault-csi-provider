@@ -9,17 +9,19 @@ on:
       vault-version:
         required: true
         type: string
+      tarball-file:
+        required: true
+        type: string
 
 env:
   KIND_VERSION: "v0.22.0"
   BATS_VERSION: "1.9.0"
   NODE_VERSION: "19.8.1"
-  TARBALL_FILE: vault-csi-provider.docker.tar
 
 jobs:
   integration-test:
     runs-on: ubuntu-latest
-    name: vault:${{ inputs.vault-version }} k8s:${{ inputs.k8s-version }}
+    name: k8s:${{ inputs.k8s-version }} vault:${{ inputs.vault-version }}
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
       - uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
@@ -43,7 +45,7 @@ jobs:
           name: vault-csi-provider-image
 
       - name: Load vault-csi-provider dev image
-        run: docker image load --input ${{ env.TARBALL_FILE }}
+        run: docker image load --input ${{ inputs.tarball-file }}
 
       - name: bats tests
         env:
