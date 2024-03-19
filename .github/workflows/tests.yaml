@@ -65,14 +65,13 @@ jobs:
     strategy:
         fail-fast: false
         matrix:
-          k8s-version: ${{ fromJson(needs.versions.outputs.K8S_VERSIONS) }}
           vault-version:
             - ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS)[0] }}
+          k8s-version: ${{ fromJson(needs.versions.outputs.K8S_VERSIONS) }}
 
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
       - uses: ./.github/actions/integration-test
-        name: k8s:${{ inputs.k8s-version }} vault:${{ inputs.vault-version }}
         with:
           k8s-version: ${{ matrix.k8s-version }}
           vault-version: ${{ matrix.vault-version }}
@@ -94,7 +93,6 @@ jobs:
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
       - uses: ./.github/actions/integration-test
-        name: k8s:${{ inputs.k8s-version }} vault:${{ inputs.vault-version }}
         with:
           k8s-version: ${{ matrix.k8s-version }}
           vault-version: ${{ matrix.vault-version }}
