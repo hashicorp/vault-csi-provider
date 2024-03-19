@@ -56,7 +56,7 @@ jobs:
           name: vault-csi-provider-image
           path: ${{ env.TARBALL_FILE }}
 
-  integration-test-k8s-versions:
+  latest-vault:
     runs-on: ubuntu-latest
     needs:
       - versions
@@ -78,21 +78,21 @@ jobs:
           tarball-file: ${{ needs.build-and-test.outputs.TARBALL_FILE }}
           vault-license: ${{ secrets.VAULT_LICENSE_CI }}
 
-  # integration-test-vault-versions:
-  #   needs:
-  #     - versions
-  #     - lint
-  #     - build-and-test
-  #   strategy:
-  #       fail-fast: false
-  #       matrix:
-  #         k8s-version:
-  #           - ${{ fromJson(needs.versions.outputs.K8S_VERSIONS)[0] }}
-  #         vault-version: ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS) }}
-  
-  #   uses: ./.github/workflows/integration-test.yml
-  #   secrets: inherit
-  #   with:
-  #     k8s-version: ${{ matrix.k8s-version }}
-  #     vault-version: ${{ matrix.vault-version }}
-  #     tarball-file: ${{ needs.build-and-test.outputs.TARBALL_FILE }}
+  latest-k8s:
+    needs:
+      - versions
+      - lint
+      - build-and-test
+    strategy:
+        fail-fast: false
+        matrix:
+          k8s-version:
+            - ${{ fromJson(needs.versions.outputs.K8S_VERSIONS)[0] }}
+          vault-version: ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS) }}
+
+    uses: ./.github/workflows/integration-test.yml
+    secrets: inherit
+    with:
+      k8s-version: ${{ matrix.k8s-version }}
+      vault-version: ${{ matrix.vault-version }}
+      tarball-file: ${{ needs.build-and-test.outputs.TARBALL_FILE }}
