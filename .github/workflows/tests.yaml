@@ -4,8 +4,6 @@ on: [push, workflow_dispatch]
 
 env:
   TARBALL_FILE: vault-csi-provider.docker.tar
-  K8S_VERSIONS: '["1.29.2", "1.28.7", "1.27.11", "1.26.14", "1.25.16"]'
-  VAULT_VERSIONS: '["1.15.6", "1.14.10", "1.13.13"]'
 
 jobs:
   versions:
@@ -13,8 +11,10 @@ jobs:
     steps:
       - run: echo "setting versions"
     outputs:
-      K8S_VERSIONS: ${{ env.K8S_VERSIONS }}
-      VAULT_VERSIONS: ${{ env.VAULT_VERSIONS }}
+      K8S_VERSIONS: '["1.29.2", "1.28.7", "1.27.11", "1.26.14", "1.25.16"]'
+      VAULT_N: "1.15.6"
+      VAULT_N_1: "1.14.10"
+      VAULT_N_2: "1.13.13"
   copyright:
     uses: hashicorp/vault-workflows-common/.github/workflows/copyright-headers.yaml@main
   go-checks:
@@ -67,7 +67,7 @@ jobs:
         fail-fast: false
         matrix:
           vault-version:
-            - ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS)[0] }}
+            - ${{ needs.versions.outputs.VAULT_N }}
           k8s-version: ${{ fromJson(needs.versions.outputs.K8S_VERSIONS) }}
 
     steps:
@@ -91,7 +91,10 @@ jobs:
         matrix:
           k8s-version:
             - ${{ fromJson(needs.versions.outputs.K8S_VERSIONS)[0] }}
-          vault-version: ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS)[1:-1] }}
+          vault-version:
+            - needs.versions.outputs.VAULT_N
+            - needs.versions.outputs.VAULT_N_1
+            - needs.versions.outputs.VAULT_N_2
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
