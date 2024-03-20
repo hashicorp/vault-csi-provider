@@ -72,6 +72,7 @@ jobs:
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
       - uses: ./.github/actions/integration-test
+        name: vault:${{ matrix.vault-version }} kind:${{ matrix.kind-k8s-version }}
         with:
           k8s-version: ${{ matrix.k8s-version }}
           vault-version: ${{ matrix.vault-version }}
@@ -93,6 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
       - uses: ./.github/actions/integration-test
+        name: vault:${{ matrix.vault-version }} kind:${{ matrix.kind-k8s-version }}
         with:
           k8s-version: ${{ matrix.k8s-version }}
           vault-version: ${{ matrix.vault-version }}
