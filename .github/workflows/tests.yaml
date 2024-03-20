@@ -57,7 +57,7 @@ jobs:
           path: ${{ env.TARBALL_FILE }}
 
   latest-vault:
-    name: vault:${{ matrix.vault-version }} kind:${{ matrix.k8s-version }}
+    name: latest-vault vault:${{ matrix.vault-version }} kind:${{ matrix.k8s-version }}
     runs-on: ubuntu-latest
     needs:
       - versions
@@ -81,7 +81,7 @@ jobs:
           vault-license: ${{ secrets.VAULT_LICENSE_CI }}
 
   latest-k8s:
-    name: vault:${{ matrix.vault-version }} kind:${{ matrix.k8s-version }}
+    name: latest-k8s vault:${{ matrix.vault-version }} kind:${{ matrix.k8s-version }}
     needs:
       - versions
       - lint
@@ -91,7 +91,7 @@ jobs:
         matrix:
           k8s-version:
             - ${{ fromJson(needs.versions.outputs.K8S_VERSIONS)[0] }}
-          vault-version: ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS) }}
+          vault-version: ${{ fromJson(needs.versions.outputs.VAULT_VERSIONS)[1:-1] }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
