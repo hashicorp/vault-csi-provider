@@ -5,8 +5,8 @@ package config
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -85,7 +85,7 @@ func TestParseParametersFromYaml(t *testing.T) {
 
 func TestParseParameters(t *testing.T) {
 	// This file's contents are copied directly from a driver mount request.
-	parametersStr, err := ioutil.ReadFile(filepath.Join("testdata", "example-parameters-string.txt"))
+	parametersStr, err := os.ReadFile(filepath.Join("testdata", "example-parameters-string.txt"))
 	require.NoError(t, err)
 	actual, err := parseParameters(string(parametersStr))
 	require.NoError(t, err)
