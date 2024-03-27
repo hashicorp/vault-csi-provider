@@ -1,6 +1,32 @@
 ## Unreleased
 
-# 1.4.1 (October 26th, 2023)
+## 1.4.2 (March 27th, 2024)
+
+CHANGES:
+
+* Build with Go v1.22.1
+* Test with K8s 1.25-1.29
+* Test with Vault 1.13-1.15
+* Updated Docker base image from alpine 3.18.4 -> 3.19.1
+* Updated dependencies:
+  * github.com/go-jose/go-jose/v3 v3.0.1 -> 3.0.3
+  * github.com/hashicorp/go-hclog v1.5.0 -> v1.6.2
+  * github.com/hashicorp/golang-lru/v2 v2.0.2 -> v2.0.7
+  * github.com/hashicorp/vault/api v1.9.0 -> v1.12.2
+  * github.com/stretchr/testify v1.8.2 -> v1.9.0
+  * golang.org/x/crypto v0.14.0 -> v0.21.0
+  * golang.org/x/net v0.17.0 -> v0.22.0
+  * golang.org/x/sys v0.13.0 -> v0.18.0
+  * golang.org/x/term v0.13.0 -> v0.18.0
+  * google.golang.org/grpc v1.56.3 -> v1.62.1
+  * google.golang.org/protobuf v1.30.0 -> v1.33.0
+  * k8s.io/api v0.26.3 -> v0.29.3
+  * k8s.io/apimachinery v0.26.3 -> v0.29.3
+  * k8s.io/client-go v0.26.3 -> v0.29.3
+  * k8s.io/utils v0.0.0-20230313181309-38a27ef9d749 -> v0.0.0-20230726121419-3b25d923346b
+  * sigs.k8s.io/secrets-store-csi-driver v1.3.3 -> v1.4.2
+
+## 1.4.1 (October 26th, 2023)
 
 CHANGES:
 
@@ -16,7 +42,7 @@ CHANGES:
   * google.golang.org/grpc v1.54.0 -> v1.56.3
   * sigs.k8s.io/secrets-store-csi-driver v1.3.2 -> v1.3.3
 
-# 1.4.0 (April 28th, 2023)
+## 1.4.0 (April 28th, 2023)
 
 CHANGES:
 
