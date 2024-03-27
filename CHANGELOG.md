@@ -14,11 +14,10 @@ CHANGES:
   * github.com/hashicorp/golang-lru/v2 v2.0.2 -> v2.0.7
   * github.com/hashicorp/vault/api v1.9.0 -> v1.12.2
   * github.com/stretchr/testify v1.8.2 -> v1.9.0
-  * golang.org/x/crypto v0.14.0 -> v0.19.0
-  * golang.org/x/crypto v0.19.0 -> v0.21.0
-  * golang.org/x/net v0.20.0 -> v0.21.0
-  * golang.org/x/sys v0.17.0 -> v0.18.0
-  * golang.org/x/term v0.17.0 -> v0.18.0
+  * golang.org/x/crypto v0.14.0 -> v0.21.0
+  * golang.org/x/net v0.17.0 -> v0.22.0
+  * golang.org/x/sys v0.13.0 -> v0.18.0
+  * golang.org/x/term v0.13.0 -> v0.18.0
   * google.golang.org/grpc v1.56.3 -> v1.62.1
   * google.golang.org/protobuf v1.30.0 -> v1.33.0
   * k8s.io/api v0.26.3 -> v0.29.3
