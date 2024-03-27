@@ -3,6 +3,9 @@ name: Tests
 on: [push, workflow_dispatch]
 
 env:
+  KIND_VERSION: "v0.22.0"
+  BATS_VERSION: "1.11.0"
+  NODE_VERSION: "19.8.1"
   TARBALL_FILE: vault-csi-provider.docker.tar
 
 jobs:
@@ -22,8 +25,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
-      - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
           go-version-file: .go-version
 
@@ -38,8 +41,8 @@ jobs:
     outputs:
       TARBALL_FILE: ${{ env.TARBALL_FILE }}
     steps:
-      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
-      - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
           go-version-file: .go-version
 
@@ -71,7 +74,7 @@ jobs:
           k8s-version: ${{ fromJson(needs.versions.outputs.K8S_VERSIONS) }}
 
     steps:
-      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - uses: ./.github/actions/integration-test
         name: vault:${{ matrix.vault-version }} kind:${{ matrix.k8s-version }}
         with:
@@ -96,7 +99,7 @@ jobs:
             - ${{ needs.versions.outputs.VAULT_N_2 }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - uses: ./.github/actions/integration-test
         name: vault:${{ matrix.vault-version }} kind:${{ matrix.k8s-version }}
         with:
