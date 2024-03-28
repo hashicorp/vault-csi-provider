@@ -82,3 +82,7 @@ csi:
   - name: metadata
     mountPath: "/var/run/metadata/kubernetes.io/pod"
     readOnly: true
+
+  agent:
+    image:
+      repository: "docker.mirror.hashicorp.services/hashicorp/vault"
