@@ -1,5 +1,9 @@
 # HashiCorp Vault Provider for Secrets Store CSI Driver
 
+> :warning: **Please note**: We take Vault's security and our users' trust very seriously. If
+you believe you have found a security issue in Vault CSI Provider, _please responsibly disclose_
+by contacting us at [security@hashicorp.com](mailto:security@hashicorp.com).
+
 HashiCorp [Vault](https://vaultproject.io) provider for the [Secrets Store CSI driver](https://github.com/kubernetes-sigs/secrets-store-csi-driver) allows you to get secrets stored in
 Vault and use the Secrets Store CSI driver interface to mount them into Kubernetes pods.
 
