@@ -1,5 +1,14 @@
 ## Unreleased
 
+CHANGES:
+
+* Build with Go v1.22.2
+* Updated dependencies:
+  * golang.org/x/crypto v0.21.0 -> v0.22.0
+  * golang.org/x/net v0.22.0 -> v0.24.0
+  * golang.org/x/sys v0.18.0 -> v0.19.0
+  * golang.org/x/term v0.18.0 -> v0.19.0
+
 ## 1.4.2 (March 27th, 2024)
 
 CHANGES:
