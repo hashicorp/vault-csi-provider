@@ -4,10 +4,12 @@ CHANGES:
 
 * Build with Go v1.22.2
 * Updated dependencies:
+  * github.com/hashicorp/go-hclog v1.6.2 -> v1.6.3
   * golang.org/x/crypto v0.21.0 -> v0.22.0
   * golang.org/x/net v0.22.0 -> v0.24.0
   * golang.org/x/sys v0.18.0 -> v0.19.0
   * golang.org/x/term v0.18.0 -> v0.19.0
+  * google.golang.org/grpc v1.62.1 -> v1.63.0
 
 ## 1.4.2 (March 27th, 2024)
 
