@@ -16,6 +16,9 @@ inputs:
   vault-license:
     description: 'Vault license to use for enterprise tests'
     required: true
+  kind-cluster-name:
+    description: 'Name of the kind cluster to create and test against'
+    default: 'kind'
 runs:
   using: "composite"
   steps:
@@ -31,10 +34,21 @@ runs:
     - name: Create Kind Cluster
       uses: helm/kind-action@0025e74a8c7512023d06dc019c617aa3cf561fde # v1.10.0
       with:
-        cluster_name: kind
+        cluster_name: ${{ inputs.kind-cluster-name }}
         config: test/bats/configs/kind/config.yaml
         node_image: kindest/node:v${{ inputs.k8s-version }}
         version: ${{ env.KIND_VERSION }}
+
+    - name: Create kind export log root
+      id: create_kind_export_log_root
+      shell: bash
+      run: |
+        vault_flavor=ent
+        log_artifact_name="kind-${{ inputs.kind-cluster-name }}-$(git rev-parse --short ${{ github.sha }})-${{ inputs.k8s-version }}-${{ inputs.vault-version }}-${vault_flavor}-helm-logs"
+        log_root="/tmp/${log_artifact_name}"
+        mkdir -p "${log_root}"
+        echo "log_root=${log_root}" >> $GITHUB_OUTPUT
+        echo "log_artifact_name=${log_artifact_name}" >> $GITHUB_OUTPUT
 
     - uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
       with:
@@ -49,3 +63,23 @@ runs:
       env:
         VAULT_LICENSE: ${{ inputs.vault-license }}
       run: make e2e-teardown e2e-setup e2e-test DISPLAY_SETUP_TEARDOWN_LOGS=true VAULT_VERSION="${{ inputs.vault-version }}"
+
+    - name: export kind cluster logs
+      if: always()
+      shell: bash
+      run: |
+        kind export logs --name ${{ inputs.kind-cluster-name }} ${{ steps.create_kind_export_log_root.outputs.log_root }}
+
+    - name: Store kind cluster logs
+      if: success()
+      uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+      with:
+        name: ${{ steps.create_kind_export_log_root.outputs.log_artifact_name }}
+        path: ${{ steps.create_kind_export_log_root.outputs.log_root }}
+
+    - name: Store kind cluster logs failure
+      if: failure()
+      uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+      with:
+        name: ${{ steps.create_kind_export_log_root.outputs.log_artifact_name }}-failed
+        path: ${{ steps.create_kind_export_log_root.outputs.log_root }}
