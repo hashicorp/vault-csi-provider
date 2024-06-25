@@ -35,15 +35,14 @@ const (
 )
 
 func main() {
-	logger := hclog.Default()
-	err := realMain(logger)
+	logger, err := realMain()
 	if err != nil {
 		logger.Error("Error running provider", "err", err)
 		os.Exit(1)
 	}
 }
 
-func realMain(logger hclog.Logger) error {
+func realMain() (hclog.Logger, error) {
 	flags := config.FlagsConfig{}
 	flag.StringVar(&flags.Endpoint, "endpoint", "/tmp/vault.sock", "Path to socket on which to listen for driver gRPC calls.")
 	flag.BoolVar(&flags.Debug, "debug", false, "Sets log to debug level.")
@@ -64,22 +63,30 @@ func realMain(logger hclog.Logger) error {
 	flag.StringVar(&flags.TLSClientCert, "vault-tls-client-cert", "", "Path on disk to a PEM-encoded client certificate for mTLS communication with Vault. If set, also requires -vault-tls-client-key. Can also be specified via the VAULT_CLIENT_CERT environment variable.")
 	flag.StringVar(&flags.TLSClientKey, "vault-tls-client-key", "", "Path on disk to a PEM-encoded client key for mTLS communication with Vault. If set, also requires -vault-tls-client-cert. Can also be specified via the VAULT_CLIENT_KEY environment variable.")
 	flag.BoolVar(&flags.TLSSkipVerify, "vault-tls-skip-verify", false, "Disable verification of TLS certificates. Can also be specified via the VAULT_SKIP_VERIFY environment variable.")
+
+	// Logging flags
+	flag.StringVar(&flags.LogFormat, "log-format", "standard", "Logging format for driver. Supported values are `standard` and `json`. Defaults to `standard`.")
 	flag.Parse()
 
-	// set log level
-	logger.SetLevel(hclog.Info)
+	var logLevel hclog.Level
 	if flags.Debug {
-		logger.SetLevel(hclog.Debug)
+		logLevel = hclog.Debug
+	} else {
+		logLevel = hclog.Info
 	}
+	logger := hclog.New(&hclog.LoggerOptions{
+		Level:      logLevel,
+		JSONFormat: flags.LogFormat == "json",
+	})
 
 	if flags.Version {
 		v, err := version.GetVersion()
 		if err != nil {
-			return fmt.Errorf("failed to print version, err: %w", err)
+			return logger, fmt.Errorf("failed to print version, err: %w", err)
 		}
 		// print the version and exit
 		_, err = fmt.Println(v)
-		return err
+		return logger, err
 	}
 
 	logger.Info("Creating new gRPC server")
@@ -104,22 +111,22 @@ func realMain(logger hclog.Logger) error {
 
 	listener, err := listen(logger, flags.Endpoint)
 	if err != nil {
-		return err
+		return logger, err
 	}
 	defer listener.Close()
 
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
-		return err
+		return logger, err
 	}
 	clientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		return err
+		return logger, err
 	}
 
 	namespace, err := os.ReadFile(namespaceFile)
 	if err != nil {
-		return fmt.Errorf("failed to read namespace from file: %w", err)
+		return logger, fmt.Errorf("failed to read namespace from file: %w", err)
 	}
 	hmacSecretSpec := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -133,7 +140,7 @@ func realMain(logger hclog.Logger) error {
 
 	clientCache, err := clientcache.NewClientCache(serverLogger.Named("vaultclient"), flags.CacheSize)
 	if err != nil {
-		return fmt.Errorf("failed to initialize the cache: %w", err)
+		return logger, fmt.Errorf("failed to initialize the cache: %w", err)
 	}
 
 	srv := providerserver.NewServer(serverLogger, flags, clientset, hmacGenerator, clientCache)
@@ -167,10 +174,10 @@ func realMain(logger hclog.Logger) error {
 	logger.Info("Starting gRPC server")
 	err = server.Serve(listener)
 	if err != nil {
-		return fmt.Errorf("error running gRPC server: %w", err)
+		return logger, fmt.Errorf("error running gRPC server: %w", err)
 	}
 
-	return nil
+	return logger, nil
 }
 
 func listen(logger hclog.Logger, endpoint string) (net.Listener, error) {
