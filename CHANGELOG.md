@@ -1,10 +1,10 @@
 ## Unreleased
 
-## 1.4.3 (July 2nd, 2024)
+## 1.4.3 (July 3rd, 2024)
 
 CHANGES:
 
-* Build with Go v1.22.4
+* Build with Go v1.22.5
 * Test with K8s 1.26-1.30
 * Test with Vault 1.15-1.17
 * Updated Docker base image from alpine 3.19.1 -> 3.20.1
