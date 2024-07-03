@@ -10,13 +10,16 @@ CHANGES:
 * Updated Docker base image from alpine 3.19.1 -> 3.20.1
 * Updated dependencies:
   * github.com/hashicorp/go-hclog v1.6.2 -> v1.6.3
-  * github.com/hashicorp/vault/api v1.12.2 -> v1.13.0
+  * github.com/hashicorp/vault/api v1.12.2 -> v1.14.0
   * golang.org/x/crypto v0.21.0 -> v0.24.0
   * golang.org/x/net v0.22.0 -> v0.26.0
   * golang.org/x/sys v0.18.0 -> v0.21.0
   * golang.org/x/term v0.18.0 -> v0.21.0
-  * golang.org/x/text v0.14.0 => v0.16.0
-  * google.golang.org/grpc v1.62.1 -> v1.63.0
+  * golang.org/x/text v0.14.0 -> v0.16.0
+  * google.golang.org/grpc v1.62.1 -> v1.65.0
+  * k8s.io/api v0.29.3 -> v0.30.2
+  * k8s.io/apimachinery v0.29.3 -> v0.30.2
+  * k8s.io/client-go v0.29.3 -> v0.30.2
   * sigs.k8s.io/secrets-store-csi-driver v1.4.2 -> v1.4.4
 
 ## 1.4.2 (March 27th, 2024)
