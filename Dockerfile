@@ -33,6 +33,10 @@ ARG TARGETOS TARGETARCH
 LABEL version=$PRODUCT_VERSION
 LABEL revision=$PRODUCT_REVISION
 
+RUN set -eux && \
+    apk update && \
+    apk upgrade --no-cache libcrypto3
+
 COPY dist/$TARGETOS/$TARGETARCH/vault-csi-provider /bin/
 ENTRYPOINT [ "/bin/vault-csi-provider" ]
 
