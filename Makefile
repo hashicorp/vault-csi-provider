@@ -1,3 +1,4 @@
+BUILD_DIR ?= dist
 REGISTRY_NAME?=docker.io/hashicorp
 IMAGE_NAME=vault-csi-provider
 VERSION?=0.0.0-dev
@@ -57,7 +58,7 @@ lint:
 build:
 	CGO_ENABLED=0 go build \
 		-ldflags $(LDFLAGS) \
-		-o dist/ \
+		-o $(BUILD_DIR)/ \
 		.
 
 test:
