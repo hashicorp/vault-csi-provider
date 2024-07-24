@@ -1,5 +1,12 @@
 ## Unreleased
 
+CHANGES:
+
+* Updated dependencies:
+  * k8s.io/api from v0.30.2 -> v0.30.3
+  * k8s.io/apimachinery v0.30.2 -> v0.30.3
+  * k8s.io/client-go v0.30.2 -> v0.30.3
+
 ## 1.4.3 (July 3rd, 2024)
 
 CHANGES:
