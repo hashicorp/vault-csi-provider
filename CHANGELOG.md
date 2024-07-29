@@ -2,6 +2,7 @@
 
 CHANGES:
 
+* Updated Docker base image from alpine 3.20.1 -> 3.20.2
 * Updated dependencies:
   * k8s.io/api from v0.30.2 -> v0.30.3
   * k8s.io/apimachinery v0.30.2 -> v0.30.3
