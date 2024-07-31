@@ -4,6 +4,14 @@ FEATURES:
 
 * Add ability to tune log levels with `-log-level` flag. [[GH-295](https://github.com/hashicorp/vault-csi-provider/pull/295)]
 
+CHANGES:
+
+* Updated Docker base image from alpine 3.20.1 -> 3.20.2
+* Updated dependencies:
+  * k8s.io/api from v0.30.2 -> v0.30.3
+  * k8s.io/apimachinery v0.30.2 -> v0.30.3
+  * k8s.io/client-go v0.30.2 -> v0.30.3
+
 ## 1.4.3 (July 3rd, 2024)
 
 CHANGES:
