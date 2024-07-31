@@ -92,7 +92,7 @@ spec:
           imagePullPolicy: Always
           args:
             - -endpoint=/provider/vault.sock
-            - -debug=false
+            - -log-level=info
           resources:
             requests:
               cpu: 50m

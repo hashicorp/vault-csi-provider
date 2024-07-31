@@ -1,5 +1,9 @@
 ## Unreleased
 
+FEATURES:
+
+* Add ability to tune log levels with `-log-level` flag. [[GH-295](https://github.com/hashicorp/vault-csi-provider/pull/295)]
+
 ## 1.4.3 (July 3rd, 2024)
 
 CHANGES:

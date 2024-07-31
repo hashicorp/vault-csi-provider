@@ -47,6 +47,7 @@ func TestSetupLogger(t *testing.T) {
 		{config.FlagsConfig{LogLevel: "error"}, hclog.Error},
 		{config.FlagsConfig{LogLevel: "off"}, hclog.Off},
 		{config.FlagsConfig{LogLevel: "no-level"}, hclog.Info},
+		{config.FlagsConfig{Debug: true, LogLevel: "warn"}, hclog.Warn}, // if both set, LogLevel should take precedence
 	}
 
 	for _, tt := range tests {
