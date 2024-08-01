@@ -1,0 +1,15 @@
+schema = 1
+artifacts {
+  zip = [
+    "vault-csi-provider_${version}_linux_386.zip",
+    "vault-csi-provider_${version}_linux_amd64.zip",
+    "vault-csi-provider_${version}_linux_arm.zip",
+    "vault-csi-provider_${version}_linux_arm64.zip",
+  ]
+  container = [
+    "vault-csi-provider_default_linux_386_${version}_${commit_sha}.docker.tar",
+    "vault-csi-provider_default_linux_amd64_${version}_${commit_sha}.docker.tar",
+    "vault-csi-provider_default_linux_arm64_${version}_${commit_sha}.docker.tar",
+    "vault-csi-provider_default_linux_arm_${version}_${commit_sha}.docker.tar",
+  ]
+}
