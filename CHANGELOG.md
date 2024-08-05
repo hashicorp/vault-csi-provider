@@ -1,5 +1,9 @@
 ## Unreleased
 
+FEATURES:
+
+* Add ability to tune log levels with `-log-level` flag. [[GH-295](https://github.com/hashicorp/vault-csi-provider/pull/295)]
+
 CHANGES:
 
 * Updated Docker base image from alpine 3.20.1 -> 3.20.2

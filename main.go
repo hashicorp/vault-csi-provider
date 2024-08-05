@@ -43,10 +43,26 @@ func main() {
 	}
 }
 
+func setupLogger(flags config.FlagsConfig) hclog.Logger {
+	logger := hclog.Default()
+	var level hclog.Level
+	if flags.LogLevel != "" {
+		level = hclog.LevelFromString(flags.LogLevel)
+		if level == hclog.NoLevel {
+			level = hclog.Info
+		}
+	} else if flags.Debug {
+		level = hclog.Debug
+	}
+	logger.SetLevel(level)
+	return logger
+}
+
 func realMain(logger hclog.Logger) error {
 	flags := config.FlagsConfig{}
 	flag.StringVar(&flags.Endpoint, "endpoint", "/tmp/vault.sock", "Path to socket on which to listen for driver gRPC calls.")
-	flag.BoolVar(&flags.Debug, "debug", false, "Sets log to debug level.")
+	flag.BoolVar(&flags.Debug, "debug", false, "Sets log to debug level. This has been deprecated, please use -log-level=debug instead.")
+	flag.StringVar(&flags.LogLevel, "log-level", "info", "Sets log level. Options are info, debug, trace, warn, error, and off.")
 	flag.BoolVar(&flags.Version, "version", false, "Prints the version information.")
 	flag.StringVar(&flags.HealthAddr, "health-addr", ":8080", "Configure http listener for reporting health.")
 
@@ -67,10 +83,7 @@ func realMain(logger hclog.Logger) error {
 	flag.Parse()
 
 	// set log level
-	logger.SetLevel(hclog.Info)
-	if flags.Debug {
-		logger.SetLevel(hclog.Debug)
-	}
+	logger = setupLogger(flags)
 
 	if flags.Version {
 		v, err := version.GetVersion()
