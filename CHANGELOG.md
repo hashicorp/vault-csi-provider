@@ -1,16 +1,24 @@
 ## Unreleased
 
+## 1.5.0 (August 8th, 2024)
+
 FEATURES:
 
 * Add ability to tune log levels with `-log-level` flag. [[GH-295](https://github.com/hashicorp/vault-csi-provider/pull/295)]
 
 CHANGES:
 
+* Build with Go v1.22.6
 * Updated Docker base image from alpine 3.20.1 -> 3.20.2
 * Updated dependencies:
   * k8s.io/api from v0.30.2 -> v0.30.3
   * k8s.io/apimachinery v0.30.2 -> v0.30.3
   * k8s.io/client-go v0.30.2 -> v0.30.3
+  * golang.org/x/crypto v0.24.0 -> v0.26.0
+  * golang.org/x/net v0.26.0 -> v0.28.0
+  * golang.org/x/sys v0.21.0 -> v0.23.0 
+  * golang.org/x/term v0.21.0 -> v0.23.0 
+  * golang.org/x/text v0.16.0 -> v0.17.0
 
 ## 1.4.3 (July 3rd, 2024)
 
