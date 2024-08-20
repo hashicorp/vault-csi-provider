@@ -1,5 +1,13 @@
 ## Unreleased
 
+CHANGES:
+
+* Updated dependencies:
+  * k8s.io/api v0.30.3 -> v0.31.0
+  * k8s.io/apimachinery v0.30.3 -> v0.31.0
+  * k8s.io/client-go v0.30.3 -> v0.31.0
+  * k8s.io/utils v0.0.0-20230726121419-3b25d923346b -> v0.0.0-20240711033017-18e509b52bc8
+
 ## 1.5.0 (August 8th, 2024)
 
 FEATURES:
@@ -11,7 +19,7 @@ CHANGES:
 * Build with Go v1.22.6
 * Updated Docker base image from alpine 3.20.1 -> 3.20.2
 * Updated dependencies:
-  * k8s.io/api from v0.30.2 -> v0.30.3
+  * k8s.io/api v0.30.2 -> v0.30.3
   * k8s.io/apimachinery v0.30.2 -> v0.30.3
   * k8s.io/client-go v0.30.2 -> v0.30.3
   * golang.org/x/crypto v0.24.0 -> v0.26.0
