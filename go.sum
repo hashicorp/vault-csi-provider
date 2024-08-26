@@ -228,8 +228,8 @@ k8s.io/utils v0.0.0-20240711033017-18e509b52bc8 h1:pUdcCO1Lk/tbT5ztQWOBi5HBgbBP1
 k8s.io/utils v0.0.0-20240711033017-18e509b52bc8/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd/go.mod h1:B8JuhiUyNFVKdsE8h686QcCxMaH6HrOAZj4vswFpcB0=
-sigs.k8s.io/secrets-store-csi-driver v1.4.4 h1:q4tLZ5fKJgKV9YCYrUlLI4inxPLJTH9xN3K5JH/1Xuc=
-sigs.k8s.io/secrets-store-csi-driver v1.4.4/go.mod h1:0/wMVOv8qLx7YNVMGU+Sh7S4D6TH6GhyEpouo28OTUU=
+sigs.k8s.io/secrets-store-csi-driver v1.4.5 h1:ta4aiNbl2EAWKrn3hFnN4Nll8mC6cgBP9+O4XdzorHM=
+sigs.k8s.io/secrets-store-csi-driver v1.4.5/go.mod h1:0/wMVOv8qLx7YNVMGU+Sh7S4D6TH6GhyEpouo28OTUU=
 sigs.k8s.io/structured-merge-diff/v4 v4.4.1 h1:150L+0vs/8DA78h1u02ooW1/fFq/Lwr+sGiqlzvrtq4=
 sigs.k8s.io/structured-merge-diff/v4 v4.4.1/go.mod h1:N8hJocpFajUSSeSJ9bOZ77VzejKZaXsTtZo4/u7Io08=
 sigs.k8s.io/yaml v1.4.0 h1:Mk1wCc2gy/F0THH0TAp1QYyJNzRm2KCLy3o5ASXVI5E=
