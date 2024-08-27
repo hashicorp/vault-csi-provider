@@ -7,6 +7,7 @@ CHANGES:
   * k8s.io/apimachinery v0.30.3 -> v0.31.0
   * k8s.io/client-go v0.30.3 -> v0.31.0
   * k8s.io/utils v0.0.0-20230726121419-3b25d923346b -> v0.0.0-20240711033017-18e509b52bc8
+  * sigs.k8s.io/secrets-store-csi-driver v1.4.4 -> v1.4.5
 
 ## 1.5.0 (August 8th, 2024)
 
