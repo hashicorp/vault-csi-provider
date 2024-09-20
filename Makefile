@@ -29,7 +29,7 @@ ifdef VAULT_LICENSE
 		--set csi.agent.image.tag=$(VAULT_VERSION)
 endif
 
-.PHONY: default build test bootstrap fmt lint image e2e-image e2e-setup e2e-teardown e2e-test mod setup-kind promote-staging-manifest copyright
+.PHONY: default build test bootstrap fmt lint image e2e-image e2e-setup e2e-teardown e2e-test mod setup-kind promote-staging-manifest copyright clean
 
 GO111MODULE?=on
 export GO111MODULE
@@ -55,7 +55,7 @@ lint:
 		--enable=ineffassign \
 		--enable=unused
 
-build:
+build: clean
 	CGO_ENABLED=0 go build \
 		-ldflags $(LDFLAGS) \
 		-o $(BUILD_DIR)/ \
@@ -121,3 +121,6 @@ promote-staging-manifest: #promote staging manifests to release dir
 
 copyright:
 	copywrite headers
+
+clean:
+	-rm -rf $(BUILD_DIR)
