@@ -28,14 +28,25 @@ FROM docker.mirror.hashicorp.services/alpine:3.20.3 AS default
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
 ARG PRODUCT_NAME=vault-csi-provider
-ARG TARGETOS TARGETARCH
+ARG TARGETOS
+ARG TARGETARCH
 
-LABEL version=$PRODUCT_VERSION
-LABEL revision=$PRODUCT_REVISION
+LABEL name="Vault CSI Provider" \
+      maintainer="Vault Team <vault@hashicorp.com>" \
+      vendor="HashiCorp" \
+      version=$PRODUCT_VERSION \
+      release=$PRODUCT_VERSION \
+      revision=$PRODUCT_REVISION \
+      org.opencontainers.image.licenses="BUSL-1.1" \
+      summary="HashiCorp Vault Provider for Secret Store CSI Driver for Kubernetes" \
+      description="Provides a CSI provider for Kubernetes to interact with HashiCorp Vault."
 
 RUN set -eux && \
     apk update && \
     apk upgrade --no-cache libcrypto3
+
+# Copy license to conform to HC IPS-002
+COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 COPY dist/$TARGETOS/$TARGETARCH/vault-csi-provider /bin/
 ENTRYPOINT [ "/bin/vault-csi-provider" ]
