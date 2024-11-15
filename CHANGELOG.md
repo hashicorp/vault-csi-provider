@@ -2,6 +2,7 @@
 
 CHANGES:
 
+* Test with K8s 1.27-1.31
 * Updated Docker base image from alpine 3.20.2 -> 3.20.3
 * Updated dependencies:
   * github.com/hashicorp/vault/api v1.14.0 -> v1.15.0
