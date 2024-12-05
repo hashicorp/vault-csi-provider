@@ -35,7 +35,7 @@ jobs:
         run: make bootstrap
 
       - name: Lint
-        run: make lint GOLANGCI_LINT_FORMAT=github-actions
+        run: make lint GOLANGCI_LINT_FORMAT=colored-line-number
 
   build-and-test:
     runs-on: ubuntu-latest
