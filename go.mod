@@ -3,7 +3,10 @@ module github.com/hashicorp/vault-csi-provider
 go 1.22.0
 
 require (
+	github.com/aws/aws-sdk-go v1.55.5
+	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/hashicorp/go-hclog v1.6.3
+	github.com/hashicorp/go-secure-stdlib/awsutil v0.3.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/hashicorp/vault/api v1.15.0
 	github.com/stretchr/testify v1.9.0
@@ -42,6 +45,7 @@ require (
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

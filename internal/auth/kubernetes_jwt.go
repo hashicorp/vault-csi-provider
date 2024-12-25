@@ -25,40 +25,40 @@ type KubernetesJWTAuth struct {
 	defaultMountPath string
 }
 
-func NewKubernetesJWTAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath string) *KubernetesJWTAuth {
+func NewKubernetesJWTAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath string) (*KubernetesJWTAuth, error) {
 	return &KubernetesJWTAuth{
 		logger:           logger,
 		k8sClient:        k8sClient,
 		params:           params,
 		defaultMountPath: defaultMountPath,
-	}
+	}, nil
 }
 
 // AuthRequest returns the request path and body required to authenticate
 // using the configured auth role in Vault. If no appropriate JWT is provided
 // in the CSI mount request, it will create a new one.
-func (k *KubernetesJWTAuth) AuthRequest(ctx context.Context) (path string, body map[string]string, err error) {
+func (k *KubernetesJWTAuth) AuthRequest(ctx context.Context) (path string, body map[string]any, additionalHeaders map[string]string, err error) {
 	jwt := k.params.PodInfo.ServiceAccountToken
 	if jwt == "" {
 		k.logger.Debug("no suitable token found in mount request, using self-generated service account JWT")
 		var err error
 		jwt, err = k.createJWTToken(ctx, k.params.PodInfo, k.params.Audience)
 		if err != nil {
-			return "", nil, err
+			return "", nil, nil, err
 		}
 	} else {
 		k.logger.Debug("using token from mount request for login")
 	}
 
-	mountPath := k.params.VaultAuthMountPath
+	mountPath := k.params.VaultAuth.MouthPath
 	if mountPath == "" {
 		mountPath = k.defaultMountPath
 	}
 
-	return fmt.Sprintf("/v1/auth/%s/login", mountPath), map[string]string{
+	return fmt.Sprintf("/v1/auth/%s/login", mountPath), map[string]any{
 		"jwt":  jwt,
 		"role": k.params.VaultRoleName,
-	}, nil
+	}, nil, nil
 }
 
 func (k *KubernetesJWTAuth) createJWTToken(ctx context.Context, podInfo config.PodInfo, audience string) (string, error) {

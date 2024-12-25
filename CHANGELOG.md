@@ -1,5 +1,10 @@
 ## Unreleased
 
+FEATURES:
+
+* Added support for AWS IAM Auth type.
+
+
 CHANGES:
 
 * Test with K8s 1.27-1.31

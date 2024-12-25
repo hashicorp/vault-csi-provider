@@ -39,6 +39,7 @@ type FlagsConfig struct {
 	CacheSize int
 
 	VaultAddr      string
+	VaultAuthType  string
 	VaultMount     string
 	VaultNamespace string
 
@@ -61,6 +62,28 @@ func (fc FlagsConfig) TLSConfig() api.TLSConfig {
 	}
 }
 
+type AWSIAMAuth struct {
+	XVaultAWSIAMServerID string `yaml:"xVaultAWSIAMServerID,omitempty"`
+	Region               string `yaml:"region,omitempty"`
+	AWSIAMRole           string `yaml:"awsIAMRole,omitempty"`
+}
+
+// JWTAuth : placeholder, for any future values
+type JWTAuth struct {
+}
+
+// K8sAuth : placeholder, for any future values
+type K8sAuth struct {
+}
+
+type Auth struct {
+	Type       string     `yaml:"type"`
+	MouthPath  string     `yaml:"mouthPath"` // Preferred way to specify mount path
+	AWSIAMAuth AWSIAMAuth `yaml:"aws,omitempty"`
+	JWTAuth    JWTAuth    `yaml:"jwt,omitempty"` // Placeholder, for any future values
+	K8sAuth    K8sAuth    `yaml:"k8s,omitempty"` // Placeholder, for any future values
+}
+
 // Parameters stores the parameters specified in a mount request's `Attributes` field.
 // It consists of the parameters section from the SecretProviderClass being mounted
 // and pod metadata provided by the driver.
@@ -73,9 +96,10 @@ func (fc FlagsConfig) TLSConfig() api.TLSConfig {
 type Parameters struct {
 	VaultAddress       string
 	VaultRoleName      string
-	VaultAuthMountPath string
+	VaultAuthMountPath string // Still supported for backward compatibility. Preferred way is under auth block.
 	VaultNamespace     string
 	VaultTLSConfig     api.TLSConfig
+	VaultAuth          Auth
 	Secrets            []Secret
 	PodInfo            PodInfo
 	Audience           string
@@ -129,6 +153,25 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	}
 
 	var parameters Parameters
+	authBlockDefinedByUser := false
+	authBlock, ok := params["auth"]
+	if !ok {
+		// If auth block is missing, default to kubernetes auth
+		// This will help with backward compatibility
+		params["auth"] = "type: kubernetes"
+	} else {
+		authBlockDefinedByUser = true
+	}
+	err = yaml.Unmarshal([]byte(authBlock), &parameters.VaultAuth)
+	if err != nil {
+		return Parameters{}, err
+	}
+	if authBlockDefinedByUser {
+		if parameters.VaultAuth.Type != "aws" && parameters.VaultAuth.Type != "kubernetes" && parameters.VaultAuth.Type != "jwt" {
+			return Parameters{}, errors.New("unsupported auth type")
+		}
+	}
+
 	parameters.VaultRoleName = params["roleName"]
 	parameters.VaultAddress = params["vaultAddress"]
 	parameters.VaultNamespace = params["vaultNamespace"]
@@ -137,16 +180,25 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	parameters.VaultTLSConfig.TLSServerName = params["vaultTLSServerName"]
 	parameters.VaultTLSConfig.ClientCert = params["vaultTLSClientCertPath"]
 	parameters.VaultTLSConfig.ClientKey = params["vaultTLSClientKeyPath"]
+
+	// Continuing to support these parameters to support backward compatibility
+	// But only if auth type is kubernetes/jwt
+	// If explicitly set inside the auth block, these params will be ignored
 	k8sMountPath, k8sSet := params["vaultKubernetesMountPath"]
 	authMountPath, authSet := params["vaultAuthMountPath"]
 	switch {
 	case k8sSet && authSet:
 		return Parameters{}, fmt.Errorf("cannot set both vaultKubernetesMountPath and vaultAuthMountPath")
 	case k8sSet:
-		parameters.VaultAuthMountPath = k8sMountPath
+		if (parameters.VaultAuth.Type == "kubernetes" || parameters.VaultAuth.Type == "jwt") && parameters.VaultAuth.MouthPath == "" {
+			parameters.VaultAuth.MouthPath = k8sMountPath
+		}
 	case authSet:
-		parameters.VaultAuthMountPath = authMountPath
+		if (parameters.VaultAuth.Type == "kubernetes" || parameters.VaultAuth.Type == "jwt") && parameters.VaultAuth.MouthPath == "" {
+			parameters.VaultAuth.MouthPath = authMountPath
+		}
 	}
+	parameters.VaultAuthMountPath = parameters.VaultAuth.MouthPath
 	parameters.PodInfo.Name = params["csi.storage.k8s.io/pod.name"]
 	parameters.PodInfo.UID = types.UID(params["csi.storage.k8s.io/pod.uid"])
 	parameters.PodInfo.Namespace = params["csi.storage.k8s.io/pod.namespace"]
