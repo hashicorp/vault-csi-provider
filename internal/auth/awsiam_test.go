@@ -31,6 +31,15 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 )
 
+const (
+	dummyIssuer = "https://oidc.eks.us-east-1.amazonaws.com/id/ABCDEFG7383928EEC764D2049AE19A7F5"
+	// Mock service account
+	serviceAccountName = "test-service-account"
+	namespace          = "test-namespace"
+	roleArn            = "arn:aws:iam::123456789012:role/test-role"
+	tokenAudience      = "sts.amazonaws.com"
+)
+
 // Mock STS Client
 type mockSTSClient struct {
 	stsiface.STSAPI
@@ -79,8 +88,8 @@ func (m *mockSTSClient) AssumeRoleWithWebIdentityRequest(input *sts.AssumeRoleWi
 	return req, req.Data.(*sts.AssumeRoleWithWebIdentityOutput)
 }
 
-// GenerateDummyPrivateKey generates a dummy RSA private key for testing.
-func GenerateDummyPrivateKey() (string, error) {
+// generateDummyPrivateKey generates a dummy RSA private key for testing.
+func generateDummyPrivateKey() (string, error) {
 	// Generate a new RSA private key.
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -96,17 +105,8 @@ func GenerateDummyPrivateKey() (string, error) {
 	return string(privKeyPEM), nil
 }
 
-const (
-	dummyIssuer = "https://oidc.eks.us-east-1.amazonaws.com/id/ABCDEFG7383928EEC764D2049AE19A7F5"
-	// Mock service account
-	serviceAccountName = "test-service-account"
-	namespace          = "test-namespace"
-	roleArn            = "arn:aws:iam::123456789012:role/test-role"
-	tokenAudience      = "sts.amazonaws.com"
-)
-
-// GenerateValidToken generates a Kubernetes-like ServiceAccount token.
-func GenerateMockValidToken(privateKey []byte, audiences []string, expiration time.Duration) (string, error) {
+// generateValidToken generates a Kubernetes-like ServiceAccount token.
+func generateMockValidToken(privateKey []byte, audiences []string, expiration time.Duration) (string, error) {
 	key, err := jwt.ParseRSAPrivateKeyFromPEM(privateKey)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse private key: %w", err)
@@ -131,7 +131,7 @@ func GenerateMockValidToken(privateKey []byte, audiences []string, expiration ti
 	return signedToken, nil
 }
 
-func MockNewIAMAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath string) (*AWSIAMAuth, error) {
+func mockNewIAMAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath string) (*AWSIAMAuth, error) {
 	return &AWSIAMAuth{
 		logger:           logger,
 		k8sClient:        k8sClient,
@@ -142,7 +142,7 @@ func MockNewIAMAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params 
 
 }
 
-func SetupFakeClientWithTokenReactor() *fake.Clientset {
+func setupFakeClientWithTokenReactor() *fake.Clientset {
 	fakeClient := fake.NewClientset()
 
 	// Add reactor for ServiceAccount token creation
@@ -161,12 +161,12 @@ func SetupFakeClientWithTokenReactor() *fake.Clientset {
 			return true, nil, fmt.Errorf("invalid audience")
 		}
 
-		privateKey, err := GenerateDummyPrivateKey()
+		privateKey, err := generateDummyPrivateKey()
 		if err != nil {
 			fmt.Printf("Error generating private key: %v\n", err)
 		}
 
-		token, err := GenerateMockValidToken([]byte(privateKey), tokenRequest.Spec.Audiences, 1*time.Hour)
+		token, err := generateMockValidToken([]byte(privateKey), tokenRequest.Spec.Audiences, 1*time.Hour)
 		if err != nil {
 			return true, nil, fmt.Errorf("failed to generate token: %w", err)
 		}
@@ -188,7 +188,7 @@ func SetupFakeClientWithTokenReactor() *fake.Clientset {
 
 func TestAuthRequest(t *testing.T) {
 	// Mock Kubernetes client
-	k8sClient := SetupFakeClientWithTokenReactor()
+	k8sClient := setupFakeClientWithTokenReactor()
 
 	// Create a mock service account with annotations
 	mockSA := &corev1.ServiceAccount{
@@ -237,7 +237,7 @@ func TestAuthRequest(t *testing.T) {
 
 	// Initialize Mock AWSIAMAuth
 	// Initialize AWSIAMAuth
-	auth, err := MockNewIAMAuth(logger, k8sClient, params, "aws")
+	auth, err := mockNewIAMAuth(logger, k8sClient, params, "aws")
 	if err != nil {
 		t.Fatalf("failed to create AWSIAMAuth: %v", err)
 	}
@@ -306,7 +306,7 @@ func TestAuthRequestMissingAnnotations(t *testing.T) {
 	}
 
 	// Initialize AWSIAMAuth
-	auth, err := NewAWSIAMAuth(logger, k8sClient, params, "aws")
+	auth, err := newAWSIAMAuth(logger, k8sClient, params, "aws")
 	if err != nil {
 		t.Fatalf("failed to create AWSIAMAuth: %v", err)
 	}

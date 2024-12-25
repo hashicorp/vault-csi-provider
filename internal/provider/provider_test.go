@@ -231,7 +231,7 @@ func TestHandleMountRequest(t *testing.T) {
 	k8sClient := fake.NewSimpleClientset(
 		&corev1.ServiceAccount{},
 	)
-	authMethod, err := auth.NewKubernetesJWTAuth(hclog.Default(), k8sClient, spcConfig.Parameters, "")
+	authMethod, err := auth.NewAuth(hclog.Default(), k8sClient, spcConfig.Parameters, "")
 	require.NoError(t, err)
 	hmacGenerator := hmac.NewHMACGenerator(k8sClient, &corev1.Secret{})
 	clientCache, err := clientcache.NewClientCache(hclog.Default(), 10)

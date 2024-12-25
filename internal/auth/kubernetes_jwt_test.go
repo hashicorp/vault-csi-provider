@@ -31,7 +31,7 @@ func TestAuthRequestWithExistingToken(t *testing.T) {
 		VaultRoleName: "test-role",
 	}
 
-	auth, err := NewKubernetesJWTAuth(logger, k8sClient, params, "kubernetes")
+	auth, err := newKubernetesJWTAuth(logger, k8sClient, params, "kubernetes")
 	assert.NoError(t, err)
 
 	path, body, _, err := auth.AuthRequest(context.TODO())
@@ -71,7 +71,7 @@ func TestAuthRequestWithGeneratedToken(t *testing.T) {
 		VaultRoleName: "test-role",
 	}
 
-	auth, err := NewKubernetesJWTAuth(logger, k8sClient, params, "kubernetes")
+	auth, err := newKubernetesJWTAuth(logger, k8sClient, params, "kubernetes")
 	assert.NoError(t, err)
 
 	path, body, _, err := auth.AuthRequest(context.TODO())

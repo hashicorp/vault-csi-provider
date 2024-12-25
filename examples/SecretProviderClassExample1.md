@@ -1,4 +1,4 @@
-Below is an example for a SecretProviderClass for Vault with AWS IAM auth method.
+Below is an example for a SecretProviderClass for Vault with Kubernetes auth method.
 
 ```yaml
 apiVersion: v1

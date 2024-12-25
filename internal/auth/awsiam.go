@@ -49,7 +49,7 @@ func setupConfig(params config.Parameters, credentials *credentials.Credentials)
 	}
 	handlers := defaults.Handlers()
 	handlers.Build.PushBack(request.WithAppendUserAgent("vault-csi-provider"))
-	awsConfig := aws.NewConfig().WithEndpointResolver(ResolveEndpoint())
+	awsConfig := aws.NewConfig().WithEndpointResolver(resolveEndpoint())
 	if regionAWS != "" {
 		awsConfig.WithRegion(regionAWS)
 	}
@@ -60,7 +60,7 @@ func setupConfig(params config.Parameters, credentials *credentials.Credentials)
 	return awsConfig
 }
 
-func NewAWSIAMAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath string) (*AWSIAMAuth, error) {
+func newAWSIAMAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath string) (*AWSIAMAuth, error) {
 	// Get an initial session to use for STS calls.
 	awsConfig := setupConfig(params, nil)
 	sess, err := session.NewSession(awsConfig)
@@ -77,7 +77,7 @@ func NewAWSIAMAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params c
 	}, nil
 }
 
-func ResolveEndpointWithServiceMap(customEndpoints map[string]string) endpoints.ResolverFunc {
+func resolveEndpointWithServiceMap(customEndpoints map[string]string) endpoints.ResolverFunc {
 	defaultResolver := endpoints.DefaultResolver()
 	return func(service, region string, opts ...func(*endpoints.Options)) (endpoints.ResolvedEndpoint, error) {
 		if ep, ok := customEndpoints[service]; ok {
@@ -89,14 +89,14 @@ func ResolveEndpointWithServiceMap(customEndpoints map[string]string) endpoints.
 	}
 }
 
-// ResolveEndpoint returns a ResolverFunc with
+// resolveEndpoint returns a ResolverFunc with
 // customizable endpoints.
-func ResolveEndpoint() endpoints.ResolverFunc {
+func resolveEndpoint() endpoints.ResolverFunc {
 	customEndpoints := make(map[string]string)
 	if v := os.Getenv(STSEndpointEnv); v != "" {
 		customEndpoints["sts"] = v
 	}
-	return ResolveEndpointWithServiceMap(customEndpoints)
+	return resolveEndpointWithServiceMap(customEndpoints)
 }
 
 var regexReqIDs = []*regexp.Regexp{
@@ -104,7 +104,7 @@ var regexReqIDs = []*regexp.Regexp{
 	regexp.MustCompile(` Credential=.+`),
 }
 
-func SanitizeErr(err error) error {
+func sanitizeErr(err error) error {
 	msg := err.Error()
 	for _, regex := range regexReqIDs {
 		msg = string(regex.ReplaceAll([]byte(msg), nil))
@@ -181,12 +181,12 @@ func (k *AWSIAMAuth) AuthRequest(ctx context.Context) (path string, body map[str
 
 	sess, err := session.NewSession(awsConfig)
 	if err != nil {
-		return "", nil, nil, SanitizeErr(err)
+		return "", nil, nil, sanitizeErr(err)
 	}
 
 	awsCredentials, err := sess.Config.Credentials.Get()
 	if err != nil {
-		return "", nil, nil, SanitizeErr(err)
+		return "", nil, nil, sanitizeErr(err)
 	}
 
 	credentialsConfig := awsutil.CredentialsConfig{

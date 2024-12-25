@@ -13,11 +13,11 @@ type Auth interface {
 
 func NewAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath string) (Auth, error) {
 	if params.VaultAuth.Type == "kubernetes" || params.VaultAuth.Type == "jwt" {
-		return NewKubernetesJWTAuth(logger, k8sClient, params, defaultMountPath)
+		return newKubernetesJWTAuth(logger, k8sClient, params, defaultMountPath)
 	}
 	if params.VaultAuth.Type == "aws" {
-		return NewAWSIAMAuth(logger, k8sClient, params, defaultMountPath)
+		return newAWSIAMAuth(logger, k8sClient, params, defaultMountPath)
 	}
 	// Default to Kubernetes
-	return NewKubernetesJWTAuth(logger, k8sClient, params, defaultMountPath)
+	return newKubernetesJWTAuth(logger, k8sClient, params, defaultMountPath)
 }

@@ -25,7 +25,7 @@ type KubernetesJWTAuth struct {
 	defaultMountPath string
 }
 
-func NewKubernetesJWTAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath string) (*KubernetesJWTAuth, error) {
+func newKubernetesJWTAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath string) (*KubernetesJWTAuth, error) {
 	return &KubernetesJWTAuth{
 		logger:           logger,
 		k8sClient:        k8sClient,
