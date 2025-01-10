@@ -1,5 +1,10 @@
 ## Unreleased
 
+FEATURES:
+
+* Added support for AWS IAM Auth type.
+
+
 CHANGES:
 
 * Build with Go v1.23.4

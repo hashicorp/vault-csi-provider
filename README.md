@@ -44,6 +44,8 @@ full details of deploying, configuring and using Vault CSI provider. The
 integration tests in [test/bats/provider.bats](./test/bats/provider.bats) also
 provide a good set of fully worked and tested examples to build on.
 
+For details on different SecretProviderClass configurations, see [examples](./examples).
+
 ## Troubleshooting
 
 To troubleshoot issues with Vault CSI provider, look at logs from the Vault CSI

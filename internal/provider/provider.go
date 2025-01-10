@@ -30,12 +30,12 @@ type provider struct {
 	vaultResponseCache map[vaultResponseCacheKey]*api.Secret
 
 	// Allows mocking Kubernetes API for tests.
-	authMethod    *auth.KubernetesJWTAuth
+	authMethod    auth.Auth
 	hmacGenerator *hmacgen.HMACGenerator
 	clientCache   *clientcache.ClientCache
 }
 
-func NewProvider(logger hclog.Logger, authMethod *auth.KubernetesJWTAuth, hmacGenerator *hmacgen.HMACGenerator, clientCache *clientcache.ClientCache) *provider {
+func NewProvider(logger hclog.Logger, authMethod auth.Auth, hmacGenerator *hmacgen.HMACGenerator, clientCache *clientcache.ClientCache) *provider {
 	p := &provider{
 		logger:             logger,
 		vaultResponseCache: make(map[vaultResponseCacheKey]*api.Secret),

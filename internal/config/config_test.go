@@ -145,6 +145,7 @@ func TestParseConfig(t *testing.T) {
 			name:       "set all options",
 			targetPath: targetPath,
 			parameters: map[string]string{
+				"auth":                                     "type: kubernetes",
 				"roleName":                                 "example-role",
 				"vaultSkipTLSVerify":                       "true",
 				"vaultAddress":                             "my-vault-address",
@@ -171,6 +172,10 @@ func TestParseConfig(t *testing.T) {
 					VaultAddress:       "my-vault-address",
 					VaultNamespace:     "my-vault-namespace",
 					VaultAuthMountPath: "my-mount-path",
+					VaultAuth: Auth{
+						Type:      "kubernetes",
+						MouthPath: "my-mount-path",
+					},
 					Secrets: []Secret{
 						{"bar1", "v1/secret/foo1", "", "", nil, 0o600, ""},
 					},

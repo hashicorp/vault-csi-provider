@@ -80,7 +80,7 @@ func overlayConfig(cfg *api.Config, vaultAddr string, tlsConfig api.TLSConfig) e
 // We follow this pattern because we assume Vault Agent is caching and renewing
 // our auth token, and we have no universal way to check it's still valid and
 // in the Agent's cache before making a request.
-func (c *Client) RequestSecret(ctx context.Context, authMethod *auth.KubernetesJWTAuth, secretConfig config.Secret) (*api.Secret, error) {
+func (c *Client) RequestSecret(ctx context.Context, authMethod auth.Auth, secretConfig config.Secret) (*api.Secret, error) {
 	// Ensure we have a token available.
 	authed, err := c.auth(ctx, authMethod, "")
 	if err != nil {
@@ -125,7 +125,7 @@ func (c *Client) RequestSecret(ctx context.Context, authMethod *auth.KubernetesJ
 // authentications so that when a token expires, multiple consumers asking it
 // to reauthenticate at the same time only trigger one new authentication with
 // Vault.
-func (c *Client) auth(ctx context.Context, authMethod *auth.KubernetesJWTAuth, failedToken string) (authed bool, err error) {
+func (c *Client) auth(ctx context.Context, authMethod auth.Auth, failedToken string) (authed bool, err error) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
@@ -136,9 +136,15 @@ func (c *Client) auth(ctx context.Context, authMethod *auth.KubernetesJWTAuth, f
 	}
 
 	c.logger.Debug("performing vault login")
-	path, body, err := authMethod.AuthRequest(ctx)
+	path, body, additionalHeaders, err := authMethod.AuthRequest(ctx)
 	if err != nil {
 		return false, err
+	}
+
+	if len(additionalHeaders) > 0 {
+		for k, v := range additionalHeaders {
+			c.inner.AddHeader(k, v)
+		}
 	}
 
 	req := c.inner.NewRequest(http.MethodPost, path)

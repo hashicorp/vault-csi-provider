@@ -53,7 +53,10 @@ func (s *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResp
 		return nil, err
 	}
 
-	authMethod := auth.NewKubernetesJWTAuth(s.logger.Named("auth"), s.k8sClient, cfg.Parameters, s.flagsConfig.VaultMount)
+	authMethod, err := auth.NewAuth(s.logger.Named("auth"), s.k8sClient, cfg.Parameters, s.flagsConfig.VaultMount)
+	if err != nil {
+		return nil, fmt.Errorf("error creating auth method: %w", err)
+	}
 	provider := provider.NewProvider(s.logger.Named("provider"), authMethod, s.hmacGenerator, s.clientCache)
 	resp, err := provider.HandleMountRequest(ctx, cfg, s.flagsConfig)
 	if err != nil {
