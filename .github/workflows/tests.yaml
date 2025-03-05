@@ -16,7 +16,7 @@ jobs:
     outputs:
       # JSON encoded array of k8s versions.
       K8S_VERSIONS: '["1.32.2", "1.31.6", "1.30.10", "1.29.14", "1.28.15"]'
-      VAULT_N: "1.19.0-rc1"
+      VAULT_N: "1.19.0"
       VAULT_N_1: "1.18.5"
       VAULT_N_2: "1.17.12"
       VAULT_LTS_1: "1.16.16"
