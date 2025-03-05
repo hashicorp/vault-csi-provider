@@ -2,16 +2,17 @@
 
 CHANGES:
 
-* Build with Go v1.23.6
+* Build with Go v1.23.7
 * Test with K8s 1.28-1.32
 * Updated Docker base image from alpine 3.20.2 -> 3.21.0
 * Updated dependencies:
   * github.com/hashicorp/vault/api v1.14.0 -> v1.16.0
-  * golang.org/x/crypto v0.26.0 => v0.32.0
+  * golang.org/x/crypto v0.26.0 => v0.36.0
   * golang.org/x/net v0.28.0 => v0.34.0
-  * golang.org/x/sys v0.24.0 => v0.29.0
-  * golang.org/x/term v0.23.0 => v0.28.0
-  * golang.org/x/text v0.17.0 => v0.21.0
+  * golang.org/x/oauth2 v0.20.0 => v0.28.0
+  * golang.org/x/sys v0.24.0 => v0.31.0
+  * golang.org/x/term v0.23.0 => v0.30.0
+  * golang.org/x/text v0.17.0 => v0.23.0
   * google.golang.org/grpc v1.65.0 -> v1.70.0
   * k8s.io/api v0.30.3 -> v0.32.2
   * k8s.io/apimachinery v0.30.3 -> v0.32.2
