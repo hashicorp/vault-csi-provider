@@ -2,8 +2,8 @@
 
 CHANGES:
 
-* Build with Go v1.23.4
-* Test with K8s 1.27-1.31
+* Build with Go v1.23.6
+* Test with K8s 1.28-1.32
 * Updated Docker base image from alpine 3.20.2 -> 3.21.0
 * Updated dependencies:
   * github.com/hashicorp/vault/api v1.14.0 -> v1.15.0

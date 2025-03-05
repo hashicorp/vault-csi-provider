@@ -3,8 +3,8 @@ name: Tests
 on: [push, workflow_dispatch]
 
 env:
-  KIND_VERSION: "v0.25.0"
-  BATS_VERSION: "1.11.0"
+  KIND_VERSION: "v0.27.0"
+  BATS_VERSION: "1.11.1"
   NODE_VERSION: "19.8.1"
   TARBALL_FILE: vault-csi-provider.docker.tar
 
@@ -15,10 +15,11 @@ jobs:
       - run: echo "setting versions"
     outputs:
       # JSON encoded array of k8s versions.
-      K8S_VERSIONS: '["1.31.2", "1.30.6", "1.29.10", "1.28.15", "1.27.16"]'
-      VAULT_N: "1.18.1"
-      VAULT_N_1: "1.17.6"
-      VAULT_N_2: "1.16.3"
+      K8S_VERSIONS: '["1.32.2", "1.31.6", "1.30.10", "1.29.14", "1.28.15"]'
+      VAULT_N: "1.19.0-rc1"
+      VAULT_N_1: "1.18.5"
+      VAULT_N_2: "1.17.12"
+      VAULT_LTS_1: "1.16.16"
   copyright:
     uses: hashicorp/vault-workflows-common/.github/workflows/copyright-headers.yaml@main
   go-checks:
@@ -72,6 +73,7 @@ jobs:
         matrix:
           vault-version:
             - ${{ needs.versions.outputs.VAULT_N }}
+            - ${{ needs.versions.outputs.VAULT_LTS_1 }}
           k8s-version: ${{ fromJson(needs.versions.outputs.K8S_VERSIONS) }}
 
     steps:
