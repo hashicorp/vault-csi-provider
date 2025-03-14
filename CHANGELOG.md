@@ -14,7 +14,7 @@ CHANGES:
   * golang.org/x/sys v0.23.0 => v0.31.0
   * golang.org/x/term v0.23.0 => v0.30.0
   * golang.org/x/text v0.17.0 => v0.23.0
-  * google.golang.org/grpc v1.65.0 -> v1.70.0
+  * google.golang.org/grpc v1.65.0 -> v1.71.0
   * k8s.io/api v0.30.3 -> v0.32.2
   * k8s.io/apimachinery v0.30.3 -> v0.32.2
   * k8s.io/client-go v0.30.3 -> v0.32.2
