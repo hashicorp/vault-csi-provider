@@ -16,9 +16,9 @@ PKG=github.com/hashicorp/vault-csi-provider/internal/version
 LDFLAGS?="-X '$(PKG).BuildVersion=$(VERSION)' \
 	-X '$(PKG).BuildDate=$(BUILD_DATE)' \
 	-X '$(PKG).GoVersion=$(shell go version)'"
-CSI_DRIVER_VERSION=1.4.6
+CSI_DRIVER_VERSION=1.4.8
 VAULT_HELM_VERSION=0.29.1
-VAULT_VERSION=1.18.1
+VAULT_VERSION=1.19.0
 GOLANGCI_LINT_FORMAT?=colored-line-number
 
 VAULT_VERSION_ARGS=--set server.image.tag=$(VAULT_VERSION) --set csi.agent.image.tag=$(VAULT_VERSION)
@@ -26,7 +26,9 @@ ifdef VAULT_LICENSE
 	VAULT_VERSION_ARGS=--set server.image.repository=docker.mirror.hashicorp.services/hashicorp/vault-enterprise \
 		--set server.image.tag=$(VAULT_VERSION)-ent \
 		--set server.enterpriseLicense.secretName=vault-ent-license \
-		--set csi.agent.image.tag=$(VAULT_VERSION)
+		--set csi.agent.image.repository=docker.mirror.hashicorp.services/hashicorp/vault-enterprise \
+		--set csi.agent.image.tag=$(VAULT_VERSION)-ent
+
 endif
 
 .PHONY: default build test bootstrap fmt lint image e2e-image e2e-setup e2e-teardown e2e-test mod setup-kind promote-staging-manifest copyright clean
