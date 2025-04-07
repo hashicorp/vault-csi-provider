@@ -7,7 +7,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/hashicorp/vault/api v1.16.0
 	github.com/stretchr/testify v1.10.0
-	google.golang.org/grpc v1.71.0
+	google.golang.org/grpc v1.71.1
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
