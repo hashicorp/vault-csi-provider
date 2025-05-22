@@ -74,6 +74,8 @@ func realMain(logger hclog.Logger) error {
 	flag.StringVar(&flags.VaultMount, "vault-mount", "kubernetes", "Default Vault mount path for authentication. Can refer to a Kubernetes or JWT auth mount.")
 	flag.StringVar(&flags.VaultNamespace, "vault-namespace", "", "Default Vault namespace for Vault requests. Can also be specified via the VAULT_NAMESPACE environment variable.")
 
+	flag.StringVar(&flags.Audience, "audience", "", "Default audience when generating a service account token. If not set, the token audiences will default to the Kubernetes cluster's default API audiences.")
+
 	flag.StringVar(&flags.TLSCACertPath, "vault-tls-ca-cert", "", "Path on disk to a single PEM-encoded CA certificate to trust for Vault. Takes precendence over -vault-tls-ca-directory. Can also be specified via the VAULT_CACERT environment variable.")
 	flag.StringVar(&flags.TLSCADirectory, "vault-tls-ca-directory", "", "Path on disk to a directory of PEM-encoded CA certificates to trust for Vault. Can also be specified via the VAULT_CAPATH environment variable.")
 	flag.StringVar(&flags.TLSServerName, "vault-tls-server-name", "", "Name to use as the SNI host when connecting to Vault via TLS. Can also be specified via the VAULT_TLS_SERVER_NAME environment variable.")
