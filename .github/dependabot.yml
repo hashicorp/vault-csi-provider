@@ -5,6 +5,10 @@ updates:
   schedule:
       interval: "weekly"
   groups:
-    actions:
-      patterns:
-        - "*"      
+    github-actions-breaking:
+      update-types:
+        - major
+    github-actions-backward-compatible:
+      update-types:
+        - minor
+        - patch
