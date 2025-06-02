@@ -17,13 +17,13 @@ RUN go build -o vault-csi-provider
 
 # dev runs the binary from devbuild
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/alpine:3.21.3 AS dev
+FROM docker.mirror.hashicorp.services/alpine:3.22.0 AS dev
 COPY --from=devbuild /build/vault-csi-provider /bin/
 ENTRYPOINT [ "/bin/vault-csi-provider" ]
 
 # Default release image.
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/alpine:3.21.3 AS default
+FROM docker.mirror.hashicorp.services/alpine:3.22.0 AS default
 
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
