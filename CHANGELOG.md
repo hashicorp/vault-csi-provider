@@ -2,7 +2,7 @@
 
 CHANGES:
 
-* Build with Go v1.23.7
+* Build with Go v1.24.4
 * Test with K8s 1.28-1.32
 * Test with Vault 1.16-1.19
 * Updated Docker base image from alpine 3.20.2 -> 3.21.0
