@@ -80,6 +80,8 @@ You can then run the additional checks:
 make fmt lint mod
 ```
 
+## Testing
+
 To run a full set of integration tests on a local kind cluster, ensure you have
 the following additional dependencies installed:
 
@@ -100,3 +102,29 @@ Finally tidy up the resources created in the kind cluster with:
 ```bash
 make e2e-teardown
 ```
+
+### OpenShift
+
+To test on OpenShift, install the [Secrets Store CSI Driver
+Operator][csi-operator-github], and follow the
+[instructions][install-csi-operator] to create a `ClusterCSIDriver` instance.
+You can then run:
+
+```bash
+make ci-build e2e-image-ubi GOOS=linux GOOS=arm64
+
+# tag the e2e image and upload it somewhere accessible from OpenShift
+docker tag e2e/vault-csi-provider:latest <image:tag>
+docker push <image:tag>
+
+make e2e-setup-openshift e2e-test EXTRA_VAULT_VALUES="--set csi.image.repository=<image>,csi.image.tag=<tag>,csi.daemonSet.securityContext.container.privileged=true"
+```
+
+Finally tidy up the resources created in the OpenShift cluster with:
+
+```bash
+make e2e-teardown-openshift
+```
+
+[csi-operator-github]: https://github.com/openshift/secrets-store-csi-driver-operator
+[install-csi-operator]: https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/storage/using-container-storage-interface-csi#persistent-storage-csi-secrets-store-driver-install_persistent-storage-csi-secrets-store

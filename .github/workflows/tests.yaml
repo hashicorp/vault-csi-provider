@@ -7,6 +7,8 @@ env:
   BATS_VERSION: "1.11.1"
   NODE_VERSION: "19.8.1"
   TARBALL_FILE: vault-csi-provider.docker.tar
+  UBI_ARTIFACT: vault-csi-provider-ubi
+  UBI_TARBALL_FILE: vault-csi-provider-ubi.docker.tar
 
 jobs:
   versions:
@@ -110,3 +112,51 @@ jobs:
           vault-version: ${{ matrix.vault-version }}
           tarball-file: ${{ needs.build-and-test.outputs.TARBALL_FILE }}
           vault-license: ${{ secrets.VAULT_LICENSE_CI }}
+
+  build-ubi:
+    runs-on: ubuntu-latest
+    outputs:
+      ARTIFACT_NAME: ${{ env.UBI_ARTIFACT }}
+      TARBALL_FILE: ${{ env.UBI_TARBALL_FILE }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
+        with:
+          go-version-file: .go-version
+
+      - name: Build
+        run: |
+          make ci-build e2e-image-ubi
+          docker save --output "${UBI_TARBALL_FILE}" e2e/vault-csi-provider:latest
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ env.UBI_ARTIFACT }}
+          path: ${{ env.UBI_TARBALL_FILE }}
+
+  ubi-smoke-test:
+    name: ubi vault:${{ matrix.vault-version }} kind:${{ matrix.k8s-version }}
+    needs:
+      - versions
+      - lint
+      - build-ubi
+    strategy:
+      fail-fast: false
+      matrix:
+        k8s-version:
+          - ${{ fromJson(needs.versions.outputs.K8S_VERSIONS)[0] }}
+        vault-version:
+          - ${{ needs.versions.outputs.VAULT_N }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: ./.github/actions/integration-test
+        name: ubi vault:${{ matrix.vault-version }} kind:${{ matrix.k8s-version }}
+        with:
+          k8s-version: ${{ matrix.k8s-version }}
+          vault-version: ${{ matrix.vault-version }}
+          artifact-name: ${{ needs.build-ubi.outputs.ARTIFACT_NAME }}
+          image-type: ubi
+          tarball-file: ${{ needs.build-ubi.outputs.TARBALL_FILE }}
+          vault-license: ${{ secrets.VAULT_LICENSE_CI }}
+          extra-vault-values: "--set csi.daemonSet.securityContext.container.runAsUser=0"

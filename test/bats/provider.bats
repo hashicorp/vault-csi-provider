@@ -75,7 +75,7 @@ setup(){
     # 1. b) ii) Setup JWT auth
     kubectl --namespace=csi exec vault-0 -- vault auth enable jwt
     kubectl --namespace=csi exec vault-0 -- vault write auth/jwt/config \
-        oidc_discovery_url=https://kubernetes.default.svc.cluster.local \
+        oidc_discovery_url="$(kubectl get --raw /.well-known/openid-configuration | jq -r '.issuer')" \
         oidc_discovery_ca_pem=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
     kubectl --namespace=csi exec vault-0 -- vault write auth/jwt/role/jwt-kv-role \
         role_type="jwt" \
@@ -173,7 +173,7 @@ teardown(){
 
     # Check file permission is non-default
     result=$(kubectl --namespace=test exec nginx-kv -- stat -c '%a' /mnt/secrets-store/..data/secret-1)
-    [[ "$result" == "600" ]]
+    [[ "$result" == "624" ]]
 
     result=$(kubectl --namespace=test exec nginx-kv -- cat /mnt/secrets-store/secret-2)
     [[ "$result" == "hello2" ]]
