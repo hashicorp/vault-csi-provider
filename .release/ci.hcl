@@ -7,13 +7,12 @@ project "vault-csi-provider" {
   team = "vault"
   slack {
     // #vault-releases channel
-    # notification_channel = "C03RXFX5M4L" // #feed-vault-releases
-    notification_channel = "DS0KK2QGH" //TODO(tvoran): remove after testing
+    notification_channel = "C03RXFX5M4L" // #feed-vault-releases
   }
   github {
     organization = "hashicorp"
     repository = "vault-csi-provider"
-    release_branches = ["main", "VAULT-38224/ubi-image"] //TODO(tvoran): remove after testing
+    release_branches = ["main"]
   }
 }
 
