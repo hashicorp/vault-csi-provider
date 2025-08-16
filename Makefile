@@ -167,6 +167,9 @@ e2e-teardown-openshift:
 e2e-test:
 	bats test/bats/provider.bats
 
+e2e-test-openshift:
+	make e2e-test OPENSHIFT=true
+
 mod:
 	@go mod tidy
 

@@ -38,7 +38,7 @@ LABEL name="Vault CSI Provider" \
       release=$PRODUCT_VERSION \
       revision=$PRODUCT_REVISION \
       org.opencontainers.image.licenses="BUSL-1.1" \
-      summary="HashiCorp Vault Provider for Secret Store CSI Driver for Kubernetes" \
+      summary="HashiCorp Vault Provider for Secrets Store CSI Driver for Kubernetes" \
       description="Provides a CSI provider for Kubernetes to interact with HashiCorp Vault."
 
 RUN set -eux && \
@@ -74,7 +74,7 @@ LABEL name="Vault CSI Provider" \
       release=$PRODUCT_VERSION \
       revision=$PRODUCT_REVISION \
       org.opencontainers.image.licenses="BUSL-1.1" \
-      summary="HashiCorp Vault Provider for Secret Store CSI Driver for Kubernetes" \
+      summary="HashiCorp Vault Provider for Secrets Store CSI Driver for Kubernetes" \
       description="A Secrets Store CSI provider for Kubernetes to interact with HashiCorp Vault."
 
 WORKDIR /

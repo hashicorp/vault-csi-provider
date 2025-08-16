@@ -111,7 +111,7 @@ Operator][csi-operator-github], and follow the
 You can then run:
 
 ```bash
-make ci-build e2e-image-ubi GOOS=linux GOOS=arm64
+make ci-build e2e-image-ubi GOOS=linux GOARCH=arm64
 
 # tag the e2e image and upload it somewhere accessible from OpenShift
 docker tag e2e/vault-csi-provider:latest <image:tag>
