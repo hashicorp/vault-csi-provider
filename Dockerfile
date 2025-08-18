@@ -31,7 +31,7 @@ ARG PRODUCT_NAME=vault-csi-provider
 ARG TARGETOS
 ARG TARGETARCH
 
-LABEL name="Vault CSI Provider" \
+LABEL name="Vault Secrets Store CSI Provider" \
       maintainer="Vault Team <vault@hashicorp.com>" \
       vendor="HashiCorp" \
       version=$PRODUCT_VERSION \
@@ -67,7 +67,7 @@ ARG PRODUCT_NAME=$BIN_NAME
 # TARGETARCH and TARGETOS are set automatically when --platform is provided.
 ARG TARGETOS TARGETARCH
 
-LABEL name="Vault CSI Provider" \
+LABEL name="Vault Secrets Store CSI Provider" \
       maintainer="Vault Team <vault@hashicorp.com>" \
       vendor="HashiCorp" \
       version=$PRODUCT_VERSION \

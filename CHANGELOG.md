@@ -50,8 +50,8 @@ CHANGES:
   * k8s.io/client-go v0.30.2 -> v0.30.3
   * golang.org/x/crypto v0.24.0 -> v0.26.0
   * golang.org/x/net v0.26.0 -> v0.28.0
-  * golang.org/x/sys v0.21.0 -> v0.23.0 
-  * golang.org/x/term v0.21.0 -> v0.23.0 
+  * golang.org/x/sys v0.21.0 -> v0.23.0
+  * golang.org/x/term v0.21.0 -> v0.23.0
   * golang.org/x/text v0.16.0 -> v0.17.0
 
 ## 1.4.3 (July 3rd, 2024)
@@ -133,14 +133,14 @@ FEATURES:
 
 CHANGES:
 
-* Vault CSI Provider will use service account tokens passed from the Secrets Store CSI Driver instead of generating one if an appropriate token is provided. [[GH-163](https://github.com/hashicorp/vault-csi-provider/pull/163)]
-  * The Secrets Store CSI driver needs to be configured to generate tokens with the correct audience for this feature. Vault CSI Provider
+* Vault Secrets Store CSI Provider will use service account tokens passed from the Secrets Store CSI Driver instead of generating one if an appropriate token is provided. [[GH-163](https://github.com/hashicorp/vault-csi-provider/pull/163)]
+  * The Secrets Store CSI driver needs to be configured to generate tokens with the correct audience for this feature. Vault Secrets Store CSI Provider
     will look for a token with the audience specified in the SecretProviderClass, or otherwise "vault". To configure the driver to generate
     a token with the correct audience, use the
     [`tokenRequests`](https://github.com/kubernetes-sigs/secrets-store-csi-driver/tree/main/charts/secrets-store-csi-driver#configuration)
     option from the _driver_ helm chart via the flag `--set tokenRequests[0].audience="vault"`. See
     [CSI TokenRequests documentation](https://kubernetes-csi.github.io/docs/token-requests.html) for further details.
-* Vault CSI Provider now creates a Kubernetes secret with an HMAC key to produce consistent hashes for secret versions. [[GH-198](https://github.com/hashicorp/vault-csi-provider/pull/198)]
+* Vault Secrets Store CSI Provider now creates a Kubernetes secret with an HMAC key to produce consistent hashes for secret versions. [[GH-198](https://github.com/hashicorp/vault-csi-provider/pull/198)]
   * Requires RBAC permissions to create secrets, and read the same specific secret back. Versions are not generated otherwise and a warning
     is logged on each mount that fails to generate a version.
   * Supports creating the secret with custom name via `-hmac-secret-name`
