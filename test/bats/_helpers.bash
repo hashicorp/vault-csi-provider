@@ -15,9 +15,11 @@ wait_for_success() {
 
 setup_postgres() {
     # Setup postgres, pulling the image first to help avoid CI timeouts.
-    POSTGRES_IMAGE="$(awk '/image:/{print $NF}' $CONFIGS/postgres.yaml)"
-    docker pull "${POSTGRES_IMAGE}"
-    kind load docker-image "${POSTGRES_IMAGE}"
+    if [ -z "${OPENSHIFT}" ]; then
+        POSTGRES_IMAGE="$(awk '/image:/{print $NF}' $CONFIGS/postgres.yaml)"
+        docker pull "${POSTGRES_IMAGE}"
+        kind load docker-image "${POSTGRES_IMAGE}"
+    fi
     POSTGRES_PASSWORD=$(openssl rand -base64 30)
     kubectl --namespace=test create secret generic postgres-root \
         --from-literal=POSTGRES_USER="root" \

@@ -1,7 +1,7 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-# Values file for vaul-helm chart.
+# Values file for vault-helm chart.
 global:
   tlsDisable: false
 
@@ -55,6 +55,8 @@ csi:
     - -vault-tls-client-cert=/mnt/tls/client.crt
     - -vault-tls-client-key=/mnt/tls/client.key
 
+  daemonSet:
+    providersDir: "/var/run/secrets-store-csi-providers"
   image:
     repository: "e2e/vault-csi-provider"
     tag: "latest"

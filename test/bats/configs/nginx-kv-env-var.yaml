@@ -25,9 +25,8 @@ spec:
     spec:
       serviceAccountName: nginx-kv
       terminationGracePeriodSeconds: 0
-      terminationGracePeriodSeconds: 0
       containers:
-      - image: docker.mirror.hashicorp.services/nginx
+      - image: docker.mirror.hashicorp.services/nginxinc/nginx-unprivileged
         name: nginx
         env:
         - name: SECRET_USERNAME

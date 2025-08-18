@@ -14,7 +14,7 @@ spec:
   serviceAccountName: nginx-{{ .Values.sa }}
   terminationGracePeriodSeconds: 0
   containers:
-  - image: docker.mirror.hashicorp.services/nginx
+  - image: docker.mirror.hashicorp.services/nginxinc/nginx-unprivileged
     imagePullPolicy: IfNotPresent
     name: nginx
     volumeMounts:

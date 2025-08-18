@@ -1,5 +1,14 @@
 ## Unreleased
 
+CHANGES:
+
+* Build with Go v1.24.6
+* Use "/var/run/secrets-store-csi-providers" for the provider hostPath volume
+
+FEATURES:
+
+* Add UBI-based image to build and testing [[GH-382](https://github.com/hashicorp/vault-csi-provider/pull/382)]
+
 ## 1.5.1 (July 14th, 2025)
 
 CHANGES:

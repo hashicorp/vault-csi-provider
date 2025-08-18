@@ -87,7 +87,7 @@ jobs:
           path: ${{ steps.build-binary.outputs.path }}
 
   build-docker:
-    name: Docker ${{ matrix.arch }} build
+    name: Docker alpine ${{ matrix.arch }} build
     needs:
       - get-product-version
       - build
@@ -110,3 +110,28 @@ jobs:
           tags: |
             docker.io/hashicorp/${{env.repo}}:${{env.version}}
             public.ecr.aws/hashicorp/${{env.repo}}:${{env.version}}
+
+  build-ubi:
+    name: Docker UBI ${{ matrix.arch }} build
+    needs:
+      - get-product-version
+      - build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: ["arm64", "amd64"]
+    env:
+      repo: ${{github.event.repository.name}}
+      version: ${{needs.get-product-version.outputs.product-version}}
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Docker Build (Action)
+        uses: hashicorp/actions-docker-build@v2
+        with:
+          version: ${{env.version}}
+          target: release-ubi
+          arch: ${{matrix.arch}}
+          redhat_tag: quay.io/redhat-isv-containers/68961b49ae4b51ff35f52b77:${{env.version}}-ubi
+          tags: |
+            docker.io/hashicorp/${{env.repo}}:${{env.version}}-ubi
