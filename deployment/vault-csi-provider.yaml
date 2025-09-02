@@ -88,7 +88,7 @@ spec:
       tolerations:
       containers:
         - name: provider-vault-installer
-          image: hashicorp/vault-csi-provider:1.5.0
+          image: hashicorp/vault-csi-provider:1.6.0
           imagePullPolicy: Always
           args:
             - -endpoint=/provider/vault.sock
@@ -126,6 +126,6 @@ spec:
       volumes:
         - name: providervol
           hostPath:
-            path: "/etc/kubernetes/secrets-store-csi-providers"
+            path: "/var/run/secrets-store-csi-providers"
       nodeSelector:
         kubernetes.io/os: linux

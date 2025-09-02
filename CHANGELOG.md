@@ -1,9 +1,19 @@
 ## Unreleased
 
+## 1.6.0 (September 3rd, 2025)
+
 CHANGES:
 
 * Build with Go v1.24.6
-* Use "/var/run/secrets-store-csi-providers" for the provider hostPath volume
+* Use "/var/run/secrets-store-csi-providers" for the provider hostPath volume in the deployment manifest
+* Updated Docker base image from alpine 3.22.0 -> 3.22.1
+* Updated dependencies
+  * github.com/stretchr/testify v1.10.0 -> v1.11.0
+  * google.golang.org/grpc v1.73.0 -> v1.75.0
+  * k8s.io/api v0.33.2 -> v0.33.4
+  * k8s.io/apimachinery v0.33.2 -> v0.33.4
+  * k8s.io/client-go v0.33.2 -> v0.33.4
+  * sigs.k8s.io/secrets-store-csi-driver v1.5.2 -> v1.5.3
 
 FEATURES:
 
