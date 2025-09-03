@@ -4,7 +4,7 @@
 
 CHANGES:
 
-* Build with Go v1.24.6
+* Build with Go v1.24.7
 * Use "/var/run/secrets-store-csi-providers" for the provider hostPath volume in the deployment manifest
 * Updated Docker base image from alpine 3.22.0 -> 3.22.1
 * Updated dependencies
