@@ -88,7 +88,7 @@ spec:
       tolerations:
       containers:
         - name: provider-vault-installer
-          image: hashicorp/vault-csi-provider:1.5.1
+          image: hashicorp/vault-csi-provider:1.6.0
           imagePullPolicy: Always
           args:
             - -endpoint=/provider/vault.sock
