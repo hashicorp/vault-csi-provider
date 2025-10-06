@@ -1,11 +1,11 @@
 module github.com/hashicorp/vault-csi-provider
 
-go 1.24.0
+go 1.24.7
 
 require (
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/hashicorp/vault/api v1.21.0
+	github.com/hashicorp/vault/api v1.22.0
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/grpc v1.75.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -13,7 +13,7 @@ require (
 	k8s.io/apimachinery v0.34.1
 	k8s.io/client-go v0.34.1
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
-	sigs.k8s.io/secrets-store-csi-driver v1.5.3
+	sigs.k8s.io/secrets-store-csi-driver v1.5.4
 )
 
 require (
