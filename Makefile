@@ -38,7 +38,7 @@ ifdef OPENSHIFT
 	OPENSHIFT_VAULT_VALUES=--set global.openshift=true
 endif
 
-.PHONY: default build test bootstrap fmt lint image e2e-image e2e-setup e2e-teardown e2e-test mod setup-kind promote-staging-manifest copyright clean test-log-format test-log-format-text test-log-format-both test-log-format-deploy test-log-format-cleanup
+.PHONY: default build test bootstrap fmt lint image e2e-image e2e-setup e2e-teardown e2e-test mod setup-kind promote-staging-manifest test-log-format copyright clean 
 
 GO111MODULE?=on
 export GO111MODULE
