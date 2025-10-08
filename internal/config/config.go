@@ -31,6 +31,7 @@ type FlagsConfig struct {
 	Endpoint   string
 	Debug      bool
 	LogLevel   string
+	LogFormat  string
 	Version    bool
 	HealthAddr string
 

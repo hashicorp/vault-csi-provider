@@ -38,7 +38,7 @@ ifdef OPENSHIFT
 	OPENSHIFT_VAULT_VALUES=--set global.openshift=true
 endif
 
-.PHONY: default build test bootstrap fmt lint image e2e-image e2e-setup e2e-teardown e2e-test mod setup-kind promote-staging-manifest copyright clean
+.PHONY: default build test bootstrap fmt lint image e2e-image e2e-setup e2e-teardown e2e-test mod setup-kind promote-staging-manifest copyright clean test-log-format test-log-format-text test-log-format-both test-log-format-deploy test-log-format-cleanup
 
 GO111MODULE?=on
 export GO111MODULE
@@ -182,3 +182,37 @@ copyright:
 
 clean:
 	-rm -rf $(BUILD_DIR)
+
+# Test log format: JSON and TEXT
+test-log-format: e2e-image
+	@echo "==> Testing log formats..."
+	@kind load docker-image e2e/vault-csi-provider:latest 2>&1 | grep -v "Image.*already exists" || true
+	@echo "  → Testing JSON format..."
+	@sed 's/LOG_FORMAT_PLACEHOLDER/json/g' test/bats/configs/vault-csi-provider-test.yaml | kubectl apply -f - > /dev/null
+	@kubectl wait --namespace=csi --for=condition=Ready --timeout=60s pod -l app=vault-csi-provider > /dev/null 2>&1 || true
+	@sleep 2
+	@kubectl logs --namespace=csi -l app=vault-csi-provider --tail=3
+	@if kubectl logs --namespace=csi -l app=vault-csi-provider --tail=5 | grep -q '"@level"'; then \
+		echo "  ✅ JSON format OK"; \
+	else \
+		echo "  ❌ JSON format FAILED"; exit 1; \
+	fi
+	@kubectl delete daemonset vault-csi-provider -n csi > /dev/null 2>&1
+	@sleep 2
+	@echo "  → Testing TEXT format..."
+	@sed 's/LOG_FORMAT_PLACEHOLDER/text/g' test/bats/configs/vault-csi-provider-test.yaml | kubectl apply -f - > /dev/null
+	@kubectl wait --namespace=csi --for=condition=Ready --timeout=60s pod -l app=vault-csi-provider > /dev/null 2>&1 || true
+	@sleep 2
+	@kubectl logs --namespace=csi -l app=vault-csi-provider --tail=3
+	@if kubectl logs --namespace=csi -l app=vault-csi-provider --tail=5 | grep -q '\[INFO\]'; then \
+		echo "  ✅ TEXT format OK"; \
+	else \
+		echo "  ❌ TEXT format FAILED"; exit 1; \
+	fi
+	@$(MAKE) test-log-format-cleanup
+	@echo "✅ All tests passed!"
+
+# Cleanup test resources
+test-log-format-cleanup:
+	@kubectl delete daemonset vault-csi-provider -n csi --ignore-not-found=true > /dev/null 2>&1
+	@kubectl delete serviceaccount vault-csi-provider -n csi --ignore-not-found=true > /dev/null 2>&1

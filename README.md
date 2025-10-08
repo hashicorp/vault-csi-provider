@@ -97,13 +97,26 @@ the following additional dependencies installed:
 You can then run:
 
 ```bash
-make setup-kind e2e-image e2e-setup e2e-test
+make setup-kind e2e-image e2e-setup e2e-test 
 ```
 
 Finally tidy up the resources created in the kind cluster with:
 
 ```bash
 make e2e-teardown
+```
+
+### Logs format 
+
+Test both formats json/text (auto cleanup)
+
+```bash
+make test-log-format
+```
+
+Manual cleanup if needed
+```bash
+make test-log-format-cleanup
 ```
 
 ### OpenShift
