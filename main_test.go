@@ -78,12 +78,12 @@ func TestSetupLoggerFormat(t *testing.T) {
 		},
 		{
 			name:         "explicit text format",
-			flags:        config.FlagsConfig{LogLevel: "info", LogFormat: "text"},
+			flags:        config.FlagsConfig{LogLevel: "trace", LogFormat: "text"},
 			expectedJSON: false,
 		},
 		{
 			name:         "json format",
-			flags:        config.FlagsConfig{LogLevel: "info", LogFormat: "json"},
+			flags:        config.FlagsConfig{LogLevel: "debug", LogFormat: "json"},
 			expectedJSON: true,
 		},
 		{
@@ -93,7 +93,7 @@ func TestSetupLoggerFormat(t *testing.T) {
 		},
 		{
 			name:         "TEXT format uppercase",
-			flags:        config.FlagsConfig{LogLevel: "info", LogFormat: "TEXT"},
+			flags:        config.FlagsConfig{LogLevel: "error", LogFormat: "TEXT"},
 			expectedJSON: false,
 		},
 	}
@@ -102,7 +102,7 @@ func TestSetupLoggerFormat(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Capture logger output
 			var buf bytes.Buffer
-			tt.flags.LogLevel = "info" // Ensure we log something
+			tt.flags.LogLevel = "trace" // Ensure we log something
 
 			// We can't easily intercept setupLogger's output,
 			// so we'll test the logger it returns by writing a log
