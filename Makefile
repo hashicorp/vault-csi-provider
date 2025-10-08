@@ -212,7 +212,3 @@ test-log-format: e2e-image
 	@$(MAKE) test-log-format-cleanup
 	@echo "✅ All tests passed!"
 
-# Cleanup test resources
-test-log-format-cleanup:
-	@kubectl delete daemonset vault-csi-provider -n csi --ignore-not-found=true > /dev/null 2>&1
-	@kubectl delete serviceaccount vault-csi-provider -n csi --ignore-not-found=true > /dev/null 2>&1

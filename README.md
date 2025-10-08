@@ -114,11 +114,6 @@ Test both formats json/text (auto cleanup)
 make test-log-format
 ```
 
-Manual cleanup if needed
-```bash
-make test-log-format-cleanup
-```
-
 ### OpenShift
 
 To test on OpenShift, install the [Secrets Store CSI Driver
