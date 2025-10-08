@@ -114,6 +114,13 @@ Test both formats json/text (auto cleanup)
 make test-log-format
 ```
 
+Json format output example 
+```bash 
+{"@level":"info","@message":"Logger initialized","@module":"vault-csi-provider","@timestamp":"2025-10-07T23:14:08.986Z","format":"json","level":"info"}
+{"@level":"info","@message":"Creating new gRPC server","@module":"vault-csi-provider","@timestamp":"2025-10-07T23:14:08.987Z"}
+{"@level":"info","@message":"Processing unary gRPC call","grpc.method":"/v1alpha1.CSIDriverProvider/MountSecretsStoreObjectContent","@timestamp":"..."}
+```
+
 ### OpenShift
 
 To test on OpenShift, install the [Secrets Store CSI Driver
