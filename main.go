@@ -38,7 +38,7 @@ const (
 func main() {
 	err := realMain()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error running provider: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error running provider: %v\n", err)
 		os.Exit(1)
 	}
 }

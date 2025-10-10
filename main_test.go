@@ -122,7 +122,7 @@ func TestSetupLoggerFormat(t *testing.T) {
 
 			if tt.expectedJSON {
 				// Verify it's valid JSON
-				var logEntry map[string]interface{}
+				var logEntry map[string]any
 				err := json.Unmarshal([]byte(output), &logEntry)
 				require.NoError(t, err, "expected valid JSON output")
 				require.Equal(t, "test message", logEntry["@message"])
