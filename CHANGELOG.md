@@ -1,5 +1,9 @@
 ## Unreleased
 
+CHANGES:
+
+* Build with Go v1.25.3
+
 ## 1.6.0 (September 3rd, 2025)
 
 CHANGES:
