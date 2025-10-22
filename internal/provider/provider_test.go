@@ -236,7 +236,7 @@ func TestHandleMountRequest(t *testing.T) {
 	clientCache, err := clientcache.NewClientCache(hclog.Default(), 10)
 	require.NoError(t, err)
 	// While we hit the cache, the secret contents and versions should remain the same.
-	provider := NewProvider(hclog.Default(), authMethod, hmacGenerator, clientCache)
+	provider := NewProvider(hclog.Default(), authMethod, hmacGenerator, clientCache, 0)
 	for i := 0; i < 3; i++ {
 		resp, err := provider.HandleMountRequest(context.Background(), spcConfig, flagsConfig)
 		require.NoError(t, err)
@@ -252,7 +252,7 @@ func TestHandleMountRequest(t *testing.T) {
 
 	// The mockVaultHandler function below includes a dynamic counter in the content of secrets.
 	// That means mounting again with a fresh provider will update the contents of the secrets, which should update the version.
-	resp, err := NewProvider(hclog.Default(), authMethod, hmacGenerator, clientCache).HandleMountRequest(context.Background(), spcConfig, flagsConfig)
+	resp, err := NewProvider(hclog.Default(), authMethod, hmacGenerator, clientCache, 0).HandleMountRequest(context.Background(), spcConfig, flagsConfig)
 	require.NoError(t, err)
 
 	assert.Equal(t, (*v1alpha1.Error)(nil), resp.Error)
