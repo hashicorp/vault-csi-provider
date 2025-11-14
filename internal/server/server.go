@@ -6,6 +6,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault-csi-provider/internal/auth"
@@ -54,7 +55,8 @@ func (s *Server) Mount(ctx context.Context, req *pb.MountRequest) (*pb.MountResp
 	}
 
 	authMethod := auth.NewKubernetesJWTAuth(s.logger.Named("auth"), s.k8sClient, cfg.Parameters, s.flagsConfig.VaultMount)
-	provider := provider.NewProvider(s.logger.Named("provider"), authMethod, s.hmacGenerator, s.clientCache)
+	cacheTTL := time.Duration(s.flagsConfig.CacheTTL) * time.Second
+	provider := provider.NewProvider(s.logger.Named("provider"), authMethod, s.hmacGenerator, s.clientCache, cacheTTL)
 	resp, err := provider.HandleMountRequest(ctx, cfg, s.flagsConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error making mount request: %w", err)
