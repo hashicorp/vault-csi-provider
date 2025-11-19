@@ -2,7 +2,8 @@
 
 CHANGES:
 
-* Build with Go v1.25.3
+* Build with Go v1.25.4
+* Test with Vault 1.21-1.19, 1.16
 
 ## 1.6.0 (September 3rd, 2025)
 
