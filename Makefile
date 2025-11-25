@@ -15,13 +15,10 @@ else
     BUILD_DATE ?= $(shell date $(DATE_FMT))
 endif
 PKG=github.com/hashicorp/vault-csi-provider/internal/version
-LDFLAGS?="-X '$(PKG).BuildVersion=$(VERSION)' \
-	-X '$(PKG).BuildDate=$(BUILD_DATE)' \
-	-X '$(PKG).GoVersion=$(shell go version)'"
-CSI_DRIVER_VERSION=1.5.3
-VAULT_HELM_VERSION=0.30.1
-VAULT_VERSION=1.20.3
-GOLANGCI_LINT_FORMAT?=colored-line-number
+CSI_DRIVER_VERSION ?= 1.5.3
+VAULT_HELM_VERSION = 0.30.1
+VAULT_VERSION = 1.20.3
+GOLANGCI_LINT_FORMAT ?= colored-line-number
 
 VAULT_VERSION_ARGS=--set server.image.tag=$(VAULT_VERSION) --set csi.agent.image.tag=$(VAULT_VERSION)
 ifdef VAULT_LICENSE
@@ -66,17 +63,16 @@ lint:
 
 build: clean
 	CGO_ENABLED=0 go build \
-		-ldflags $(LDFLAGS) \
+		-ldflags "${LD_FLAGS} $(shell ./scripts/ldflags-version.sh)" \
 		-o $(BUILD_DIR)/ \
 		.
 
 ci-build: clean
+	rm -rf dist/$(GOOS)/$(GOARCH)
 	CGO_ENABLED=0 go build \
-		-ldflags $(LDFLAGS) \
-		-o $(BUILD_DIR)/ \
+		-ldflags "${LD_FLAGS} $(shell ./scripts/ldflags-version.sh)" \
+		-o dist/$(GOOS)/$(GOARCH)/ \
 		.
-	mkdir -p dist/$(GOOS)/$(GOARCH)
-	cp $(BUILD_DIR)/$(IMAGE_NAME) dist/$(GOOS)/$(GOARCH)/$(IMAGE_NAME)
 
 test:
 	go test ./...

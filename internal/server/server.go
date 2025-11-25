@@ -8,14 +8,15 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-hclog"
+	"k8s.io/client-go/kubernetes"
+	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
+
 	"github.com/hashicorp/vault-csi-provider/internal/auth"
 	"github.com/hashicorp/vault-csi-provider/internal/clientcache"
 	"github.com/hashicorp/vault-csi-provider/internal/config"
 	"github.com/hashicorp/vault-csi-provider/internal/hmac"
 	"github.com/hashicorp/vault-csi-provider/internal/provider"
 	"github.com/hashicorp/vault-csi-provider/internal/version"
-	"k8s.io/client-go/kubernetes"
-	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
 )
 
 var _ pb.CSIDriverProviderServer = (*Server)(nil)
@@ -43,7 +44,7 @@ func (s *Server) Version(context.Context, *pb.VersionRequest) (*pb.VersionRespon
 	return &pb.VersionResponse{
 		Version:        "v1alpha1",
 		RuntimeName:    "vault-csi-provider",
-		RuntimeVersion: version.BuildVersion,
+		RuntimeVersion: version.Version().GitVersion,
 	}, nil
 }
 

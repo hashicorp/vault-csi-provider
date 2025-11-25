@@ -28,11 +28,12 @@ type Config struct {
 }
 
 type FlagsConfig struct {
-	Endpoint   string
-	Debug      bool
-	LogLevel   string
-	Version    bool
-	HealthAddr string
+	Endpoint            string
+	Debug               bool
+	LogLevel            string
+	Version             bool
+	VersionOutputFormat string
+	HealthAddr          string
 
 	HMACSecretName string
 
