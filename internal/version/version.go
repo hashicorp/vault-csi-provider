@@ -5,36 +5,101 @@ package version
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+
+	"gopkg.in/yaml.v3"
 )
 
-const minDriverVersion = "v0.0.21"
-
+// the following variables are meant to be set at build time from 'ldflags'
 var (
-	BuildDate    string
-	BuildVersion string
-	GoVersion    string
+	// Major version
+	Major = ""
+	// Minor version
+	Minor = ""
+	// GitVersion is the git version relative or equal to the latest tag
+	GitVersion = ""
+	// GitCommit is the git commit hash at which the binary was built
+	GitCommit = ""
+	// GitTreeState is the state of the git tree at which the binary was built (clean or dirty)
+	GitTreeState = ""
+	// BuildDate is the date at which the binary was built
+	BuildDate = ""
+	// GoVersion is the version of Go used to build the binary
+	GoVersion = ""
+	// Compiler is the name of the compiler used to build the binary
+	Compiler = ""
+	// Platform is the platform for which the binary was built
+	Platform = ""
 )
 
-// providerVersion holds current provider version
-type providerVersion struct {
-	Version          string `json:"version"`          // Version of the binary.
-	BuildDate        string `json:"buildDate"`        // The date the binary was built.
-	GoVersion        string `json:"goVersion"`        // Version of Go the binary was built with.
-	MinDriverVersion string `json:"minDriverVersion"` // Minimum driver version the provider works with.
+// Info holds the build's version information.
+type Info struct {
+	Major        string `json:"major" yaml:"major"`
+	Minor        string `json:"minor" yaml:"minor"`
+	GitVersion   string `json:"gitVersion" yaml:"gitVersion"`
+	GitCommit    string `json:"gitCommit" yaml:"gitCommit"`
+	GitTreeState string `json:"gitTreeState" yaml:"gitTreeState"`
+	BuildDate    string `json:"buildDate" yaml:"buildDate"`
+	GoVersion    string `json:"goVersion" yaml:"goVersion"`
+	Compiler     string `json:"compiler" yaml:"compiler"`
+	Platform     string `json:"platform" yaml:"platform"`
 }
 
-func GetVersion() (string, error) {
-	pv := providerVersion{
-		Version:          BuildVersion,
-		BuildDate:        BuildDate,
-		GoVersion:        GoVersion,
-		MinDriverVersion: minDriverVersion,
-	}
+// String returns info as a human-friendly version string.
+func (i *Info) String() string {
+	return i.GitVersion
+}
 
-	res, err := json.Marshal(pv)
+// Version returns the current version information.
+func Version() *Info {
+	return &Info{
+		Major:        Major,
+		Minor:        Minor,
+		GitVersion:   GitVersion,
+		GitCommit:    GitCommit,
+		GitTreeState: GitTreeState,
+		BuildDate:    BuildDate,
+		GoVersion:    GoVersion,
+		Compiler:     Compiler,
+		Platform:     Platform,
+	}
+}
+
+// MarshalJSON returns the JSON encoding of Info. Useful for pretty printing.
+func (i *Info) MarshalJSON() ([]byte, error) {
+	b, err := json.MarshalIndent(*i, "", "  ")
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+	return b, nil
+}
+
+// MarshalYAML returns the YAML encoding of Info. Useful for pretty printing.
+func (i *Info) MarshalYAML() ([]byte, error) {
+	b, err := yaml.Marshal(*i)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// Print prints the version information in the specified format to the given writer.
+func (i *Info) Print(format string, w io.WriteCloser) error {
+	var output []byte
+	var err error
+	switch format {
+	case "yaml":
+		output, err = i.MarshalYAML()
+	case "json":
+		output, err = i.MarshalJSON()
+	default:
+		output = []byte(fmt.Sprintf("%#v\n", i))
 	}
 
-	return string(res), nil
+	if err != nil {
+		return err
+	}
+	_, _ = w.Write(append(output, []byte("\n")...))
+	return nil
 }
