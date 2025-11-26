@@ -10,7 +10,7 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     labels: ["dependencies"]
     groups:
       gomod-breaking:
@@ -23,7 +23,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     labels: ["dependencies"]
     groups:
       github-actions-breaking:
