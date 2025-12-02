@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -35,16 +36,14 @@ const (
 )
 
 func main() {
-	logger := hclog.Default()
-	err := realMain(logger)
+	err := realMain()
 	if err != nil {
-		logger.Error("Error running provider", "err", err)
+		fmt.Fprintf(os.Stderr, "error running provider: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func setupLogger(flags config.FlagsConfig) hclog.Logger {
-	logger := hclog.Default()
 	var level hclog.Level
 	if flags.LogLevel != "" {
 		level = hclog.LevelFromString(flags.LogLevel)
@@ -53,16 +52,42 @@ func setupLogger(flags config.FlagsConfig) hclog.Logger {
 		}
 	} else if flags.Debug {
 		level = hclog.Debug
+	} else {
+		level = hclog.Info
 	}
-	logger.SetLevel(level)
+
+	// Determine log format (default: text)
+	jsonFormat := false
+	if flags.LogFormat != "" {
+		switch strings.ToLower(flags.LogFormat) {
+		case "json":
+			jsonFormat = true
+		case "text":
+			jsonFormat = false
+		default:
+			fmt.Fprintf(os.Stderr, "invalid log-format: %s (valid: text, json)\n", flags.LogFormat)
+			os.Exit(1)
+		}
+	}
+
+	// Create logger with options
+	logger := hclog.New(&hclog.LoggerOptions{
+		Name:       "vault-csi-provider",
+		Level:      level,
+		TimeFormat: "2006-01-02T15:04:05.000Z07:00",
+		JSONFormat: jsonFormat,
+	})
+
+	logger.Info("Logger initialized", "level", level.String(), "format", flags.LogFormat)
 	return logger
 }
 
-func realMain(logger hclog.Logger) error {
+func realMain() error {
 	flags := config.FlagsConfig{}
 	flag.StringVar(&flags.Endpoint, "endpoint", "/tmp/vault.sock", "Path to socket on which to listen for driver gRPC calls.")
 	flag.BoolVar(&flags.Debug, "debug", false, "Sets log to debug level. This has been deprecated, please use -log-level=debug instead.")
 	flag.StringVar(&flags.LogLevel, "log-level", "info", "Sets log level. Options are info, debug, trace, warn, error, and off.")
+	flag.StringVar(&flags.LogFormat, "log-format", "text", "Sets log format. Options are text and json.")
 	flag.BoolVar(&flags.Version, "version", false, "Prints the version information.")
 	flag.StringVar(&flags.HealthAddr, "health-addr", ":8080", "Configure http listener for reporting health.")
 
@@ -83,7 +108,7 @@ func realMain(logger hclog.Logger) error {
 	flag.Parse()
 
 	// set log level
-	logger = setupLogger(flags)
+	logger := setupLogger(flags)
 
 	if flags.Version {
 		v, err := version.GetVersion()

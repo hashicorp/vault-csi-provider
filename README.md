@@ -97,7 +97,7 @@ the following additional dependencies installed:
 You can then run:
 
 ```bash
-make setup-kind e2e-image e2e-setup e2e-test
+make setup-kind e2e-image e2e-setup e2e-test 
 ```
 
 Finally tidy up the resources created in the kind cluster with:
