@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: ["arm", "arm64", "386", "amd64"]
+        arch: ["arm", "arm64", "386", "amd64", "s390x"]
       fail-fast: true
 
     name: Go linux ${{ matrix.arch }} build
