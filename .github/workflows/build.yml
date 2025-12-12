@@ -126,7 +126,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - name: Docker Build (Action)
+      - name: Docker Build (Action) ${{ matrix.arch }}
         # linux/s390x images can only ever be published the Red Hat catalog. In the future they may be pushed to ICR as well.
         if: "${{ matrix.arch != 's390x'}}"
         uses: hashicorp/actions-docker-build@v2
@@ -138,7 +138,7 @@ jobs:
           tags: |
             docker.io/hashicorp/${{env.repo}}:${{env.version}}-ubi
 
-      - name: Docker Build (Action)
+      - name: Docker Build (Action) ${{ matrix.arch }}
         # linux/s390x images can only ever be published the Red Hat catalog. In the future they may be pushed to ICR as well.
         if: "${{ matrix.arch == 's390x'}}"
         uses: hashicorp/actions-docker-build@v2
