@@ -65,7 +65,7 @@ func realMain(logger hclog.Logger) error {
 	flag.BoolVar(&flags.Debug, "debug", false, "Sets log to debug level. This has been deprecated, please use -log-level=debug instead.")
 	flag.StringVar(&flags.LogLevel, "log-level", "info", "Sets log level. Options are info, debug, trace, warn, error, and off.")
 	flag.BoolVar(&flags.Version, "version", false, "Prints the version information.")
-	flag.StringVar(&flags.VersionOutputFormat, "output", "json", "Output format for the operator version information (yaml, json, json-pretty).")
+	flag.StringVar(&flags.VersionOutputFormat, "output", "json", "Output format for the provider version information (yaml, json, json-pretty).")
 	flag.StringVar(&flags.HealthAddr, "health-addr", ":8080", "Configure http listener for reporting health.")
 
 	flag.StringVar(&flags.HMACSecretName, "hmac-secret-name", "vault-csi-provider-hmac-key", "Configure the Kubernetes secret name that the provider creates to store an HMAC key for generating secret version hashes")

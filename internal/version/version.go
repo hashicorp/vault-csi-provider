@@ -17,6 +17,8 @@ var (
 	Major = ""
 	// Minor version
 	Minor = ""
+	// Patch version
+	Patch = ""
 	// GitVersion is the git version relative or equal to the latest tag
 	GitVersion = ""
 	// GitCommit is the git commit hash at which the binary was built
@@ -39,6 +41,7 @@ var (
 type Info struct {
 	Major            string `json:"major" yaml:"major"`
 	Minor            string `json:"minor" yaml:"minor"`
+	Patch            string `json:"patch" yaml:"patch"`
 	GitVersion       string `json:"gitVersion" yaml:"gitVersion"`
 	GitCommit        string `json:"gitCommit" yaml:"gitCommit"`
 	GitTreeState     string `json:"gitTreeState" yaml:"gitTreeState"`
@@ -59,6 +62,7 @@ func Version() *Info {
 	return &Info{
 		Major:            Major,
 		Minor:            Minor,
+		Patch:            Patch,
 		GitVersion:       GitVersion,
 		GitCommit:        GitCommit,
 		GitTreeState:     GitTreeState,

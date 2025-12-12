@@ -68,10 +68,9 @@ build: clean
 		.
 
 ci-build: clean
-	rm -rf dist/$(GOOS)/$(GOARCH)
 	CGO_ENABLED=0 go build \
 		-ldflags "${LD_FLAGS} $(shell ./scripts/ldflags-version.sh)" \
-		-o dist/$(GOOS)/$(GOARCH)/ \
+		-o $(BUILD_DIR)/$(GOOS)/$(GOARCH)/ \
 		.
 
 test:

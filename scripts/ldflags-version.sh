@@ -36,9 +36,10 @@ fi
 GIT_TREE_STATE=dirty
 [[ -z $(git status --porcelain) ]] && GIT_TREE_STATE=clean
 
-eval $(echo -n "$GIT_VERSION" | awk '{sub(/^v/, "", $0); split($0,v,"."); printf("MAJOR=%s\nMINOR=%s\n", v[1], v[2])}')
+eval $(echo -n "$GIT_VERSION" | awk '{sub(/^v/, "", $0); split($0,v,"."); printf("MAJOR=%s\nMINOR=%s\nPATCH=%s\n", v[1], v[2], v[3])}')
 [[ -z ${MAJOR} ]] && (echo "major version is empty, version=${GIT_VERSION}" >&2 ; exit 1)
 [[ -z ${MINOR} ]] && (echo "minor version is empty, version=${GIT_VERSION}" >&2 ; exit 1)
+[[ -z ${PATCH} ]] && (echo "patch version is empty, version=${GIT_VERSION}" >&2 ; exit 1)
 
 GO_ENV_VARS='GOVERSION'
 if [[ -z $GOOS ]]; then
@@ -52,6 +53,7 @@ eval $(go env | egrep "^($GO_ENV_VARS)=")
 flags=(
   -X ${PACKAGE_PATH}.Major=${MAJOR}
   -X ${PACKAGE_PATH}.Minor=${MINOR}
+  -X ${PACKAGE_PATH}.Patch=${PATCH}
   -X ${PACKAGE_PATH}.GitVersion=${GIT_VERSION}
   -X ${PACKAGE_PATH}.GitCommit=${GIT_COMMIT}
   -X ${PACKAGE_PATH}.GitTreeState=${GIT_TREE_STATE}
