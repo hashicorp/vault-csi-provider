@@ -17,13 +17,13 @@ RUN go build -o vault-csi-provider
 
 # dev runs the binary from devbuild
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/alpine:3.22.2 AS dev
+FROM docker.mirror.hashicorp.services/alpine:3.23.0 AS dev
 COPY --from=devbuild /build/vault-csi-provider /bin/
 ENTRYPOINT [ "/bin/vault-csi-provider" ]
 
 # Default release image.
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/alpine:3.22.2 AS default
+FROM docker.mirror.hashicorp.services/alpine:3.23.0 AS default
 
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
@@ -53,12 +53,12 @@ ENTRYPOINT [ "/bin/vault-csi-provider" ]
 
 # ubi build image
 # -----------------------------------
-FROM registry.access.redhat.com/ubi10/ubi-minimal:10.1-1763362715 AS build-ubi
+FROM registry.access.redhat.com/ubi10/ubi-minimal:10.1-1764604111 AS build-ubi
 RUN microdnf --refresh --assumeyes upgrade ca-certificates
 
 # ubi release image
 # -----------------------------------
-FROM registry.access.redhat.com/ubi10/ubi-micro:10.1-1763138307 AS release-ubi
+FROM registry.access.redhat.com/ubi10/ubi-micro:10.1-1765178423 AS release-ubi
 
 ENV BIN_NAME=vault-csi-provider
 ARG PRODUCT_VERSION
