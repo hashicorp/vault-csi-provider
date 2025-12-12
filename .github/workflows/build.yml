@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: ["arm", "arm64", "386", "amd64", "s390x"]
+        arch: ["arm", "arm64", "386", "amd64"]
     env:
       repo: ${{github.event.repository.name}}
       version: ${{needs.get-product-version.outputs.product-version}}
@@ -127,6 +127,8 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Docker Build (Action)
+        # linux/s390x images can only ever be published the Red Hat catalog. In the future they may be pushed to ICR as well.
+        if: "${{ matrix.arch != 's390x'}}"
         uses: hashicorp/actions-docker-build@v2
         with:
           version: ${{env.version}}
@@ -135,3 +137,13 @@ jobs:
           redhat_tag: quay.io/redhat-isv-containers/68961b49ae4b51ff35f52b77:${{env.version}}-ubi
           tags: |
             docker.io/hashicorp/${{env.repo}}:${{env.version}}-ubi
+
+      - name: Docker Build (Action)
+        # linux/s390x images can only ever be published the Red Hat catalog. In the future they may be pushed to ICR as well.
+        if: "${{ matrix.arch == 's390x'}}"
+        uses: hashicorp/actions-docker-build@v2
+        with:
+          version: ${{env.version}}
+          target: release-ubi
+          arch: ${{matrix.arch}}
+          redhat_tag: quay.io/redhat-isv-containers/68961b49ae4b51ff35f52b77:${{env.version}}-ubi
