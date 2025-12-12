@@ -8,6 +8,7 @@ artifacts {
     "vault-csi-provider_${version}_linux_amd64.zip",
     "vault-csi-provider_${version}_linux_arm.zip",
     "vault-csi-provider_${version}_linux_arm64.zip",
+    "vault-csi-provider_${version}_linux_s390x.zip",
   ]
   container = [
     "vault-csi-provider_default_linux_386_${version}_${commit_sha}.docker.tar",
