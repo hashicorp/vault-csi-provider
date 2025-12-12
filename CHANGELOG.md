@@ -1,8 +1,9 @@
-## Unreleased
+## 1.7.0 (December 12th, 2025)
 
 CHANGES:
 
-* Build with Go v1.25.4
+* Build for linux/s390x
+* Build with Go v1.25.5
 * Test with Vault 1.21-1.19, 1.16
 
 ## 1.6.0 (September 3rd, 2025)
