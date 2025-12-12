@@ -14,6 +14,9 @@ BUILD_DATE="$(date +%Y-%m-%dT%H:%M:%S%z)"
 GIT_COMMIT="$(git rev-parse HEAD)"
 
 DEFAULT_GIT_VERSION="${DEFAULT_GIT_VERSION:-0.0.0-dev}"
+# MIN_DRIVER_VERSION may or not be required,
+# it was brought over from the previous version output scheme.
+MIN_DRIVER_VERSION="${MIN_DRIVER_VERSION:-v0.0.21}"
 
 # The Common Release Tooling workflow will populate the VERSION env var,
 # in that case will not compute the version from Git.
@@ -56,6 +59,7 @@ flags=(
   -X ${PACKAGE_PATH}.GoVersion=${GOVERSION}
   -X ${PACKAGE_PATH}.Compiler=gc
   -X ${PACKAGE_PATH}.Platform=${GOOS}/${GOARCH}
+  -X ${PACKAGE_PATH}.MinDriverVersion=${MIN_DRIVER_VERSION}
 )
 
 echo -n "${flags[@]}"
