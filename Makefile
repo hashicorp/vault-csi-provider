@@ -15,9 +15,9 @@ else
     BUILD_DATE ?= $(shell date $(DATE_FMT))
 endif
 PKG=github.com/hashicorp/vault-csi-provider/internal/version
-CSI_DRIVER_VERSION=1.5.3
+CSI_DRIVER_VERSION=1.5.5
 VAULT_HELM_VERSION=0.31.0
-VAULT_VERSION=1.20.4
+VAULT_VERSION=1.21.1
 GOLANGCI_LINT_FORMAT?=colored-line-number
 
 VAULT_VERSION_ARGS=--set server.image.tag=$(VAULT_VERSION) --set csi.agent.image.tag=$(VAULT_VERSION)
