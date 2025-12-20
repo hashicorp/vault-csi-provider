@@ -12,7 +12,7 @@ project "vault-csi-provider" {
   github {
     organization = "hashicorp"
     repository = "vault-csi-provider"
-    release_branches = ["main"]
+    release_branches = ["main", "VAULT-41534/update-ci-scan"]
   }
 }
 
