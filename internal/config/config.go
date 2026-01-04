@@ -43,6 +43,8 @@ type FlagsConfig struct {
 	VaultMount     string
 	VaultNamespace string
 
+	Audience string
+
 	TLSCACertPath  string
 	TLSCADirectory string
 	TLSServerName  string
