@@ -5,6 +5,7 @@ CHANGES:
 * Build for linux/s390x
 * Build with Go v1.25.5
 * Test with Vault 1.21-1.19, 1.16
+* Tested with Kubernetes versions 1.35-1.31
 
 ## 1.6.0 (September 3rd, 2025)
 
