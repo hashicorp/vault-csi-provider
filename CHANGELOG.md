@@ -1,3 +1,10 @@
+## Unreleased
+
+CHANGES:
+
+* Tested with Kubernetes versions 1.35-1.31
+* Test with Kind v0.31.0
+
 ## 1.7.0 (December 12th, 2025)
 
 CHANGES:
