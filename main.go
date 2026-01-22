@@ -15,11 +15,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/vault-csi-provider/internal/clientcache"
-	"github.com/hashicorp/vault-csi-provider/internal/config"
-	"github.com/hashicorp/vault-csi-provider/internal/hmac"
-	providerserver "github.com/hashicorp/vault-csi-provider/internal/server"
-	"github.com/hashicorp/vault-csi-provider/internal/version"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -28,6 +23,12 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
 	pb "sigs.k8s.io/secrets-store-csi-driver/provider/v1alpha1"
+
+	"github.com/hashicorp/vault-csi-provider/internal/clientcache"
+	"github.com/hashicorp/vault-csi-provider/internal/config"
+	"github.com/hashicorp/vault-csi-provider/internal/hmac"
+	providerserver "github.com/hashicorp/vault-csi-provider/internal/server"
+	"github.com/hashicorp/vault-csi-provider/internal/version"
 )
 
 const (
@@ -64,6 +65,7 @@ func realMain(logger hclog.Logger) error {
 	flag.BoolVar(&flags.Debug, "debug", false, "Sets log to debug level. This has been deprecated, please use -log-level=debug instead.")
 	flag.StringVar(&flags.LogLevel, "log-level", "info", "Sets log level. Options are info, debug, trace, warn, error, and off.")
 	flag.BoolVar(&flags.Version, "version", false, "Prints the version information.")
+	flag.StringVar(&flags.VersionOutputFormat, "output", "json", "Output format for the provider version information (yaml, json, json-pretty).")
 	flag.StringVar(&flags.HealthAddr, "health-addr", ":8080", "Configure http listener for reporting health.")
 
 	flag.StringVar(&flags.HMACSecretName, "hmac-secret-name", "vault-csi-provider-hmac-key", "Configure the Kubernetes secret name that the provider creates to store an HMAC key for generating secret version hashes")
@@ -82,18 +84,17 @@ func realMain(logger hclog.Logger) error {
 	flag.BoolVar(&flags.TLSSkipVerify, "vault-tls-skip-verify", false, "Disable verification of TLS certificates. Can also be specified via the VAULT_SKIP_VERIFY environment variable.")
 	flag.Parse()
 
+	if flags.Version {
+		switch flags.VersionOutputFormat {
+		case "", "yaml", "json", "json-pretty":
+		default:
+			return fmt.Errorf("--output should be one of: 'yaml', 'json', 'json-pretty'")
+		}
+		return version.Version().Print(flags.VersionOutputFormat, os.Stdout)
+	}
+
 	// set log level
 	logger = setupLogger(flags)
-
-	if flags.Version {
-		v, err := version.GetVersion()
-		if err != nil {
-			return fmt.Errorf("failed to print version, err: %w", err)
-		}
-		// print the version and exit
-		_, err = fmt.Println(v)
-		return err
-	}
 
 	logger.Info("Creating new gRPC server")
 	serverLogger := logger.Named("server")

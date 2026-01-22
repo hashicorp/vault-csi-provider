@@ -8,6 +8,7 @@ artifacts {
     "vault-csi-provider_${version}_linux_amd64.zip",
     "vault-csi-provider_${version}_linux_arm.zip",
     "vault-csi-provider_${version}_linux_arm64.zip",
+    "vault-csi-provider_${version}_linux_s390x.zip",
   ]
   container = [
     "vault-csi-provider_default_linux_386_${version}_${commit_sha}.docker.tar",
@@ -18,5 +19,7 @@ artifacts {
     "vault-csi-provider_release-ubi_linux_arm64_${version}_${commit_sha}.docker.tar",
     "vault-csi-provider_release-ubi_linux_amd64_${version}_${commit_sha}.docker.redhat.tar",
     "vault-csi-provider_release-ubi_linux_arm64_${version}_${commit_sha}.docker.redhat.tar",
+    # s390x is only for the Red Hat catalog
+    "vault-csi-provider_release-ubi_linux_s390x_${version}_${commit_sha}.docker.redhat.tar",
   ]
 }
