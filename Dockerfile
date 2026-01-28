@@ -58,7 +58,7 @@ RUN microdnf --refresh --assumeyes upgrade ca-certificates
 
 # ubi release image
 # -----------------------------------
-FROM registry.access.redhat.com/ubi10/ubi-micro:10.1-1766049088 AS release-ubi
+FROM registry.access.redhat.com/ubi10/ubi-micro:10.1-1769518576 AS release-ubi
 
 ENV BIN_NAME=vault-csi-provider
 ARG PRODUCT_VERSION
