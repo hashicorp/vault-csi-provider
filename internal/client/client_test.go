@@ -117,7 +117,7 @@ func TestRequestSecret_OnlyAuthenticatesOnce(t *testing.T) {
 	k8sClient := fake.NewSimpleClientset(
 		&corev1.ServiceAccount{},
 	)
-	authMethod := auth.NewKubernetesJWTAuth(hclog.Default(), k8sClient, config.Parameters{}, "")
+	authMethod := auth.NewKubernetesJWTAuth(hclog.Default(), k8sClient, config.Parameters{}, "", "")
 	client, err := New(hclog.Default(), config.Parameters{}, flagsConfig)
 	require.NoError(t, err)
 
