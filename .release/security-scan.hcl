@@ -22,7 +22,7 @@ container {
 
   triage {
     suppress {
-        vulnerabilities [
+        vulnerabilities = [
           // Addresses a false positive from scan (our security scanner)
           // Fixed by Red Hat in: https://access.redhat.com/errata/RHSA-2025:20181
           // ProdSec tracking the false positive in: https://hashicorp.atlassian.net/browse/PSP-3514
