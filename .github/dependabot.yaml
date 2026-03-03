@@ -1,4 +1,4 @@
-# Copyright IBM Corp. 2019, 2026
+# Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
 # Dependabot config that checks version updates for go.mod packages and docker

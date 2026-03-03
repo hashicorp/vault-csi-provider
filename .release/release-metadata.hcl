@@ -1,4 +1,4 @@
-# Copyright IBM Corp. 2019, 2026
+# Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
 url_docker_registry_dockerhub = "https://registry.hub.docker.com/r/hashicorp/vault-csi-provider"

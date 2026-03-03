@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright IBM Corp. 2019, 2026
+# Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
 # Script for setting up the necessary Golang ldflags to set in the Operator's version.Version.
