@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2019, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 # This Dockerfile contains multiple targets.
@@ -17,13 +17,13 @@ RUN go build -o vault-csi-provider
 
 # dev runs the binary from devbuild
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/alpine:3.23.2 AS dev
+FROM docker.mirror.hashicorp.services/alpine:3.23.3 AS dev
 COPY --from=devbuild /build/vault-csi-provider /bin/
 ENTRYPOINT [ "/bin/vault-csi-provider" ]
 
 # Default release image.
 # -----------------------------------
-FROM docker.mirror.hashicorp.services/alpine:3.23.2 AS default
+FROM docker.mirror.hashicorp.services/alpine:3.23.3 AS default
 
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
@@ -53,12 +53,12 @@ ENTRYPOINT [ "/bin/vault-csi-provider" ]
 
 # ubi build image
 # -----------------------------------
-FROM registry.access.redhat.com/ubi10/ubi-minimal:10.1-1766033715 AS build-ubi
+FROM registry.access.redhat.com/ubi10/ubi-minimal:10.1-1772441549 AS build-ubi
 RUN microdnf --refresh --assumeyes upgrade ca-certificates
 
 # ubi release image
 # -----------------------------------
-FROM registry.access.redhat.com/ubi10/ubi-micro:10.1-1766049088 AS release-ubi
+FROM registry.access.redhat.com/ubi10/ubi-micro:10.1-1769518576 AS release-ubi
 
 ENV BIN_NAME=vault-csi-provider
 ARG PRODUCT_VERSION
