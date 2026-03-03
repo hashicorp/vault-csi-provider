@@ -20,18 +20,14 @@ container {
     all = true
   }
 
-  triage {
-    suppress {
-        // The OSV scanner will trip on several packages that are included in
-        // the the UBI images. This is due to RHEL using the same base version
-        // in the package name for the life of the distro regardless of whether
-        // or not that version has been patched for security. Rather than
-        // enumerate every single CVE that the OSV scanner will find (several
-        // tens) we'll ignore the base UBI packages.
-        paths = [
-          "usr/lib/sysimage/rpm/*",
-          "var/lib/rpm/*",
-        ]
-    }
-  }
+  # triage {
+  #   suppress {
+  #       vulnerabilities [
+  #         // Addresses a false positive from scan (our security scanner)
+  #         // Fixed by Red Hat in: https://access.redhat.com/errata/RHSA-2025:20181
+  #         // ProdSec tracking the false positive in: https://hashicorp.atlassian.net/browse/PSP-3514
+  #         "CVE-2025-6020",
+  #       ]
+  #   }
+  # }
 }
