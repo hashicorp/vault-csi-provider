@@ -1,9 +1,21 @@
 ## Unreleased
 
+## 1.7.1 (March 9th, 2026)
+
 CHANGES:
 
+* Build with Go v1.25.8
 * Tested with Kubernetes versions 1.35-1.31
 * Test with Kind v0.31.0
+* Updated container base image from alpine 3.23.0 -> 3.23.3
+* Updated container base image from ubi10/ubi-micro 10.1-1765178423 -> 10.1-1769518576
+* Updated dependencies
+  * google.golang.org/grpc v1.77.0 -> v1.79.2
+  * k8s.io/api v0.34.2 -> v0.35.2
+  * k8s.io/apimachinery v0.34.2 -> v0.35.2
+  * k8s.io/client-go v0.34.2 -> v0.35.2
+  * k8s.io/utils v0.0.0-20250604170112-4c0f3b243397 -> v0.0.0-20251002143259-bc988d571ff4
+  * sigs.k8s.io/secrets-store-csi-driver v1.5.4 -> v1.5.6
 
 ## 1.7.0 (December 12th, 2025)
 
