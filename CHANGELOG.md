@@ -1,6 +1,6 @@
 ## Unreleased
 
-## 1.7.1 (March 9th, 2026)
+## 1.7.1 (March 12th, 2026)
 
 CHANGES:
 
