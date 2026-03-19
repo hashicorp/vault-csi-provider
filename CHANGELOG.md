@@ -1,6 +1,6 @@
 ## Unreleased
 
-## 1.7.1 (March 12th, 2026)
+## 1.7.1 (March 23rd, 2026)
 
 CHANGES:
 
@@ -8,9 +8,9 @@ CHANGES:
 * Tested with Kubernetes versions 1.35-1.31
 * Test with Kind v0.31.0
 * Updated container base image from alpine 3.23.0 -> 3.23.3
-* Updated container base image from ubi10/ubi-micro 10.1-1765178423 -> 10.1-1769518576
+* Updated container base image from ubi10/ubi-micro 10.1-1765178423 -> 10.1-1773894746
 * Updated dependencies
-  * google.golang.org/grpc v1.77.0 -> v1.79.2
+  * google.golang.org/grpc v1.77.0 -> v1.79.3
   * k8s.io/api v0.34.2 -> v0.35.2
   * k8s.io/apimachinery v0.34.2 -> v0.35.2
   * k8s.io/client-go v0.34.2 -> v0.35.2
