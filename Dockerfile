@@ -43,7 +43,7 @@ LABEL name="Vault Secrets Store CSI Provider" \
 
 RUN set -eux && \
     apk update && \
-    apk upgrade --no-cache libcrypto3
+    apk upgrade --no-cache zlib
 
 # Copy license to conform to HC IPS-002
 COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
