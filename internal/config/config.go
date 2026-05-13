@@ -38,6 +38,7 @@ type FlagsConfig struct {
 	HMACSecretName string
 
 	CacheSize int
+	CacheTTL  int
 
 	VaultAddr      string
 	VaultMount     string
