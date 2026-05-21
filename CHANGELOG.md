@@ -1,4 +1,60 @@
-## Unreleased
+## 1.7.2 (May 21st, 2026)
+
+* Bump actions/setup-go from 6.1.0 to 6.4.0 in the github-actions-backward-compatible group: ([#477](https://github.com/hashicorp/vault-csi-provider/pull/477))
+* Bump ubi10/ubi-micro from 10.1-1778532954 to 10.2-1777510731: ([#476](https://github.com/hashicorp/vault-csi-provider/pull/476))
+* Bump ubi10/ubi-minimal from 10.1-1778576723 to 10.2-1777462752: ([#475](https://github.com/hashicorp/vault-csi-provider/pull/475))
+* Bump the gomod-backward-compatible group across 1 directory with 4 updates: ([#473](https://github.com/hashicorp/vault-csi-provider/pull/473))
+* Bump ubi10/ubi-minimal from 10.1-1778461919 to 10.1-1778576723: ([#471](https://github.com/hashicorp/vault-csi-provider/pull/471))
+* Bump ubi10/ubi-micro from 10.1-1777857595 to 10.1-1778532954: ([#470](https://github.com/hashicorp/vault-csi-provider/pull/470))
+* go version update: ([#469](https://github.com/hashicorp/vault-csi-provider/pull/469))
+* Bump ubi10/ubi-minimal from 10.1-1778058333 to 10.1-1778461919: ([#467](https://github.com/hashicorp/vault-csi-provider/pull/467))
+* Bump ubi10/ubi-minimal from 10.1-1774228210 to 10.1-1778058333: ([#466](https://github.com/hashicorp/vault-csi-provider/pull/466))
+* Bump ubi10/ubi-micro from 10.1-1773894746 to 10.1-1777857595: ([#465](https://github.com/hashicorp/vault-csi-provider/pull/465))
+* Bump the gomod-backward-compatible group across 1 directory with 5 updates: ([#463](https://github.com/hashicorp/vault-csi-provider/pull/463))
+* Bump alpine from 3.23.3 to 3.23.4: ([#458](https://github.com/hashicorp/vault-csi-provider/pull/458))
+* Bump github.com/go-jose/go-jose/v4 from 4.1.3 to 4.1.4: ([#455](https://github.com/hashicorp/vault-csi-provider/pull/455))
+* Bump github.com/hashicorp/vault/api from 1.22.0 to 1.23.0 in the gomod-backward-compatible group: ([#451](https://github.com/hashicorp/vault-csi-provider/pull/451))
+* Bump the github-actions-breaking group across 1 directory with 2 updates: ([#419](https://github.com/hashicorp/vault-csi-provider/pull/419))
+* Updated dependencies
+  * k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2 -> v0.0.0-20260507154919-ff6756f316d2
+  * github.com/fatih/color v1.18.0 -> v1.19.0
+  * github.com/fxamacker/cbor/v2 v2.9.0 -> v2.9.2
+  * github.com/go-openapi/jsonpointer v0.21.0 -> v0.23.1
+  * github.com/go-openapi/jsonreference v0.20.2 -> v0.21.5
+  * github.com/go-openapi/swag v0.23.0 -> v0.26.0
+  * github.com/google/gnostic-models v0.7.0 -> v0.7.1
+  * github.com/mattn/go-isatty v0.0.20 -> v0.0.22
+  * github.com/stretchr/testify v1.11.0 -> v1.11.1
+  * go.yaml.in/yaml/v2 v2.4.3 -> v2.4.4
+  * golang.org/x/net v0.51.0 -> v0.54.0
+  * golang.org/x/sys v0.42.0 -> v0.44.0
+  * golang.org/x/term v0.40.0 -> v0.43.0
+  * golang.org/x/text v0.34.0 -> v0.37.0
+  * golang.org/x/time v0.14.0 -> v0.15.0
+  * google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 -> v0.0.0-20260519071638-aa98bba5eb94
+  * google.golang.org/grpc v1.77.0 -> v1.81.1
+  * k8s.io/api v0.35.3 -> v0.36.1
+  * k8s.io/apimachinery v0.35.3 -> v0.36.1
+  * k8s.io/client-go v0.35.3 -> v0.36.1
+  * k8s.io/kube-openapi v0.0.0-20260317180543-43fb72c5454a -> v0.0.0-20260520065146-aa012df4f4af
+  * sigs.k8s.io/secrets-store-csi-driver v1.5.6 -> v1.6.0
+  * sigs.k8s.io/structured-merge-diff/v6 v6.3.2 -> v6.4.0
+* Added dependencies
+  * github.com/go-openapi/swag/cmdutils v0.26.0
+  * github.com/go-openapi/swag/conv v0.26.0
+  * github.com/go-openapi/swag/fileutils v0.26.0
+  * github.com/go-openapi/swag/jsonname v0.26.0
+  * github.com/go-openapi/swag/jsonutils v0.26.0
+  * github.com/go-openapi/swag/loading v0.26.0
+  * github.com/go-openapi/swag/mangling v0.26.0
+  * github.com/go-openapi/swag/netutils v0.26.0
+  * github.com/go-openapi/swag/stringutils v0.26.0
+  * github.com/go-openapi/swag/typeutils v0.26.0
+  * github.com/go-openapi/swag/yamlutils v0.26.0
+  * github.com/kr/text v0.2.0
+* Removed dependencies
+  * github.com/josharian/intern v1.0.0
+  * github.com/mailru/easyjson v0.7.7
 
 ## 1.7.1 (March 23rd, 2026)
 
