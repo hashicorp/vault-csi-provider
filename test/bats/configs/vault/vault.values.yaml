@@ -63,12 +63,6 @@ csi:
 
   daemonSet:
     providersDir: "/var/run/secrets-store-csi-providers"
-  agent:
-    securityContext:
-      container:
-        capabilities:
-          add:
-            - IPC_LOCK
   image:
     repository: "e2e/vault-csi-provider"
     tag: "latest"
@@ -100,3 +94,8 @@ csi:
   agent:
     image:
       repository: "docker.mirror.hashicorp.services/hashicorp/vault"
+    securityContext:
+      container:
+        capabilities:
+          add:
+            - IPC_LOCK
