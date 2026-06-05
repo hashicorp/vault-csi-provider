@@ -11,12 +11,6 @@ injector:
 server:
   image:
     repository: docker.mirror.hashicorp.services/hashicorp/vault
-  statefulSet:
-    securityContext:
-      container:
-        capabilities:
-          add:
-            - IPC_LOCK
   volumes:
   - name: vault-server-tls
     secret:
@@ -94,8 +88,3 @@ csi:
   agent:
     image:
       repository: "docker.mirror.hashicorp.services/hashicorp/vault"
-    securityContext:
-      container:
-        capabilities:
-          add:
-            - IPC_LOCK
