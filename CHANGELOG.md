@@ -1,7 +1,9 @@
 ## 1.7.2 (May 21st, 2026)
 
-* Test with Vault 2.0.1,1.21-1.19
+* Test with Kind v0.32.0
 * Test with bats v1.13.0
+* Test with K8S v1.36-1.32
+* Test with Vault 2.0.2,1.21-1.19
 * Test with IPC_LOCK capabilities for vault and csi agent containers.
 * Test with secrets-store-csi-driver v1.6.0
 * Bump actions/setup-go from 6.1.0 to 6.4.0 in the github-actions-backward-compatible group: ([#477](https://github.com/hashicorp/vault-csi-provider/pull/477))
@@ -19,6 +21,9 @@
 * Bump github.com/go-jose/go-jose/v4 from 4.1.3 to 4.1.4: ([#455](https://github.com/hashicorp/vault-csi-provider/pull/455))
 * Bump github.com/hashicorp/vault/api from 1.22.0 to 1.23.0 in the gomod-backward-compatible group: ([#451](https://github.com/hashicorp/vault-csi-provider/pull/451))
 * Bump the github-actions-breaking group across 1 directory with 2 updates: ([#419](https://github.com/hashicorp/vault-csi-provider/pull/419))
+* Bump actions/checkout from 6.0.2 to 6.0.3 in the github-actions-backward-compatible group: ([#483](https://github.com/hashicorp/vault-csi-provider/pull/483))
+* Bump ubi10/ubi-micro from 10.2-1777510731 to 1779859645: ([#482](https://github.com/hashicorp/vault-csi-provider/pull/482))
+* Bump ubi10/ubi-minimal from 10.2-1777462752 to 1780413344: ([#481](https://github.com/hashicorp/vault-csi-provider/pull/481))
 * Updated dependencies
   * k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2 -> v0.0.0-20260507154919-ff6756f316d2
   * github.com/fatih/color v1.18.0 -> v1.19.0
