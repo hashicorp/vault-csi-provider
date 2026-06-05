@@ -5,6 +5,7 @@
 * Test with K8S v1.36-1.32
 * Test with Vault 2.0.2,1.21-1.19
 * Test with secrets-store-csi-driver v1.6.0
+* Go version update from 1.26.3 to 1.26.4
 * Bump actions/setup-go from 6.1.0 to 6.4.0 in the github-actions-backward-compatible group: ([#477](https://github.com/hashicorp/vault-csi-provider/pull/477))
 * Bump ubi10/ubi-micro from 10.1-1778532954 to 10.2-1777510731: ([#476](https://github.com/hashicorp/vault-csi-provider/pull/476))
 * Bump ubi10/ubi-minimal from 10.1-1778576723 to 10.2-1777462752: ([#475](https://github.com/hashicorp/vault-csi-provider/pull/475))
@@ -23,6 +24,7 @@
 * Bump actions/checkout from 6.0.2 to 6.0.3 in the github-actions-backward-compatible group: ([#483](https://github.com/hashicorp/vault-csi-provider/pull/483))
 * Bump ubi10/ubi-micro from 10.2-1777510731 to 1779859645: ([#482](https://github.com/hashicorp/vault-csi-provider/pull/482))
 * Bump ubi10/ubi-minimal from 10.2-1777462752 to 1780413344: ([#481](https://github.com/hashicorp/vault-csi-provider/pull/481))
+* Bump ubi10/ubi-minimal from 1780413344 to 1780550884: ([#484](https://github.com/hashicorp/vault-csi-provider/pull/484))
 * Updated dependencies
   * k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2 -> v0.0.0-20260507154919-ff6756f316d2
   * github.com/fatih/color v1.18.0 -> v1.19.0
