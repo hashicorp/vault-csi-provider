@@ -30,25 +30,26 @@
   * github.com/fatih/color v1.18.0 -> v1.19.0
   * github.com/fxamacker/cbor/v2 v2.9.0 -> v2.9.2
   * github.com/go-openapi/jsonpointer v0.21.0 -> v0.23.1
-  * github.com/go-openapi/jsonreference v0.20.2 -> v0.21.5
+  * github.com/go-openapi/jsonreference v0.20.2 -> v0.21.6
   * github.com/go-openapi/swag v0.23.0 -> v0.26.0
   * github.com/google/gnostic-models v0.7.0 -> v0.7.1
   * github.com/mattn/go-isatty v0.0.20 -> v0.0.22
   * github.com/stretchr/testify v1.11.0 -> v1.11.1
   * go.yaml.in/yaml/v2 v2.4.3 -> v2.4.4
-  * golang.org/x/net v0.51.0 -> v0.54.0
-  * golang.org/x/sys v0.42.0 -> v0.44.0
+  * golang.org/x/net v0.51.0 -> v0.55.0
+  * golang.org/x/sys v0.42.0 -> v0.45.0
   * golang.org/x/term v0.40.0 -> v0.43.0
   * golang.org/x/text v0.34.0 -> v0.37.0
   * golang.org/x/time v0.14.0 -> v0.15.0
-  * google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 -> v0.0.0-20260519071638-aa98bba5eb94
+  * google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 -> v0.0.0-20260526163538-3dc84a4a5aaa
   * google.golang.org/grpc v1.77.0 -> v1.81.1
   * k8s.io/api v0.35.3 -> v0.36.1
   * k8s.io/apimachinery v0.35.3 -> v0.36.1
   * k8s.io/client-go v0.35.3 -> v0.36.1
-  * k8s.io/kube-openapi v0.0.0-20260317180543-43fb72c5454a -> v0.0.0-20260520065146-aa012df4f4af
+  * k8s.io/kube-openapi v0.0.0-20260317180543-43fb72c5454a -> v0.0.0-20260603220949-865597e52e25
   * sigs.k8s.io/secrets-store-csi-driver v1.5.6 -> v1.6.0
   * sigs.k8s.io/structured-merge-diff/v6 v6.3.2 -> v6.4.0
+  * github.com/mattn/go-colorable v0.1.14 -> v0.1.15
 * Added dependencies
   * github.com/go-openapi/swag/cmdutils v0.26.0
   * github.com/go-openapi/swag/conv v0.26.0
