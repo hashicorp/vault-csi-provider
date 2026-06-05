@@ -3,7 +3,7 @@ name: Tests
 on: [push, workflow_dispatch]
 
 env:
-  KIND_VERSION: "v0.31.0"
+  KIND_VERSION: "v0.32.0"
   BATS_VERSION: "1.13.0"
   NODE_VERSION: "19.8.1"
   TARBALL_FILE: vault-csi-provider.docker.tar
