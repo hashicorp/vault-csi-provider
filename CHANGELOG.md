@@ -4,7 +4,6 @@
 * Test with bats v1.13.0
 * Test with K8S v1.36-1.32
 * Test with Vault 2.0.2,1.21-1.19
-* Test with IPC_LOCK capabilities for vault and csi agent containers.
 * Test with secrets-store-csi-driver v1.6.0
 * Bump actions/setup-go from 6.1.0 to 6.4.0 in the github-actions-backward-compatible group: ([#477](https://github.com/hashicorp/vault-csi-provider/pull/477))
 * Bump ubi10/ubi-micro from 10.1-1778532954 to 10.2-1777510731: ([#476](https://github.com/hashicorp/vault-csi-provider/pull/476))
