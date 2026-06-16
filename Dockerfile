@@ -53,7 +53,7 @@ ENTRYPOINT [ "/bin/vault-csi-provider" ]
 
 # ubi build image
 # -----------------------------------
-FROM registry.access.redhat.com/ubi10/ubi-minimal:1780550884 AS build-ubi
+FROM registry.access.redhat.com/ubi10/ubi-minimal:1781509581 AS build-ubi
 RUN microdnf --refresh --assumeyes upgrade ca-certificates
 
 # ubi release image
