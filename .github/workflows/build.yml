@@ -137,6 +137,7 @@ jobs:
           redhat_tag: quay.io/redhat-isv-containers/68961b49ae4b51ff35f52b77:${{env.version}}-ubi
           tags: |
             docker.io/hashicorp/${{env.repo}}:${{env.version}}-ubi
+            icr.io/cpopen/ibm-vault/${{env.repo}}:${{env.version}}-ubi
 
       - name: Docker Build (Action) ${{ matrix.arch }}
         # linux/s390x images can only ever be published the Red Hat catalog. In the future they may be pushed to ICR as well.
@@ -147,3 +148,5 @@ jobs:
           target: release-ubi
           arch: ${{matrix.arch}}
           redhat_tag: quay.io/redhat-isv-containers/68961b49ae4b51ff35f52b77:${{env.version}}-ubi
+          tags: |
+            icr.io/cpopen/ibm-vault/${{env.repo}}:${{env.version}}-ubi
