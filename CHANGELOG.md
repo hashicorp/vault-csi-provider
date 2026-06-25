@@ -1,3 +1,19 @@
+## 1.7.3 (June 25, 2026)
+
+* Test with Vault 2.0.3, 1.21.8, 1.20.13, 1.19.19
+* Bump actions/checkout from 6.0.3 to 7.0.0
+* Bump actions/download-artifact from 4.2.1 to 8.0.1
+* Bump actions/setup-go from 6.4.0 to 6.5.0
+* Bump actions/setup-node from 4.3.0 to 6.4.0
+* Bump actions/upload-artifact from 4.6.2 to 7.0.1
+* Bump alpine from 3.23.4 to 3.24.1
+* Bump helm/kind-action from 1.12.0 to 1.14.0
+* Bump ubi10/ubi-minimal from 1780550884 to 1782283191
+* Updated dependencies
+  * k8s.io/api v0.36.1 -> v0.36.2
+  * k8s.io/apimachinery v0.36.1 -> v0.36.2
+  * k8s.io/client-go v0.36.1 -> v0.36.2
+
 ## 1.7.2 (June 5, 2026)
 
 * Test with Kind v0.32.0
