@@ -1,5 +1,6 @@
 ## 1.7.3 (June 25, 2026)
 
+* Test with Vault 2.0.3, 1.21.8, 1.20.13, 1.19.19
 * Bump actions/checkout from 6.0.3 to 7.0.0
 * Bump actions/download-artifact from 4.2.1 to 8.0.1
 * Bump actions/setup-go from 6.4.0 to 6.5.0

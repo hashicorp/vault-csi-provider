@@ -16,8 +16,8 @@ else
 endif
 PKG=github.com/hashicorp/vault-csi-provider/internal/version
 CSI_DRIVER_VERSION=1.6.0
-VAULT_HELM_VERSION=0.32.0
-VAULT_VERSION=2.0.2
+VAULT_HELM_VERSION=0.33.0
+VAULT_VERSION=2.0.3
 GOLANGCI_LINT_FORMAT?=colored-line-number
 
 VAULT_VERSION_ARGS=--set server.image.tag=$(VAULT_VERSION) --set csi.agent.image.tag=$(VAULT_VERSION)
