@@ -140,7 +140,7 @@ jobs:
             icr.io/cpopen/ibm-vault/${{env.repo}}:${{env.version}}-ubi
 
       - name: Docker Build (Action) ${{ matrix.arch }}
-        # linux/s390x images can only ever be published the Red Hat catalog. In the future they may be pushed to ICR as well.
+        # linux/s390x images are published to the Red Hat catalog and ICR.
         if: ${{ matrix.arch == 's390x'}}
         uses: hashicorp/actions-docker-build@v2
         with:
