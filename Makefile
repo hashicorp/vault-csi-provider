@@ -81,6 +81,7 @@ image:
 		--build-arg GO_VERSION=$(shell cat .go-version) \
 		--target dev \
 		--no-cache \
+		--load \
 		--tag $(IMAGE_TAG) \
 		.
 
@@ -90,6 +91,7 @@ image-ubi:
 		--build-arg PRODUCT_REVISION=$(VERSION) \
 		--target release-ubi \
 		--no-cache \
+		--load \
 		--tag $(IMAGE_TAG) \
 		.
 
