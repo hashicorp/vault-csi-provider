@@ -1,3 +1,8 @@
+## Unreleased
+
+Build:
+* Add `ppc64le` (IBM Power) architecture support: build and publish UBI-based images to `icr.io/cpopen/ibm-vault` and `quay.io/redhat-isv-containers` ([#514](https://github.com/hashicorp/vault-csi-provider/pull/514))
+
 ## 1.7.3 (June 25, 2026)
 
 * Test with Vault 2.0.3, 1.21.8, 1.20.13, 1.19.19

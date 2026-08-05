@@ -119,16 +119,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: ["arm64", "amd64", "s390x", "ppc64le"]
+        arch: ["arm64", "amd64"]
     env:
       repo: ${{github.event.repository.name}}
       version: ${{needs.get-product-version.outputs.product-version}}
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - name: Docker Build (Action) ${{ matrix.arch }}
-        # linux/s390x and linux/ppc64le images can only ever be published to the Red Hat catalog and ICR.
-        if: ${{ matrix.arch != 's390x' && matrix.arch != 'ppc64le'}}
+      - name: Docker Build (Action)
         uses: hashicorp/actions-docker-build@v2
         with:
           version: ${{env.version}}
@@ -139,9 +137,25 @@ jobs:
             docker.io/hashicorp/${{env.repo}}:${{env.version}}-ubi
             icr.io/cpopen/ibm-vault/${{env.repo}}:${{env.version}}-ubi
 
-      - name: Docker Build (Action) ${{ matrix.arch }}
-        # linux/s390x and linux/ppc64le images are published to the Red Hat catalog and ICR.
-        if: ${{ matrix.arch == 's390x' || matrix.arch == 'ppc64le'}}
+  build-ubi-ibm:
+    name: UBI IBM ${{ matrix.arch }} build
+    needs:
+      - get-product-version
+      - build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: ["s390x", "ppc64le"]
+    env:
+      repo: ${{github.event.repository.name}}
+      version: ${{needs.get-product-version.outputs.product-version}}
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Docker Build (Action)
+        # linux/s390x and linux/ppc64le images are published to the Red Hat catalog and ICR only.
+        # Binary version verification is skipped — the GitHub Actions runner cannot execute
+        # cross-architecture Docker containers natively.
         uses: hashicorp/actions-docker-build@v2
         with:
           version: ${{env.version}}
