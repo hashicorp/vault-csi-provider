@@ -76,6 +76,7 @@ ci-build: clean
 test:
 	go test ./...
 
+# --load required for Podman/buildx: exports image into local daemon store
 image:
 	docker build \
 		--build-arg GO_VERSION=$(shell cat .go-version) \
@@ -85,6 +86,7 @@ image:
 		--tag $(IMAGE_TAG) \
 		.
 
+# --load required for Podman/buildx: exports image into local daemon store
 image-ubi:
 	docker build \
 		--build-arg PRODUCT_VERSION=$(VERSION) \
