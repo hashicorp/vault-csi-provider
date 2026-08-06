@@ -1,10 +1,13 @@
 ## 1.7.4 (August 6, 2026)
 
 * Test with Vault 2.0.4, 1.21.9, 1.20.14, 1.19.20
+* Test with bats v1.14.0
 * Build with Go v1.26.5
 * Bump x/net, x/text and Go toolchain to fix GO-2026-5942, GO-2026-5970, GO-2026-4970, GO-2026-5856
 * Add `ppc64le` (IBM Power) architecture support: build and publish UBI-based images to `icr.io/cpopen/ibm-vault` and `quay.io/redhat-isv-containers` ([#514](https://github.com/hashicorp/vault-csi-provider/pull/514))
+* Bump actions/checkout from 7.0.0 to 7.0.1
 * Bump actions/setup-go from 6.5.0 to 7.0.0
+* Bump actions/setup-node from 6.4.0 to 7.0.0
 * Bump ubi10/ubi-minimal from 1782283191 to 1785332777
 * Bump ubi10/ubi-micro from 1779859645 to 1784668691
 * Bump google.golang.org/grpc from 1.82.1 to 1.83.0
