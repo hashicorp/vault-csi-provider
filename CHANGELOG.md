@@ -9,11 +9,9 @@
 * Bump actions/setup-node from 6.4.0 to 7.0.0
 * Bump ubi10/ubi-minimal from 1782283191 to 1785332777
 * Bump ubi10/ubi-micro from 1779859645 to 1784668691
-* Bump google.golang.org/grpc from 1.82.1 to 1.83.0
-* Bump google.golang.org/grpc from 1.81.1 to 1.82.1
+* Bump google.golang.org/grpc from 1.81.1 to 1.83.0
 * Bump golang.org/x/crypto from 0.45.0 to 0.52.0 in /tools
 * Updated dependencies
-  * google.golang.org/grpc v1.81.1 -> v1.83.0
   * k8s.io/api v0.36.2 -> v0.36.3
   * k8s.io/apimachinery v0.36.2 -> v0.36.3
   * k8s.io/client-go v0.36.2 -> v0.36.3
