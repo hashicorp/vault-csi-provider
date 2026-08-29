@@ -156,6 +156,9 @@ func (c *Client) auth(ctx context.Context, authMethod *auth.KubernetesJWTAuth, f
 	}
 
 	c.logger.Debug("vault login successful")
+	if secret.Auth == nil {
+		return false, fmt.Errorf("vault login response has no auth information")
+	}
 	c.inner.SetToken(secret.Auth.ClientToken)
 
 	return true, nil
