@@ -18,8 +18,6 @@ PKG=github.com/hashicorp/vault-csi-provider/internal/version
 CSI_DRIVER_VERSION=1.6.0
 VAULT_HELM_VERSION=0.34.0
 VAULT_VERSION=2.0.4
-GOLANGCI_LINT_FORMAT?=colored-line-number
-
 VAULT_VERSION_ARGS=--set server.image.tag=$(VAULT_VERSION) --set csi.agent.image.tag=$(VAULT_VERSION)
 ifdef VAULT_LICENSE
 	VAULT_VERSION_ARGS=--set server.image.repository=docker.mirror.hashicorp.services/hashicorp/vault-enterprise \
@@ -50,16 +48,14 @@ fmt:
 	gofumpt -l -w .
 
 lint:
+	golangci-lint fmt --diff --enable=gofmt
 	golangci-lint run \
-		--disable-all \
+		--default=none \
 		--timeout=10m \
-		--out-format=$(GOLANGCI_LINT_FORMAT) \
-		--enable=gofmt \
-		--enable=gosimple \
+		--enable=staticcheck \
 		--enable=govet \
 		--enable=errcheck \
-		--enable=ineffassign \
-		--enable=unused
+		--enable=ineffassign
 
 build: clean
 	CGO_ENABLED=0 go build \

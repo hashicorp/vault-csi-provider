@@ -5,8 +5,8 @@ package config
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -85,7 +85,7 @@ func TestParseParametersFromYaml(t *testing.T) {
 
 func TestParseParameters(t *testing.T) {
 	// This file's contents are copied directly from a driver mount request.
-	parametersStr, err := ioutil.ReadFile(filepath.Join("testdata", "example-parameters-string.txt"))
+	parametersStr, err := os.ReadFile(filepath.Join("testdata", "example-parameters-string.txt"))
 	require.NoError(t, err)
 	actual, err := parseParameters(string(parametersStr))
 	require.NoError(t, err)
@@ -160,8 +160,8 @@ func TestParseConfig(t *testing.T) {
 				"csi.storage.k8s.io/pod.namespace":         "my-pod-namespace",
 				"csi.storage.k8s.io/serviceAccount.name":   "my-pod-sa-name",
 				"csi.storage.k8s.io/serviceAccount.tokens": `{"my-aud": {"token": "my-pod-sa-token", "expirationTimestamp": "bar"}, "other-aud": {"token": "unused-token"}}`,
-				"objects":                                  objects,
-				"audience":                                 "my-aud",
+				"objects":  objects,
+				"audience": "my-aud",
 			},
 			expected: Config{
 				TargetPath:     targetPath,

@@ -69,9 +69,6 @@ func TestNew(t *testing.T) {
 }
 
 func TestConfigPrecedence(t *testing.T) {
-	if originalVaultAddr, isSet := os.LookupEnv(api.EnvVaultAddress); isSet {
-		defer os.Setenv(api.EnvVaultAddress, originalVaultAddr)
-	}
 	t.Setenv(api.EnvVaultAddress, "from-env")
 
 	client, err := New(hclog.NewNullLogger(), config.Parameters{}, config.FlagsConfig{})
