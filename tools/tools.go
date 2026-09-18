@@ -13,14 +13,14 @@
 
 package tools
 
-//go:generate go install github.com/golangci/golangci-lint/cmd/golangci-lint
+//go:generate go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 //go:generate golangci-lint version
 //go:generate go install github.com/hashicorp/copywrite
 //go:generate copywrite --version
 //go:generate go install mvdan.cc/gofumpt
 //go:generate gofumpt --version
 import (
-	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
+	_ "github.com/golangci/golangci-lint/v2/cmd/golangci-lint"
 	_ "github.com/hashicorp/copywrite"
 	_ "mvdan.cc/gofumpt"
 )
