@@ -26,6 +26,8 @@ jobs:
     uses: hashicorp/vault-workflows-common/.github/workflows/copyright-headers.yaml@main
   go-checks:
     uses: hashicorp/vault-workflows-common/.github/workflows/go-checks.yaml@main
+    with:
+      gofumpt_version: v0.12.0
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -38,7 +40,7 @@ jobs:
         run: make bootstrap
 
       - name: Lint
-        run: make lint GOLANGCI_LINT_FORMAT=colored-line-number
+        run: make lint
 
   build-and-test:
     runs-on: ubuntu-latest
