@@ -74,8 +74,8 @@ func Version() *Info {
 	}
 }
 
-// MarshalJSON returns the JSON encoding of Info. Useful for pretty printing.
-func (i *Info) MarshalJSON(pretty bool) ([]byte, error) {
+// marshalJSON returns the JSON encoding of Info. Useful for pretty printing.
+func (i *Info) marshalJSON(pretty bool) ([]byte, error) {
 	var b []byte
 	var err error
 	if pretty {
@@ -88,7 +88,6 @@ func (i *Info) MarshalJSON(pretty bool) ([]byte, error) {
 		return nil, err
 	}
 	return b, nil
-
 }
 
 // MarshalYAML returns the YAML encoding of Info. Useful for pretty printing.
@@ -108,9 +107,9 @@ func (i *Info) Print(format string, w io.WriteCloser) error {
 	case "yaml":
 		output, err = i.MarshalYAML()
 	case "json":
-		output, err = i.MarshalJSON(false)
+		output, err = i.marshalJSON(false)
 	case "json-pretty":
-		output, err = i.MarshalJSON(true)
+		output, err = i.marshalJSON(true)
 	default:
 		output = []byte(fmt.Sprintf("%#v\n", i))
 	}
