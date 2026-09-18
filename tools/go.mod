@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/golangci/golangci-lint/v2 v2.13.2
 	github.com/hashicorp/copywrite v0.21.0
-	mvdan.cc/gofumpt v0.11.0
+	mvdan.cc/gofumpt v0.12.0
 )
 
 require (
