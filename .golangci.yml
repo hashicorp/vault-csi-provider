@@ -3,9 +3,16 @@
 
 version: "2"
 
+# golangci-lint v2 removed the gosimple and unused linters previously used by
+# this project. Keep their intended scope with Staticcheck rules, without
+# enabling unrelated Staticcheck diagnostics. This config is needed alongside
+# the Go 1.27 toolchain because the previous golangci-lint version is not
+# compatible with it.
 linters:
   settings:
     staticcheck:
       checks:
+        # Simplification checks, formerly provided by gosimple.
         - "S*"
+        # Unused-code checks, formerly provided by unused.
         - "U1000"
