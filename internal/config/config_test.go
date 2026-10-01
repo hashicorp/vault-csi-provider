@@ -160,8 +160,9 @@ func TestParseConfig(t *testing.T) {
 				"csi.storage.k8s.io/pod.namespace":         "my-pod-namespace",
 				"csi.storage.k8s.io/serviceAccount.name":   "my-pod-sa-name",
 				"csi.storage.k8s.io/serviceAccount.tokens": `{"my-aud": {"token": "my-pod-sa-token", "expirationTimestamp": "bar"}, "other-aud": {"token": "unused-token"}}`,
-				"objects":                                  objects,
-				"audience":                                 "my-aud",
+
+				"objects":  objects,
+				"audience": "my-aud",
 			},
 			expected: Config{
 				TargetPath:     targetPath,
