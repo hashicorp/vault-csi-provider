@@ -120,7 +120,11 @@ func realMain(logger hclog.Logger) error {
 	if err != nil {
 		return err
 	}
-	defer listener.Close()
+	defer func() {
+		if err := listener.Close(); err != nil {
+			logger.Error("Failed to close listener", "err", err)
+		}
+	}()
 
 	cfg, err := rest.InClusterConfig()
 	if err != nil {

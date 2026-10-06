@@ -4,7 +4,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -17,7 +16,7 @@ import (
 
 func TestListen(t *testing.T) {
 	logger := hclog.NewNullLogger()
-	dir, err := ioutil.TempDir("/tmp", "TestListen")
+	dir, err := os.MkdirTemp("/tmp", "TestListen")
 	require.NoError(t, err)
 	endpoint := path.Join(dir, "vault.sock")
 	defer func() {
