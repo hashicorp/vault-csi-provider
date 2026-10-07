@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault-csi-provider/internal/auth"
@@ -27,7 +28,8 @@ import (
 // and communicates with the Vault API.
 type provider struct {
 	logger             hclog.Logger
-	vaultResponseCache map[vaultResponseCacheKey]*api.Secret
+	vaultResponseCache map[vaultResponseCacheKey]*cachedSecretEntry
+	cacheTTL           time.Duration
 
 	// Allows mocking Kubernetes API for tests.
 	authMethod    *auth.KubernetesJWTAuth
@@ -35,10 +37,16 @@ type provider struct {
 	clientCache   *clientcache.ClientCache
 }
 
-func NewProvider(logger hclog.Logger, authMethod *auth.KubernetesJWTAuth, hmacGenerator *hmacgen.HMACGenerator, clientCache *clientcache.ClientCache) *provider {
+type cachedSecretEntry struct {
+	Secret   *api.Secret
+	CachedAt time.Time
+}
+
+func NewProvider(logger hclog.Logger, authMethod *auth.KubernetesJWTAuth, hmacGenerator *hmacgen.HMACGenerator, clientCache *clientcache.ClientCache, cacheTTL time.Duration) *provider {
 	p := &provider{
 		logger:             logger,
-		vaultResponseCache: make(map[vaultResponseCacheKey]*api.Secret),
+		vaultResponseCache: make(map[vaultResponseCacheKey]*cachedSecretEntry),
+		cacheTTL:           cacheTTL,
 
 		authMethod:    authMethod,
 		hmacGenerator: hmacGenerator,
@@ -106,12 +114,12 @@ func decodeValue(data []byte, encoding string) ([]byte, error) {
 }
 
 func (p *provider) getSecret(ctx context.Context, client *vaultclient.Client, secretConfig config.Secret) ([]byte, error) {
-	var secret *api.Secret
-	var cached bool
 	key := vaultResponseCacheKey{secretPath: secretConfig.SecretPath, method: secretConfig.Method}
-	if secret, cached = p.vaultResponseCache[key]; !cached {
+	if cachedSecret, cached := p.vaultResponseCache[key]; !cached || isExpired(cachedSecret, p.cacheTTL) {
+		p.logger.Debug("Secret not cached or TTL expired", "secretConfig", secretConfig)
+
 		var err error
-		secret, err = client.RequestSecret(ctx, p.authMethod, secretConfig)
+		secret, err := client.RequestSecret(ctx, p.authMethod, secretConfig)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't read secret %q: %w", secretConfig.ObjectName, err)
 		}
@@ -123,10 +131,15 @@ func (p *provider) getSecret(ctx context.Context, client *vaultclient.Client, se
 			p.logger.Warn("Warning in response from Vault API", "warning", w)
 		}
 
-		p.vaultResponseCache[key] = secret
+		p.vaultResponseCache[key] = &cachedSecretEntry{
+			Secret:   secret,
+			CachedAt: time.Now(),
+		}
 	} else {
 		p.logger.Debug("Secret fetched from cache", "secretConfig", secretConfig)
 	}
+
+	secret := p.vaultResponseCache[key].Secret
 
 	// If no secretKey specified, we return the whole response as a JSON object.
 	if secretConfig.SecretKey == "" {
@@ -219,4 +232,15 @@ func generateObjectVersion(secret config.Secret, hmacKey []byte, content []byte)
 		Id:      secret.ObjectName,
 		Version: base64.URLEncoding.EncodeToString(hash.Sum(nil)),
 	}, nil
+}
+
+// isExpired checks if a cached secret has expired.
+// Returns 'true' if the time elapsed since CachedAt is greater
+// than or equal to the TTL. A TTL equal to or less than zero is treated as 'never expires'.
+func isExpired(cachedSecret *cachedSecretEntry, ttl time.Duration) bool {
+	// TTL equals to 0 or negative indicates cache never expires
+	if ttl <= 0 {
+		return false
+	}
+	return time.Since(cachedSecret.CachedAt) >= ttl
 }
