@@ -154,6 +154,9 @@ func (c *Client) auth(ctx context.Context, authMethod *auth.KubernetesJWTAuth, f
 	if err != nil {
 		return false, fmt.Errorf("failed to parse login response: %w", err)
 	}
+	if secret == nil || secret.Auth == nil {
+		return false, fmt.Errorf("received empty auth response from vault")
+	}
 
 	c.logger.Debug("vault login successful")
 	c.inner.SetToken(secret.Auth.ClientToken)
