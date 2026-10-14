@@ -23,14 +23,16 @@ type KubernetesJWTAuth struct {
 	k8sClient        kubernetes.Interface
 	params           config.Parameters
 	defaultMountPath string
+	defaultAudience  string
 }
 
-func NewKubernetesJWTAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath string) *KubernetesJWTAuth {
+func NewKubernetesJWTAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params config.Parameters, defaultMountPath, defaultAudience string) *KubernetesJWTAuth {
 	return &KubernetesJWTAuth{
 		logger:           logger,
 		k8sClient:        k8sClient,
 		params:           params,
 		defaultMountPath: defaultMountPath,
+		defaultAudience:  defaultAudience,
 	}
 }
 
@@ -41,8 +43,12 @@ func (k *KubernetesJWTAuth) AuthRequest(ctx context.Context) (path string, body 
 	jwt := k.params.PodInfo.ServiceAccountToken
 	if jwt == "" {
 		k.logger.Debug("no suitable token found in mount request, using self-generated service account JWT")
+		audience := k.params.Audience
+		if audience == "" {
+			audience = k.defaultAudience
+		}
 		var err error
-		jwt, err = k.createJWTToken(ctx, k.params.PodInfo, k.params.Audience)
+		jwt, err = k.createJWTToken(ctx, k.params.PodInfo, audience)
 		if err != nil {
 			return "", nil, err
 		}
