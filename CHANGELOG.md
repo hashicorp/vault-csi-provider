@@ -1,3 +1,19 @@
+## 1.8.0 (October 29, 2026)
+
+DEPENDENCY UPDATES:
+
+* Bump google.golang.org/grpc from 1.83.0 to 1.83.1 ([#533](https://github.com/hashicorp/vault-csi-provider/pull/533))
+* Bump google.golang.org/grpc from 1.83.1 to 1.83.2 ([#534](https://github.com/hashicorp/vault-csi-provider/pull/534))
+* Bump ubi10/ubi-minimal from 1785332777 to 1788941066 ([#536](https://github.com/hashicorp/vault-csi-provider/pull/536))
+* Bump ubi10/ubi-micro from 1784668691 to 1787684528 ([#532](https://github.com/hashicorp/vault-csi-provider/pull/532))
+* Bump the gomod-backward-compatible group across 1 directory with 4 updates ([#537](https://github.com/hashicorp/vault-csi-provider/pull/537))
+* Bump sigs.k8s.io/secrets-store-csi-driver from 1.6.0 to 1.6.1 in the gomod-backward-compatible group ([#538](https://github.com/hashicorp/vault-csi-provider/pull/538))
+* Bump ubi10/ubi-minimal from 1788941066 to 1789456844 ([#539](https://github.com/hashicorp/vault-csi-provider/pull/539))
+* Bump ubi10/ubi-minimal from 1789456844 to 1789645544 ([#541](https://github.com/hashicorp/vault-csi-provider/pull/541))
+* Bump alpine from 3.24.1 to 3.24.2 ([#540](https://github.com/hashicorp/vault-csi-provider/pull/540))
+* Updates copywrite version ([#547](https://github.com/hashicorp/vault-csi-provider/pull/547))
+* Upgrade Go to 1.27.1 and update CI tooling ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
+
 ## 1.7.4 (August 6, 2026)
 
 * Test with Vault 2.0.4, 1.21.9, 1.20.14, 1.19.20
