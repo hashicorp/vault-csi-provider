@@ -1,3 +1,49 @@
+## 1.7.5 (November 10, 2026)
+
+<!-- release-prep build/test: start -->
+* Test with Kubernetes 1.37.0, 1.36.4, 1.35.8, 1.34.11, 1.33.12 (previously 1.36.1, 1.35.5, 1.34.8, 1.33.12, 1.32.11)
+* Test with Vault 1.19.24 (VAULT_LTS_1; previously 1.19.20)
+* Test with Vault 2.2.1 (VAULT_N; previously 2.0.4)
+* Test with Vault 1.21.13 (VAULT_N_1; previously 1.21.9)
+* Test with Vault 1.20.17 (VAULT_N_2; previously 1.20.14)
+* Build with Go v1.27.3 (from 1.27.1)
+<!-- release-prep build/test: end -->
+
+DEPENDENCY UPDATES:
+
+* Bump google.golang.org/grpc from 1.83.0 to 1.83.1 ([#533](https://github.com/hashicorp/vault-csi-provider/pull/533))
+* Bump google.golang.org/grpc from 1.83.1 to 1.83.2 ([#534](https://github.com/hashicorp/vault-csi-provider/pull/534))
+* Bump ubi10/ubi-minimal from 1785332777 to 1788941066 ([#536](https://github.com/hashicorp/vault-csi-provider/pull/536))
+* Bump ubi10/ubi-micro from 1784668691 to 1787684528 ([#532](https://github.com/hashicorp/vault-csi-provider/pull/532))
+* Bump the gomod-backward-compatible group across 1 directory with 4 updates ([#537](https://github.com/hashicorp/vault-csi-provider/pull/537))
+* Bump sigs.k8s.io/secrets-store-csi-driver from 1.6.0 to 1.6.1 in the gomod-backward-compatible group ([#538](https://github.com/hashicorp/vault-csi-provider/pull/538))
+* Bump ubi10/ubi-minimal from 1788941066 to 1789456844 ([#539](https://github.com/hashicorp/vault-csi-provider/pull/539))
+* Bump ubi10/ubi-minimal from 1789456844 to 1789645544 ([#541](https://github.com/hashicorp/vault-csi-provider/pull/541))
+* Bump alpine from 3.24.1 to 3.24.2 ([#540](https://github.com/hashicorp/vault-csi-provider/pull/540))
+* Updates copywrite version ([#547](https://github.com/hashicorp/vault-csi-provider/pull/547))
+* Upgrade Go to 1.27.1 and update CI tooling ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
+
+<!-- release-prep changes: start -->
+* Bump hashicorp/actions-docker-build from 2 to 2.2.1
+* Bump hashicorp/actions-generate-metadata from 1 to 1.3.0
+* Bump kind from 0.32.0 to 0.33.0 in .github/workflows/tests.yaml
+* Bump Node.js from 19.8.1 to 26.13.0 in .github/workflows/tests.yaml
+* Bump alpine from 3.24.2 to 3.24.4
+* Bump VAULT_HELM_VERSION from 0.34.0 to 0.34.1 in Makefile
+* Bump VAULT_VERSION from 2.0.4 to 2.2.1 in Makefile
+* Bump hashicorp/vault-csi-provider from 1.7.4 to 1.7.5 in deployment/vault-csi-provider.yaml
+* Bump Go language version from 1.27.1 to 1.27.3
+* Bump hashicorp/vault-csi-provider from 1.7.4 to 1.7.5 in manifest_staging/deployment/vault-csi-provider.yaml
+* Bump github.com/golangci/golangci-lint/v2/cmd/golangci-lint from (unversioned) to 2.15.0 in tools/tools.go
+* Updated dependencies
+  * google.golang.org/grpc v1.83.2 -> v1.85.0
+  * k8s.io/api v0.37.0 -> v0.37.2
+  * k8s.io/apimachinery v0.37.0 -> v0.37.2
+  * k8s.io/client-go v0.37.0 -> v0.37.2
+  * k8s.io/utils v0.0.0-20260626114624-be93311217bd -> v0.0.0-20261023123148-ca04ba58ecab
+  * sigs.k8s.io/secrets-store-csi-driver v1.6.1 -> v1.6.2
+<!-- release-prep changes: end -->
+
 ## 1.7.4 (August 6, 2026)
 
 * Test with Vault 2.0.4, 1.21.9, 1.20.14, 1.19.20
