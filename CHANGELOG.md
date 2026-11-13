@@ -1,3 +1,49 @@
+## 1.8.0 (November 13, 2026)
+
+<!-- release-prep build/test: start -->
+* Test with Kubernetes 1.37.0, 1.36.4, 1.35.8, 1.34.11, 1.33.12 (previously 1.36.1, 1.35.5, 1.34.8, 1.33.12, 1.32.11)
+* Test with Vault 1.19.25 (VAULT_LTS_1; previously 1.19.20)
+* Test with Vault 2.2.2 (VAULT_N; previously 2.0.4)
+* Test with Vault 1.21.14 (VAULT_N_1; previously 1.21.9)
+* Test with Vault 1.20.17 (VAULT_N_2; previously 1.20.14)
+* Build with Go v1.27.4 (from 1.27.1)
+<!-- release-prep build/test: end -->
+
+DEPENDENCY UPDATES:
+
+* Update `google.golang.org/grpc` from `v1.83.0` to `v1.83.1`. ([#533](https://github.com/hashicorp/vault-csi-provider/pull/533))
+* Update `golang.org/x/net` from `v0.56.0` to `v0.58.0`; `golang.org/x/sys` from `v0.46.0` to `v0.47.0`; `golang.org/x/term` from `v0.44.0` to `v0.45.0`; `golang.org/x/text` from `v0.39.0` to `v0.41.0`; `google.golang.org/grpc` from `v1.83.1` to `v1.83.2`. ([#534](https://github.com/hashicorp/vault-csi-provider/pull/534))
+* Update `registry.access.redhat.com/ubi10/ubi-minimal` from `1785332777` to `1788941066`. ([#536](https://github.com/hashicorp/vault-csi-provider/pull/536))
+* Update `registry.access.redhat.com/ubi10/ubi-micro` from `1784668691` to `1787684528`. ([#532](https://github.com/hashicorp/vault-csi-provider/pull/532))
+* Update dependencies. ([#537](https://github.com/hashicorp/vault-csi-provider/pull/537))
+* Update `google.golang.org/genproto/googleapis/rpc` from `v0.0.0-20260526163538-3dc84a4a5aaa` to `v0.0.0-20260608224507-4308a22a1bab`; `sigs.k8s.io/secrets-store-csi-driver` from `v1.6.0` to `v1.6.1`. ([#538](https://github.com/hashicorp/vault-csi-provider/pull/538))
+* Update `registry.access.redhat.com/ubi10/ubi-minimal` from `1788941066` to `1789456844`. ([#539](https://github.com/hashicorp/vault-csi-provider/pull/539))
+* Update `registry.access.redhat.com/ubi10/ubi-minimal` from `1789456844` to `1789645544`. ([#541](https://github.com/hashicorp/vault-csi-provider/pull/541))
+* Update dependencies. ([#540](https://github.com/hashicorp/vault-csi-provider/pull/540))
+* Update `github.com/hashicorp/copywrite` from `v0.21.0` to `v0.25.3`. ([#547](https://github.com/hashicorp/vault-csi-provider/pull/547))
+* Update `Go` from `1.26.5` to `1.27.1`; `go` from `1.26.5` to `1.27.1`. ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
+
+<!-- release-prep changes: start -->
+* Bump hashicorp/actions-docker-build from 2 to 2.2.1
+* Bump hashicorp/actions-generate-metadata from 1 to 1.3.0
+* Bump kind from 0.32.0 to 0.33.0 in .github/workflows/tests.yaml
+* Bump Node.js from 19.8.1 to 26.13.1 in .github/workflows/tests.yaml
+* Bump alpine from 3.24.2 to 3.24.4
+* Bump VAULT_HELM_VERSION from 0.34.0 to 0.34.1 in Makefile
+* Bump VAULT_VERSION from 2.0.4 to 2.2.1 in Makefile
+* Bump hashicorp/vault-csi-provider from 1.7.4 to 1.8.0 in deployment/vault-csi-provider.yaml
+* Bump Go language version from 1.27.1 to 1.27.4
+* Bump hashicorp/vault-csi-provider from 1.7.4 to 1.8.0 in manifest_staging/deployment/vault-csi-provider.yaml
+* Bump github.com/golangci/golangci-lint/v2/cmd/golangci-lint from (unversioned) to 2.15.0 in tools/tools.go
+* Updated dependencies
+  * google.golang.org/grpc v1.83.2 -> v1.85.0
+  * k8s.io/api v0.37.0 -> v0.37.2
+  * k8s.io/apimachinery v0.37.0 -> v0.37.2
+  * k8s.io/client-go v0.37.0 -> v0.37.2
+  * k8s.io/utils v0.0.0-20260626114624-be93311217bd -> v0.0.0-20261023123148-ca04ba58ecab
+  * sigs.k8s.io/secrets-store-csi-driver v1.6.1 -> v1.6.2
+<!-- release-prep changes: end -->
+
 ## 1.7.4 (August 6, 2026)
 
 * Test with Vault 2.0.4, 1.21.9, 1.20.14, 1.19.20

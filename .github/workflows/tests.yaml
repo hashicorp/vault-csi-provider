@@ -3,9 +3,9 @@ name: Tests
 on: [push, workflow_dispatch]
 
 env:
-  KIND_VERSION: "v0.32.0"
+  KIND_VERSION: "v0.33.0"
   BATS_VERSION: "1.13.0"
-  NODE_VERSION: "19.8.1"
+  NODE_VERSION: "26.13.1"
   TARBALL_FILE: vault-csi-provider.docker.tar
   UBI_ARTIFACT: vault-csi-provider-ubi
   UBI_TARBALL_FILE: vault-csi-provider-ubi.docker.tar
@@ -17,11 +17,11 @@ jobs:
       - run: echo "setting versions"
     outputs:
       # JSON encoded array of k8s versions.
-      K8S_VERSIONS: '["1.36.1", "1.35.5", "1.34.8", "1.33.12", "1.32.11"]'
-      VAULT_N: "2.0.4"
-      VAULT_N_1: "1.21.9"
-      VAULT_N_2: "1.20.14"
-      VAULT_LTS_1: "1.19.20"
+      K8S_VERSIONS: '["1.37.0", "1.36.4", "1.35.8", "1.34.11", "1.33.12"]'
+      VAULT_N: "2.2.2"
+      VAULT_N_1: "1.21.14"
+      VAULT_N_2: "1.20.17"
+      VAULT_LTS_1: "1.19.25"
   copyright:
     uses: hashicorp/vault-workflows-common/.github/workflows/copyright-headers.yaml@main
   go-checks:
@@ -60,7 +60,7 @@ jobs:
       - name: Test
         run: make test
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vault-csi-provider-image
           path: ${{ env.TARBALL_FILE }}
@@ -131,7 +131,7 @@ jobs:
           make ci-build e2e-image-ubi
           docker save --output "${UBI_TARBALL_FILE}" e2e/vault-csi-provider:latest
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ env.UBI_ARTIFACT }}
           path: ${{ env.UBI_TARBALL_FILE }}
