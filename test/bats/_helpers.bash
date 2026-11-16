@@ -18,7 +18,19 @@ setup_postgres() {
     if [ -z "${OPENSHIFT}" ]; then
         POSTGRES_IMAGE="$(awk '/image:/{print $NF}' $CONFIGS/postgres.yaml)"
         docker pull "${POSTGRES_IMAGE}"
-        kind load docker-image "${POSTGRES_IMAGE}"
+        # With Docker's containerd image store (default since Docker 29),
+        # `kind load docker-image` exports every platform in the image index and
+        # fails on those never downloaded, so load only the pulled platform.
+        # Docker older than 28 lacks `docker save --platform`, but is not
+        # affected, so it keeps the original command.
+        POSTGRES_ARCHIVE="$(mktemp)"
+        if docker save --platform "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "${POSTGRES_IMAGE}")" \
+                --output "${POSTGRES_ARCHIVE}" "${POSTGRES_IMAGE}"; then
+            kind load image-archive "${POSTGRES_ARCHIVE}"
+        else
+            kind load docker-image "${POSTGRES_IMAGE}"
+        fi
+        rm -f "${POSTGRES_ARCHIVE}"
     fi
     POSTGRES_PASSWORD=$(openssl rand -base64 30)
     kubectl --namespace=test create secret generic postgres-root \
