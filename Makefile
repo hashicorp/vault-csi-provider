@@ -16,8 +16,8 @@ else
 endif
 PKG=github.com/hashicorp/vault-csi-provider/internal/version
 CSI_DRIVER_VERSION=1.6.0
-VAULT_HELM_VERSION=0.34.0
-VAULT_VERSION=2.0.4
+VAULT_HELM_VERSION=0.34.1
+VAULT_VERSION=2.2.1
 VAULT_VERSION_ARGS=--set server.image.tag=$(VAULT_VERSION) --set csi.agent.image.tag=$(VAULT_VERSION)
 ifdef VAULT_LICENSE
 	VAULT_VERSION_ARGS=--set server.image.repository=docker.mirror.hashicorp.services/hashicorp/vault-enterprise \
