@@ -15,9 +15,9 @@ else
     BUILD_DATE ?= $(shell date $(DATE_FMT))
 endif
 PKG=github.com/hashicorp/vault-csi-provider/internal/version
-CSI_DRIVER_VERSION=1.6.0
-VAULT_HELM_VERSION=0.34.0
-VAULT_VERSION=2.0.4
+CSI_DRIVER_VERSION=1.6.2
+VAULT_HELM_VERSION=0.34.1
+VAULT_VERSION=2.2.2
 VAULT_VERSION_ARGS=--set server.image.tag=$(VAULT_VERSION) --set csi.agent.image.tag=$(VAULT_VERSION)
 ifdef VAULT_LICENSE
 	VAULT_VERSION_ARGS=--set server.image.repository=docker.mirror.hashicorp.services/hashicorp/vault-enterprise \
