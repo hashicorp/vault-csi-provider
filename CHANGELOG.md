@@ -1,4 +1,8 @@
-## Unreleased
+## 1.2.3 (November 19, 2026)
+
+IMPROVEMENTS:
+
+* No pull requests have been merged since the last release prep for 1.2.3.
 
 ## 1.7.4 (August 6, 2026)
 
