@@ -13,7 +13,7 @@
 
 package tools
 
-//go:generate go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+//go:generate go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 //go:generate golangci-lint version
 //go:generate go install github.com/hashicorp/copywrite
 //go:generate copywrite --version
