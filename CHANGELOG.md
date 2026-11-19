@@ -1,5 +1,8 @@
+## Unreleased
+
 ## 1.7.4 (August 6, 2026)
 
+* TEST BRANCH
 * Test with Vault 2.0.4, 1.21.9, 1.20.14, 1.19.20
 * Build with Go v1.26.5
 * Bump x/net, x/text and Go toolchain to fix GO-2026-5942, GO-2026-5970, GO-2026-4970, GO-2026-5856
