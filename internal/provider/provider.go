@@ -130,7 +130,7 @@ func (p *provider) getSecret(ctx context.Context, client *vaultclient.Client, se
 
 	// If no secretKey specified, we return the whole response as a JSON object.
 	if secretConfig.SecretKey == "" {
-		content, err := json.Marshal(secret)
+		content, err := json.Marshal(filterVolatileMetadata(secret))
 		if err != nil {
 			return nil, err
 		}
@@ -219,4 +219,31 @@ func generateObjectVersion(secret config.Secret, hmacKey []byte, content []byte)
 		Id:      secret.ObjectName,
 		Version: base64.URLEncoding.EncodeToString(hash.Sum(nil)),
 	}, nil
+}
+
+// filterVolatileMetadata removes fields from an api.Secret that change on each
+// request even when the underlying secret data is unchanged. This prevents
+// frequent SecretProviderClassPodStatus updates when full-secrets are fetched.
+func filterVolatileMetadata(s *api.Secret) *api.Secret {
+	if s == nil {
+		return nil
+	}
+	// Copy the struct to avoid mutating the cached value.
+	filtered := *s
+	filtered.Warnings = nil
+	filtered.Auth = nil
+	// Filter volatile fields from Data too.
+	if filtered.Data != nil {
+		filtered.Data = map[string]interface{}{}
+		for k, v := range s.Data {
+			// Skip fields that are known to be volatile.
+			switch k {
+			case "request_id", "lease_id", "renewable", "lease_duration":
+				continue
+			default:
+				filtered.Data[k] = v
+			}
+		}
+	}
+	return &filtered
 }
