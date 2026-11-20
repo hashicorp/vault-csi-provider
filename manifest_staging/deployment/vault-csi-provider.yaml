@@ -23,6 +23,14 @@ rules:
   - serviceaccounts/token
   verbs:
   - create
+# Required by the "aws" auth type to read the IAM role annotation from the
+# requesting pod's service account.
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

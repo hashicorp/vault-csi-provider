@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -62,6 +63,32 @@ func (fc FlagsConfig) TLSConfig() api.TLSConfig {
 	}
 }
 
+const (
+	AuthTypeKubernetes = "kubernetes"
+	AuthTypeAWS        = "aws"
+
+	// DefaultAWSAudience is the default audience for service account tokens
+	// exchanged with AWS STS, matching the EKS pod identity webhook default.
+	DefaultAWSAudience = "sts.amazonaws.com"
+
+	defaultKubernetesAudience = "vault"
+)
+
+// Auth is the optional `auth` parameter of a SecretProviderClass, which
+// selects and configures the Vault auth method used to log in.
+type Auth struct {
+	Type      string  `yaml:"type,omitempty"`
+	MountPath string  `yaml:"mountPath,omitempty"`
+	Role      string  `yaml:"role,omitempty"`
+	AWS       AWSAuth `yaml:"aws,omitempty"`
+}
+
+// AWSAuth holds settings that only apply to the "aws" auth type.
+type AWSAuth struct {
+	Region                 string `yaml:"region,omitempty"`
+	IAMServerIDHeaderValue string `yaml:"iamServerIDHeaderValue,omitempty"`
+}
+
 // Parameters stores the parameters specified in a mount request's `Attributes` field.
 // It consists of the parameters section from the SecretProviderClass being mounted
 // and pod metadata provided by the driver.
@@ -72,9 +99,15 @@ func (fc FlagsConfig) TLSConfig() api.TLSConfig {
 //
 // So we just deserialise by hand to avoid complexity and two passes.
 type Parameters struct {
-	VaultAddress       string
-	VaultRoleName      string
+	VaultAddress string
+	// VaultRoleName is `auth.role` if set, otherwise `roleName`.
+	VaultRoleName string
+	// VaultAuthMountPath is `auth.mountPath`, `vaultAuthMountPath` or
+	// `vaultKubernetesMountPath`, whichever is set. Empty means use the
+	// auth method's default.
 	VaultAuthMountPath string
+	VaultAuthType      string
+	VaultAuthAWS       AWSAuth
 	VaultNamespace     string
 	VaultTLSConfig     api.TLSConfig
 	Secrets            []Secret
@@ -129,8 +162,18 @@ func parseParameters(parametersStr string) (Parameters, error) {
 		return Parameters{}, err
 	}
 
+	authParams, err := parseAuth(params["auth"])
+	if err != nil {
+		return Parameters{}, err
+	}
+
 	var parameters Parameters
+	parameters.VaultAuthType = authParams.Type
+	parameters.VaultAuthAWS = authParams.AWS
 	parameters.VaultRoleName = params["roleName"]
+	if authParams.Role != "" {
+		parameters.VaultRoleName = authParams.Role
+	}
 	parameters.VaultAddress = params["vaultAddress"]
 	parameters.VaultNamespace = params["vaultNamespace"]
 	parameters.VaultTLSConfig.CACert = params["vaultCACertPath"]
@@ -143,6 +186,12 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	switch {
 	case k8sSet && authSet:
 		return Parameters{}, fmt.Errorf("cannot set both vaultKubernetesMountPath and vaultAuthMountPath")
+	case authParams.MountPath != "" && (k8sSet || authSet):
+		return Parameters{}, fmt.Errorf("cannot set 'mountPath' in the 'auth' parameter together with vaultKubernetesMountPath or vaultAuthMountPath")
+	case k8sSet && authParams.Type != AuthTypeKubernetes:
+		return Parameters{}, fmt.Errorf("vaultKubernetesMountPath can only be used with the %q auth type, use 'mountPath' in the 'auth' parameter instead", AuthTypeKubernetes)
+	case authParams.MountPath != "":
+		parameters.VaultAuthMountPath = authParams.MountPath
 	case k8sSet:
 		parameters.VaultAuthMountPath = k8sMountPath
 	case authSet:
@@ -182,7 +231,10 @@ func parseParameters(parametersStr string) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("failed to unmarshal service account tokens: %w", err)
 		}
 
-		audience := "vault"
+		audience := defaultKubernetesAudience
+		if parameters.VaultAuthType == AuthTypeAWS {
+			audience = DefaultAWSAudience
+		}
 		if parameters.Audience != "" {
 			audience = parameters.Audience
 		}
@@ -194,13 +246,41 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	return parameters, nil
 }
 
+// parseAuth parses the optional `auth` parameter, which is a YAML document.
+// Unknown fields are rejected so that typos don't silently fall back to
+// defaults.
+func parseAuth(authYAML string) (Auth, error) {
+	var auth Auth
+	if strings.TrimSpace(authYAML) != "" {
+		decoder := yaml.NewDecoder(strings.NewReader(authYAML))
+		decoder.KnownFields(true)
+		if err := decoder.Decode(&auth); err != nil && !errors.Is(err, io.EOF) {
+			return Auth{}, fmt.Errorf("failed to parse 'auth' parameter: %w", err)
+		}
+	}
+
+	switch auth.Type {
+	case "":
+		auth.Type = AuthTypeKubernetes
+	case AuthTypeKubernetes, AuthTypeAWS:
+	default:
+		return Auth{}, fmt.Errorf("unsupported auth type %q in 'auth' parameter, must be one of %q or %q", auth.Type, AuthTypeKubernetes, AuthTypeAWS)
+	}
+
+	if auth.Type != AuthTypeAWS && auth.AWS != (AWSAuth{}) {
+		return Auth{}, fmt.Errorf("'aws' settings in the 'auth' parameter can only be used with the %q auth type", AuthTypeAWS)
+	}
+
+	return auth, nil
+}
+
 func (c *Config) validate() error {
 	// Some basic validation checks.
 	if c.TargetPath == "" {
 		return errors.New("missing target path field")
 	}
 	if c.Parameters.VaultRoleName == "" {
-		return errors.New("missing 'roleName' in SecretProviderClass definition")
+		return errors.New("missing 'roleName' or 'auth.role' in SecretProviderClass definition")
 	}
 	if len(c.Parameters.Secrets) == 0 {
 		return errors.New("no secrets configured - the provider will not read any secret material")
