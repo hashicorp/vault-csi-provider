@@ -246,9 +246,9 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	return parameters, nil
 }
 
-// parseAuth parses the optional `auth` parameter, which is a YAML document.
-// Unknown fields are rejected so that typos don't silently fall back to
-// defaults.
+// parseAuth parses the optional `auth` parameter, which must be a single YAML
+// document. Unknown fields and additional documents are rejected so that
+// typos or partial configuration don't silently fall back to defaults.
 func parseAuth(authYAML string) (Auth, error) {
 	var auth Auth
 	if strings.TrimSpace(authYAML) != "" {
@@ -256,6 +256,13 @@ func parseAuth(authYAML string) (Auth, error) {
 		decoder.KnownFields(true)
 		if err := decoder.Decode(&auth); err != nil && !errors.Is(err, io.EOF) {
 			return Auth{}, fmt.Errorf("failed to parse 'auth' parameter: %w", err)
+		}
+		var extraDocument yaml.Node
+		if err := decoder.Decode(&extraDocument); !errors.Is(err, io.EOF) {
+			if err != nil {
+				return Auth{}, fmt.Errorf("failed to parse 'auth' parameter: %w", err)
+			}
+			return Auth{}, errors.New("'auth' parameter must contain a single YAML document")
 		}
 	}
 

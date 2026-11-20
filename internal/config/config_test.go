@@ -232,6 +232,16 @@ func TestParseParameters_Auth(t *testing.T) {
 				VaultAuthType: AuthTypeKubernetes,
 			},
 		},
+		"single auth document with explicit start and end markers": {
+			parameters: map[string]string{
+				"roleName": "aws-role",
+				"auth":     "---\ntype: aws\n...\n",
+			},
+			expected: Parameters{
+				VaultRoleName: "aws-role",
+				VaultAuthType: AuthTypeAWS,
+			},
+		},
 		"kubernetes auth block with mountPath and role": {
 			parameters: map[string]string{
 				"auth": "type: kubernetes\nmountPath: custom-k8s\nrole: k8s-role",
@@ -431,6 +441,38 @@ func TestParseConfig_Errors(t *testing.T) {
 			parameters: map[string]string{
 				"roleName": "example-role",
 				"auth":     "type: [aws",
+				"objects":  objects,
+			},
+		},
+		"auth with empty first document and settings in a second": {
+			expectedErr: "'auth' parameter must contain a single YAML document",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "---\n---\ntype: aws",
+				"objects":  objects,
+			},
+		},
+		"auth with conflicting settings in a second document": {
+			expectedErr: "'auth' parameter must contain a single YAML document",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: kubernetes\n---\ntype: aws",
+				"objects":  objects,
+			},
+		},
+		"auth with an unknown field in a second document": {
+			expectedErr: "'auth' parameter must contain a single YAML document",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\n---\nmouthPath: aws",
+				"objects":  objects,
+			},
+		},
+		"auth with invalid yaml in a second document": {
+			expectedErr: "failed to parse 'auth' parameter",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\n---\ntype: [aws",
 				"objects":  objects,
 			},
 		},

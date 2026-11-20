@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -272,41 +273,128 @@ func TestAWSIAMAuth_AuthRequest_Errors(t *testing.T) {
 	}
 }
 
-// TestGenerateIAMLoginData_VaultRoundTrip rebuilds the HTTP request from the
-// login data the same way the Vault server does before forwarding it to STS,
-// and checks that re-signing it produces the same signature. This ensures
-// the encoded URL, headers and body are exactly what was signed.
+// TestGenerateIAMLoginData_VaultRoundTrip checks that the login data survives
+// the Vault server's handling and still verifies at STS:
+//  1. The HTTP request is rebuilt exactly as Vault does before forwarding it
+//     to STS (vaultBuildHTTPRequest below is a copy of Vault's
+//     buildHttpRequest), using the STS endpoint Vault would be configured
+//     with for that region.
+//  2. Vault forwards to fmt.Sprintf("%s/%s", endpoint, RequestURI), so our
+//     signed path "/" arrives at STS as "//". STS verifies SigV4 signatures
+//     against the normalized path (redundant empty segments removed), which
+//     is why every Vault AWS IAM client works. The test applies the same
+//     normalization and checks the signature STS computes matches ours.
 func TestGenerateIAMLoginData_VaultRoundTrip(t *testing.T) {
 	creds := aws.Credentials{AccessKeyID: "AKIAEXAMPLE", SecretAccessKey: "secret", SessionToken: "session-token"}
-	for _, region := range []string{"us-east-1", "eu-west-1", "us-gov-west-1", "cn-north-1"} {
-		t.Run(region, func(t *testing.T) {
-			body, err := generateIAMLoginData(context.Background(), creds, region, "vault.example.com", testSigningTime)
+	for name, tc := range map[string]struct {
+		region string
+		// vaultSTSEndpoint is the endpoint Vault forwards the request to:
+		// Vault's default, or the sts_endpoint configured on
+		// auth/aws/config/client to match the region.
+		vaultSTSEndpoint string
+	}{
+		"us-east-1, Vault default endpoint":                  {region: "us-east-1", vaultSTSEndpoint: "https://sts.amazonaws.com"},
+		"eu-west-1, configured endpoint":                     {region: "eu-west-1", vaultSTSEndpoint: "https://sts.eu-west-1.amazonaws.com"},
+		"eu-west-1, configured endpoint with trailing slash": {region: "eu-west-1", vaultSTSEndpoint: "https://sts.eu-west-1.amazonaws.com/"},
+		"us-gov-west-1, configured endpoint":                 {region: "us-gov-west-1", vaultSTSEndpoint: "https://sts.us-gov-west-1.amazonaws.com"},
+		"cn-north-1, configured endpoint":                    {region: "cn-north-1", vaultSTSEndpoint: "https://sts.cn-north-1.amazonaws.com.cn"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			body, err := generateIAMLoginData(context.Background(), creds, tc.region, "vault.example.com", testSigningTime)
 			require.NoError(t, err)
 			data := decodeLoginData(t, body)
 
 			parsedURL, err := url.Parse(data.url)
 			require.NoError(t, err)
-			require.True(t, strings.HasPrefix(parsedURL.Host, "sts."), parsedURL.Host)
+			require.Equal(t, "/", parsedURL.Path)
+			// Vault's sts_endpoint must point at the host the request was signed for.
+			require.Equal(t, "https://"+parsedURL.Host, strings.TrimSuffix(tc.vaultSTSEndpoint, "/"))
 
-			// Mirrors buildHttpRequest in Vault's builtin/credential/aws/path_login.go.
-			rebuilt, err := http.NewRequest(data.method, "https://"+parsedURL.Host+parsedURL.RequestURI(), strings.NewReader(data.body))
+			// 1. Rebuild the request exactly as Vault does.
+			forwarded := vaultBuildHTTPRequest(data.method, tc.vaultSTSEndpoint, parsedURL, data.body, data.headers)
+			require.NotNil(t, forwarded)
+			require.Equal(t, parsedURL.Host, forwarded.Host, "Vault must send the signed Host")
+			require.True(t, strings.HasPrefix(forwarded.URL.Path, "//"), "Vault forwards %q, not the signed path %q", forwarded.URL.Path, parsedURL.Path)
+			require.Equal(t, data.headers, forwarded.Header, "Vault must forward the signed headers unchanged")
+			forwardedBody, err := io.ReadAll(forwarded.Body)
 			require.NoError(t, err)
-			rebuilt.Host = parsedURL.Host
-			for k, vals := range data.headers {
-				if k == "Authorization" {
-					continue
-				}
-				for _, v := range vals {
-					rebuilt.Header.Add(k, v)
-				}
-			}
+			require.Equal(t, data.body, string(forwardedBody))
 
-			b, err := io.ReadAll(rebuilt.Body)
+			// 2. Verify the signature as STS does: against the normalized path,
+			// using the headers exactly as forwarded (including X-Amz-Date).
+			normalizedPath := normalizeSigV4Path(forwarded.URL.Path)
+			require.Equal(t, parsedURL.Path, normalizedPath)
+			signedAt, err := time.Parse("20060102T150405Z", forwarded.Header.Get("X-Amz-Date"))
 			require.NoError(t, err)
-			payloadHash := sha256.Sum256(b)
-			require.NoError(t, v4.NewSigner().SignHTTP(context.Background(), creds, rebuilt, hex.EncodeToString(payloadHash[:]), "sts", region, testSigningTime))
-			require.Equal(t, data.headers.Get("Authorization"), rebuilt.Header.Get("Authorization"))
+
+			verify := forwarded.Clone(context.Background())
+			verify.URL.Path = normalizedPath
+			verify.URL.RawPath = ""
+			verify.Header.Del("Authorization")
+			verify.Body = io.NopCloser(strings.NewReader(string(forwardedBody)))
+			payloadHash := sha256.Sum256(forwardedBody)
+			require.NoError(t, v4.NewSigner().SignHTTP(context.Background(), creds, verify, hex.EncodeToString(payloadHash[:]), "sts", tc.region, signedAt))
+
+			// Re-signing must reproduce every forwarded header, so nothing that
+			// STS checks was changed after signing, and the signatures match.
+			require.Equal(t, forwarded.Header, verify.Header)
+			sent := data.headers.Get("Authorization")
+			require.Contains(t, sent, "x-vault-aws-iam-server-id", "the server ID header must be signed")
 		})
+	}
+}
+
+// vaultBuildHTTPRequest is a copy of buildHttpRequest from Vault's
+// builtin/credential/aws/path_login.go, which rebuilds the client's signed
+// GetCallerIdentity request before Vault forwards it to STS.
+func vaultBuildHTTPRequest(method, endpoint string, parsedUrl *url.URL, body string, headers http.Header) *http.Request {
+	targetUrl := fmt.Sprintf("%s/%s", endpoint, parsedUrl.RequestURI())
+	request, err := http.NewRequest(method, targetUrl, strings.NewReader(body))
+	if err != nil {
+		return nil
+	}
+	request.Host = parsedUrl.Host
+	for k, vals := range headers {
+		for _, val := range vals {
+			request.Header.Add(k, val)
+		}
+	}
+	return request
+}
+
+// normalizeSigV4Path normalizes a URI path the way AWS SigV4 does for
+// services other than S3: redundant ("//") and relative ("." and "..") path
+// segments are removed, and a trailing slash is kept.
+func normalizeSigV4Path(p string) string {
+	var segments []string
+	for _, s := range strings.Split(p, "/") {
+		switch s {
+		case "", ".":
+		case "..":
+			if len(segments) > 0 {
+				segments = segments[:len(segments)-1]
+			}
+		default:
+			segments = append(segments, s)
+		}
+	}
+	normalized := "/" + strings.Join(segments, "/")
+	if strings.HasSuffix(p, "/") && normalized != "/" {
+		normalized += "/"
+	}
+	return normalized
+}
+
+func TestNormalizeSigV4Path(t *testing.T) {
+	for in, expected := range map[string]string{
+		"/":         "/",
+		"//":        "/",
+		"///":       "/",
+		"//a//b/":   "/a/b/",
+		"/a/./b":    "/a/b",
+		"/a/b/../c": "/a/c",
+	} {
+		require.Equal(t, expected, normalizeSigV4Path(in), in)
 	}
 }
 
