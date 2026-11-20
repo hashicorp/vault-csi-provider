@@ -1,7 +1,7 @@
 # Copyright IBM Corp. 2019, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
-apiVersion: v3
+apiVersion: v2
 name: nginx-test
 version: 0-test
 description: Testing chart to deploy pods which request secrets with configurable service accounts.
