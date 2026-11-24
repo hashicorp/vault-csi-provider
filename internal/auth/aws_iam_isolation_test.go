@@ -16,8 +16,10 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 	authenticationv1 "k8s.io/api/authentication/v1"
+	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/hashicorp/vault-csi-provider/internal/config"
 )
@@ -84,9 +86,13 @@ func providerCredentialSources(t *testing.T) *atomic.Int32 {
 
 // TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials is a regression test for
 // the requirement that the provider authenticates only as the IAM role of
-// the requesting pod's service account. It uses the real STS client the
-// provider builds (only the endpoint is redirected to a fake STS server),
-// with every provider/node credential source available, and checks that:
+// the requesting pod's service account. It runs the STS client factory that
+// NewAWSIAMAuth installs, unchanged except for redirecting the endpoint to a
+// fake STS server, with every provider/node credential source available.
+// The AWS SDK always sends AssumeRoleWithWebIdentity unsigned, so this test
+// cannot detect credentials configured on the STS client itself;
+// TestNewAWSIAMAuth_STSClientHasNoCredentials covers that. This test checks
+// that:
 //   - those sources are never consulted,
 //   - AssumeRoleWithWebIdentity is sent unsigned, for the application's role
 //     and service account token,
@@ -104,6 +110,9 @@ func TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials(t *testing.T) {
 		suppliedToken string
 		// stsErrorCode, if set, makes STS reject AssumeRoleWithWebIdentity.
 		stsErrorCode string
+		// stsNoCredentials makes STS return a successful response without
+		// credentials.
+		stsNoCredentials bool
 	}{
 		"self-generated token, role assumed":          {},
 		"supplied token, role assumed":                {suppliedToken: suppliedToken},
@@ -111,6 +120,7 @@ func TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials(t *testing.T) {
 		"supplied token rejected as invalid":          {suppliedToken: suppliedToken, stsErrorCode: "InvalidIdentityToken"},
 		"supplied token rejected as expired":          {suppliedToken: suppliedToken, stsErrorCode: "ExpiredTokenException"},
 		"supplied token, role assumption fails":       {suppliedToken: suppliedToken, stsErrorCode: "AccessDenied"},
+		"STS response without credentials":            {stsNoCredentials: true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			credentialEndpointHits := providerCredentialSources(t)
@@ -139,6 +149,10 @@ func TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials(t *testing.T) {
 					_, _ = fmt.Fprintf(w, `<ErrorResponse><Error><Type>Sender</Type><Code>%s</Code><Message>rejected by test</Message></Error><RequestId>test</RequestId></ErrorResponse>`, tc.stsErrorCode)
 					return
 				}
+				if tc.stsNoCredentials {
+					_, _ = fmt.Fprint(w, `<AssumeRoleWithWebIdentityResponse><AssumeRoleWithWebIdentityResult></AssumeRoleWithWebIdentityResult></AssumeRoleWithWebIdentityResponse>`)
+					return
+				}
 				_, _ = fmt.Fprintf(w, `<AssumeRoleWithWebIdentityResponse><AssumeRoleWithWebIdentityResult><Credentials><AccessKeyId>%s</AccessKeyId><SecretAccessKey>app-role-secret</SecretAccessKey><SessionToken>%s</SessionToken><Expiration>2030-01-01T00:00:00Z</Expiration></Credentials></AssumeRoleWithWebIdentityResult></AssumeRoleWithWebIdentityResponse>`,
 					appRoleAccessKeyID, appRoleSessionToken)
 			}))
@@ -151,13 +165,8 @@ func TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials(t *testing.T) {
 				VaultRoleName: "vault-role",
 				VaultAuthType: config.AuthTypeAWS,
 				PodInfo:       podInfo,
-			}, &fakeSTS{}, &tokenRequests, testServiceAccount(map[string]string{awsRoleARNAnnotation: testRoleARN}))
-			// Use the production STS client, redirected to the fake STS server.
-			a.newSTSClient = func(region string) stsClient {
-				return newAnonymousSTSClient(region, func(o *sts.Options) {
-					o.BaseEndpoint = aws.String(stsServer.URL)
-				})
-			}
+			}, nil, &tokenRequests, testServiceAccount(map[string]string{awsRoleARNAnnotation: testRoleARN}))
+			a.newSTSClient = redirectSTSClient(t, a.newSTSClient, stsServer.URL)
 
 			path, body, err := a.AuthRequest(context.Background())
 
@@ -196,6 +205,12 @@ func TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials(t *testing.T) {
 				require.Nil(t, body)
 				return
 			}
+			if tc.stsNoCredentials {
+				require.ErrorContains(t, err, `no credentials returned when assuming IAM role "`+testRoleARN+`"`)
+				require.Empty(t, path)
+				require.Nil(t, body)
+				return
+			}
 
 			// The Vault login request is signed only with the application
 			// role's temporary credentials.
@@ -211,4 +226,34 @@ func TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials(t *testing.T) {
 			}
 		})
 	}
+}
+
+// redirectSTSClient wraps the production STS client factory so that the
+// clients it builds send requests to endpoint. Every other client option,
+// including credentials, comes from the production factory unchanged.
+func redirectSTSClient(t *testing.T, productionFactory func(region string) stsClient, endpoint string) func(region string) stsClient {
+	t.Helper()
+	return func(region string) stsClient {
+		client, ok := productionFactory(region).(*sts.Client)
+		require.True(t, ok, "the production STS client factory must return an *sts.Client")
+		return sts.New(client.Options(), func(o *sts.Options) {
+			o.BaseEndpoint = aws.String(endpoint)
+		})
+	}
+}
+
+// TestNewAWSIAMAuth_STSClientHasNoCredentials checks that the STS client
+// factory installed by NewAWSIAMAuth builds a client without a credentials
+// provider, with every provider/node credential source available. This guards
+// against a future change to the factory, such as loading the SDK's default
+// config, which would give the client the provider's or node's credentials.
+func TestNewAWSIAMAuth_STSClientHasNoCredentials(t *testing.T) {
+	providerCredentialSources(t)
+	a := NewAWSIAMAuth(hclog.NewNullLogger(), fake.NewClientset(), config.Parameters{})
+
+	client, ok := a.newSTSClient("us-west-2").(*sts.Client)
+	require.True(t, ok, "the production STS client factory must return an *sts.Client")
+	options := client.Options()
+	require.Nil(t, options.Credentials, "the STS client must not have a credentials provider")
+	require.Equal(t, "us-west-2", options.Region)
 }

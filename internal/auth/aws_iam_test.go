@@ -45,12 +45,22 @@ type fakeSTS struct {
 	region string
 	input  *sts.AssumeRoleWithWebIdentityInput
 	err    error
+	// output, if set, is returned instead of the default successful response.
+	output *sts.AssumeRoleWithWebIdentityOutput
+	// nilOutput makes the call return a nil response without an error.
+	nilOutput bool
 }
 
 func (f *fakeSTS) AssumeRoleWithWebIdentity(_ context.Context, input *sts.AssumeRoleWithWebIdentityInput, _ ...func(*sts.Options)) (*sts.AssumeRoleWithWebIdentityOutput, error) {
 	f.input = input
 	if f.err != nil {
 		return nil, f.err
+	}
+	if f.nilOutput {
+		return nil, nil
+	}
+	if f.output != nil {
+		return f.output, nil
 	}
 	return &sts.AssumeRoleWithWebIdentityOutput{
 		Credentials: &ststypes.Credentials{
@@ -80,9 +90,10 @@ func testServiceAccount(annotations map[string]string) *corev1.ServiceAccount {
 	}
 }
 
-// newTestAWSIAMAuth returns an AWSIAMAuth with fake Kubernetes and STS
-// clients. Created service account token requests are appended to
-// tokenRequests.
+// newTestAWSIAMAuth returns an AWSIAMAuth with a fake Kubernetes client.
+// Created service account token requests are appended to tokenRequests. If
+// fakeSTSClient is non-nil, it replaces the STS client; otherwise the
+// production STS client factory from NewAWSIAMAuth is kept.
 func newTestAWSIAMAuth(t *testing.T, params config.Parameters, fakeSTSClient *fakeSTS, tokenRequests *[]*authenticationv1.TokenRequest, objects ...runtime.Object) *AWSIAMAuth {
 	t.Helper()
 	k8sClient := fake.NewClientset(objects...)
@@ -98,9 +109,11 @@ func newTestAWSIAMAuth(t *testing.T, params config.Parameters, fakeSTSClient *fa
 	})
 
 	a := NewAWSIAMAuth(hclog.NewNullLogger(), k8sClient, params)
-	a.newSTSClient = func(region string) stsClient {
-		fakeSTSClient.region = region
-		return fakeSTSClient
+	if fakeSTSClient != nil {
+		a.newSTSClient = func(region string) stsClient {
+			fakeSTSClient.region = region
+			return fakeSTSClient
+		}
 	}
 	a.now = func() time.Time { return testSigningTime }
 	return a
@@ -248,27 +261,41 @@ func TestAWSIAMAuth_AuthRequest_Errors(t *testing.T) {
 	}
 	for name, tc := range map[string]struct {
 		objects     []runtime.Object
-		stsErr      error
+		fakeSTS     *fakeSTS
 		expectedErr string
 	}{
 		"service account not found": {
+			fakeSTS:     &fakeSTS{},
 			expectedErr: "failed to get service account my-ns/my-sa",
 		},
 		"service account without role annotation": {
 			objects:     []runtime.Object{testServiceAccount(nil)},
+			fakeSTS:     &fakeSTS{},
 			expectedErr: `service account my-ns/my-sa must have the "eks.amazonaws.com/role-arn" annotation`,
 		},
 		"assume role fails": {
 			objects:     []runtime.Object{testServiceAccount(map[string]string{awsRoleARNAnnotation: testRoleARN})},
-			stsErr:      errors.New("access denied"),
+			fakeSTS:     &fakeSTS{err: errors.New("access denied")},
 			expectedErr: `failed to assume IAM role "` + testRoleARN + `" with web identity: access denied`,
+		},
+		"assume role returns no response": {
+			objects:     []runtime.Object{testServiceAccount(map[string]string{awsRoleARNAnnotation: testRoleARN})},
+			fakeSTS:     &fakeSTS{nilOutput: true},
+			expectedErr: `no credentials returned when assuming IAM role "` + testRoleARN + `"`,
+		},
+		"assume role returns no credentials": {
+			objects:     []runtime.Object{testServiceAccount(map[string]string{awsRoleARNAnnotation: testRoleARN})},
+			fakeSTS:     &fakeSTS{output: &sts.AssumeRoleWithWebIdentityOutput{}},
+			expectedErr: `no credentials returned when assuming IAM role "` + testRoleARN + `"`,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			var tokenRequests []*authenticationv1.TokenRequest
-			a := newTestAWSIAMAuth(t, params, &fakeSTS{err: tc.stsErr}, &tokenRequests, tc.objects...)
-			_, _, err := a.AuthRequest(context.Background())
+			a := newTestAWSIAMAuth(t, params, tc.fakeSTS, &tokenRequests, tc.objects...)
+			path, body, err := a.AuthRequest(context.Background())
 			require.ErrorContains(t, err, tc.expectedErr)
+			require.Empty(t, path)
+			require.Nil(t, body)
 		})
 	}
 }
