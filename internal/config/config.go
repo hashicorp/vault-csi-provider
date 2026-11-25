@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -87,6 +88,10 @@ type Auth struct {
 type AWSAuth struct {
 	Region                 string `yaml:"region,omitempty"`
 	IAMServerIDHeaderValue string `yaml:"iamServerIDHeaderValue,omitempty"`
+	// STSEndpoint overrides the STS endpoint used for AssumeRoleWithWebIdentity
+	// and for the signed GetCallerIdentity login request, for example a FIPS or
+	// VPC interface endpoint.
+	STSEndpoint string `yaml:"stsEndpoint,omitempty"`
 }
 
 // Parameters stores the parameters specified in a mount request's `Attributes` field.
@@ -278,7 +283,38 @@ func parseAuth(authYAML string) (Auth, error) {
 		return Auth{}, fmt.Errorf("'aws' settings in the 'auth' parameter can only be used with the %q auth type", AuthTypeAWS)
 	}
 
+	if auth.AWS.STSEndpoint != "" {
+		if err := validateSTSEndpoint(auth.AWS.STSEndpoint); err != nil {
+			return Auth{}, fmt.Errorf("invalid 'aws.stsEndpoint' in 'auth' parameter: %w", err)
+		}
+	}
+
 	return auth, nil
+}
+
+// validateSTSEndpoint checks that endpoint is an absolute http or https URL
+// without a path, query, fragment, or user info, so that it can be used both as
+// the STS client base endpoint and as the URL of the signed login request.
+func validateSTSEndpoint(endpoint string) error {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return err
+	}
+	switch {
+	case u.Scheme != "https" && u.Scheme != "http":
+		return fmt.Errorf("%q must use the https or http scheme", endpoint)
+	case u.Host == "":
+		return fmt.Errorf("%q must include a host", endpoint)
+	case u.User != nil:
+		return fmt.Errorf("%q must not include user info", endpoint)
+	case u.Path != "" && u.Path != "/":
+		return fmt.Errorf("%q must not include a path", endpoint)
+	case u.RawQuery != "" || u.ForceQuery:
+		return fmt.Errorf("%q must not include a query", endpoint)
+	case u.Fragment != "":
+		return fmt.Errorf("%q must not include a fragment", endpoint)
+	}
+	return nil
 }
 
 func (c *Config) validate() error {
@@ -286,6 +322,10 @@ func (c *Config) validate() error {
 	if c.TargetPath == "" {
 		return errors.New("missing target path field")
 	}
+	// A Vault role is required for every auth type, including aws. Vault's AWS
+	// auth method would otherwise infer the role from the IAM principal's
+	// friendly name (the IAM role name for IRSA). Requiring it keeps the Vault
+	// role an explicit choice, consistent with Kubernetes auth.
 	if c.Parameters.VaultRoleName == "" {
 		return errors.New("missing 'roleName' or 'auth.role' in SecretProviderClass definition")
 	}

@@ -113,6 +113,11 @@ func TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials(t *testing.T) {
 		// stsNoCredentials makes STS return a successful response without
 		// credentials.
 		stsNoCredentials bool
+		// stsEndpointFromConfig sets auth.aws.stsEndpoint to the fake STS
+		// server and runs the production STS client factory without any
+		// test override. Otherwise, the test redirects the production
+		// factory's clients to the fake STS server.
+		stsEndpointFromConfig bool
 	}{
 		"self-generated token, role assumed":          {},
 		"supplied token, role assumed":                {suppliedToken: suppliedToken},
@@ -121,6 +126,12 @@ func TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials(t *testing.T) {
 		"supplied token rejected as expired":          {suppliedToken: suppliedToken, stsErrorCode: "ExpiredTokenException"},
 		"supplied token, role assumption fails":       {suppliedToken: suppliedToken, stsErrorCode: "AccessDenied"},
 		"STS response without credentials":            {stsNoCredentials: true},
+		"STS endpoint from config, role assumed":      {stsEndpointFromConfig: true},
+		"STS endpoint from config, supplied token rejected": {
+			suppliedToken:         suppliedToken,
+			stsErrorCode:          "InvalidIdentityToken",
+			stsEndpointFromConfig: true,
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			credentialEndpointHits := providerCredentialSources(t)
@@ -160,13 +171,19 @@ func TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials(t *testing.T) {
 
 			podInfo := testPodInfo()
 			podInfo.ServiceAccountToken = tc.suppliedToken
-			var tokenRequests []*authenticationv1.TokenRequest
-			a := newTestAWSIAMAuth(t, config.Parameters{
+			params := config.Parameters{
 				VaultRoleName: "vault-role",
 				VaultAuthType: config.AuthTypeAWS,
 				PodInfo:       podInfo,
-			}, nil, &tokenRequests, testServiceAccount(map[string]string{awsRoleARNAnnotation: testRoleARN}))
-			a.newSTSClient = redirectSTSClient(t, a.newSTSClient, stsServer.URL)
+			}
+			if tc.stsEndpointFromConfig {
+				params.VaultAuthAWS.STSEndpoint = stsServer.URL
+			}
+			var tokenRequests []*authenticationv1.TokenRequest
+			a := newTestAWSIAMAuth(t, params, nil, &tokenRequests, testServiceAccount(map[string]string{awsRoleARNAnnotation: testRoleARN}))
+			if !tc.stsEndpointFromConfig {
+				a.newSTSClient = redirectSTSClient(t, a.newSTSClient, stsServer.URL)
+			}
 
 			path, body, err := a.AuthRequest(context.Background())
 
@@ -224,6 +241,10 @@ func TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials(t *testing.T) {
 			for _, providerValue := range []string{providerEnvAccessKeyID, providerFileAccessKeyID, "provider-env-session-token", providerWebIdentityToken} {
 				require.NotContains(t, decoded, providerValue, "login request contains provider credential")
 			}
+			if tc.stsEndpointFromConfig {
+				// The signed login request targets the configured STS endpoint.
+				require.Equal(t, stsServer.URL+"/", data.url)
+			}
 		})
 	}
 }
@@ -231,10 +252,10 @@ func TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials(t *testing.T) {
 // redirectSTSClient wraps the production STS client factory so that the
 // clients it builds send requests to endpoint. Every other client option,
 // including credentials, comes from the production factory unchanged.
-func redirectSTSClient(t *testing.T, productionFactory func(region string) stsClient, endpoint string) func(region string) stsClient {
+func redirectSTSClient(t *testing.T, productionFactory func(region, endpoint string) stsClient, endpoint string) func(region, endpoint string) stsClient {
 	t.Helper()
-	return func(region string) stsClient {
-		client, ok := productionFactory(region).(*sts.Client)
+	return func(region, configuredEndpoint string) stsClient {
+		client, ok := productionFactory(region, configuredEndpoint).(*sts.Client)
 		require.True(t, ok, "the production STS client factory must return an *sts.Client")
 		return sts.New(client.Options(), func(o *sts.Options) {
 			o.BaseEndpoint = aws.String(endpoint)
@@ -251,9 +272,23 @@ func TestNewAWSIAMAuth_STSClientHasNoCredentials(t *testing.T) {
 	providerCredentialSources(t)
 	a := NewAWSIAMAuth(hclog.NewNullLogger(), fake.NewClientset(), config.Parameters{})
 
-	client, ok := a.newSTSClient("us-west-2").(*sts.Client)
-	require.True(t, ok, "the production STS client factory must return an *sts.Client")
-	options := client.Options()
-	require.Nil(t, options.Credentials, "the STS client must not have a credentials provider")
-	require.Equal(t, "us-west-2", options.Region)
+	for name, tc := range map[string]struct {
+		endpoint             string
+		expectedBaseEndpoint *string
+	}{
+		"default endpoint": {},
+		"custom endpoint": {
+			endpoint:             "https://sts-fips.us-west-2.amazonaws.com",
+			expectedBaseEndpoint: aws.String("https://sts-fips.us-west-2.amazonaws.com"),
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			client, ok := a.newSTSClient("us-west-2", tc.endpoint).(*sts.Client)
+			require.True(t, ok, "the production STS client factory must return an *sts.Client")
+			options := client.Options()
+			require.Nil(t, options.Credentials, "the STS client must not have a credentials provider")
+			require.Equal(t, "us-west-2", options.Region)
+			require.Equal(t, tc.expectedBaseEndpoint, options.BaseEndpoint)
+		})
+	}
 }

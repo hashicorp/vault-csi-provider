@@ -280,6 +280,7 @@ role: aws-role
 aws:
   region: us-west-2
   iamServerIDHeaderValue: vault.example.com
+  stsEndpoint: https://sts-fips.us-west-2.amazonaws.com
 `,
 			},
 			expected: Parameters{
@@ -289,7 +290,19 @@ aws:
 				VaultAuthAWS: AWSAuth{
 					Region:                 "us-west-2",
 					IAMServerIDHeaderValue: "vault.example.com",
+					STSEndpoint:            "https://sts-fips.us-west-2.amazonaws.com",
 				},
+			},
+		},
+		"aws with an http STS endpoint and trailing slash": {
+			parameters: map[string]string{
+				"roleName": "aws-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: http://localhost:4566/",
+			},
+			expected: Parameters{
+				VaultRoleName: "aws-role",
+				VaultAuthType: AuthTypeAWS,
+				VaultAuthAWS:  AWSAuth{STSEndpoint: "http://localhost:4566/"},
 			},
 		},
 		"aws with legacy vaultAuthMountPath": {
@@ -433,6 +446,78 @@ func TestParseConfig_Errors(t *testing.T) {
 			parameters: map[string]string{
 				"roleName": "example-role",
 				"auth":     "aws:\n  region: us-west-2",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with kubernetes auth type": {
+			expectedErr: "'aws' settings in the 'auth' parameter can only be used with the \"aws\" auth type",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: kubernetes\naws:\n  stsEndpoint: https://sts.us-west-2.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint without a scheme": {
+			expectedErr: "invalid 'aws.stsEndpoint' in 'auth' parameter: \"sts.us-west-2.amazonaws.com\" must use the https or http scheme",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: sts.us-west-2.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with an unsupported scheme": {
+			expectedErr: "must use the https or http scheme",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: ftp://sts.us-west-2.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint without a host": {
+			expectedErr: "must include a host",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with a path": {
+			expectedErr: "must not include a path",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://sts.us-west-2.amazonaws.com/sts",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with a query": {
+			expectedErr: "must not include a query",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://sts.us-west-2.amazonaws.com/?a=b",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with a fragment": {
+			expectedErr: "must not include a fragment",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://sts.us-west-2.amazonaws.com#x",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with user info": {
+			expectedErr: "must not include user info",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://user:pass@sts.us-west-2.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint that is not a URL": {
+			expectedErr: "invalid 'aws.stsEndpoint' in 'auth' parameter",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: \"https://sts.us-west-2.amazonaws.com:port\"",
 				"objects":  objects,
 			},
 		},

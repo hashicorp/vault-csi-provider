@@ -81,6 +81,7 @@ func TestCacheKey_AuthSettingsIsolateClients(t *testing.T) {
 		"different mount path":           {mutate: func(p *config.Parameters) { p.VaultAuthMountPath = "aws-custom" }},
 		"different AWS region":           {mutate: func(p *config.Parameters) { p.VaultAuthAWS.Region = "eu-west-1" }},
 		"different IAM server ID header": {mutate: func(p *config.Parameters) { p.VaultAuthAWS.IAMServerIDHeaderValue = "other.example.com" }},
+		"different STS endpoint":         {mutate: func(p *config.Parameters) { p.VaultAuthAWS.STSEndpoint = "https://sts-fips.us-west-2.amazonaws.com" }},
 		"no IAM server ID header":        {mutate: func(p *config.Parameters) { p.VaultAuthAWS.IAMServerIDHeaderValue = "" }},
 		"different token audience":       {mutate: func(p *config.Parameters) { p.Audience = "custom" }},
 		"different Vault namespace":      {mutate: func(p *config.Parameters) { p.VaultNamespace = "team-a" }},
@@ -161,6 +162,10 @@ func TestCacheKey_SecretProviderClassAuthIsolation(t *testing.T) {
 		"aws, with and without IAM server ID header": {
 			a: spc(map[string]string{"roleName": "app-role", "auth": "type: aws"}),
 			b: spc(map[string]string{"roleName": "app-role", "auth": "type: aws\naws:\n  iamServerIDHeaderValue: vault.example.com"}),
+		},
+		"aws, with and without STS endpoint": {
+			a: spc(map[string]string{"roleName": "app-role", "auth": "type: aws"}),
+			b: spc(map[string]string{"roleName": "app-role", "auth": "type: aws\naws:\n  stsEndpoint: https://sts-fips.us-east-1.amazonaws.com"}),
 		},
 		"kubernetes, different mount paths": {
 			a: spc(map[string]string{"roleName": "app-role", "vaultKubernetesMountPath": "kubernetes"}),

@@ -42,9 +42,10 @@ const (
 var testSigningTime = time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
 
 type fakeSTS struct {
-	region string
-	input  *sts.AssumeRoleWithWebIdentityInput
-	err    error
+	region   string
+	endpoint string
+	input    *sts.AssumeRoleWithWebIdentityInput
+	err      error
 	// output, if set, is returned instead of the default successful response.
 	output *sts.AssumeRoleWithWebIdentityOutput
 	// nilOutput makes the call return a nil response without an error.
@@ -110,8 +111,9 @@ func newTestAWSIAMAuth(t *testing.T, params config.Parameters, fakeSTSClient *fa
 
 	a := NewAWSIAMAuth(hclog.NewNullLogger(), k8sClient, params)
 	if fakeSTSClient != nil {
-		a.newSTSClient = func(region string) stsClient {
+		a.newSTSClient = func(region, endpoint string) stsClient {
 			fakeSTSClient.region = region
+			fakeSTSClient.endpoint = endpoint
 			return fakeSTSClient
 		}
 	}
@@ -149,6 +151,7 @@ func TestAWSIAMAuth_AuthRequest(t *testing.T) {
 		params                config.Parameters
 		expectedPath          string
 		expectedRegion        string
+		expectedSTSEndpoint   string
 		expectedURL           string
 		expectedToken         string
 		expectedTokenAudience string
@@ -200,6 +203,41 @@ func TestAWSIAMAuth_AuthRequest(t *testing.T) {
 			expectedToken:    "mount-request-token",
 			expectedServerID: "vault.example.com",
 		},
+		"custom STS endpoint with the default region": {
+			params: config.Parameters{
+				VaultRoleName: "vault-role",
+				VaultAuthType: config.AuthTypeAWS,
+				VaultAuthAWS: config.AWSAuth{
+					STSEndpoint: "https://sts-fips.us-east-1.amazonaws.com",
+				},
+				PodInfo: testPodInfo(),
+			},
+			expectedPath:          "/v1/auth/aws/login",
+			expectedRegion:        "us-east-1",
+			expectedSTSEndpoint:   "https://sts-fips.us-east-1.amazonaws.com",
+			expectedURL:           "https://sts-fips.us-east-1.amazonaws.com/",
+			expectedToken:         "self-generated-token",
+			expectedTokenAudience: "sts.amazonaws.com",
+		},
+		"custom STS endpoint with a region": {
+			params: config.Parameters{
+				VaultRoleName: "vault-role",
+				VaultAuthType: config.AuthTypeAWS,
+				VaultAuthAWS: config.AWSAuth{
+					Region:                 "eu-west-1",
+					STSEndpoint:            "https://vpce-0123456789abcdef0-abcdefgh.sts.eu-west-1.vpce.amazonaws.com/",
+					IAMServerIDHeaderValue: "vault.example.com",
+				},
+				PodInfo: testPodInfo(),
+			},
+			expectedPath:          "/v1/auth/aws/login",
+			expectedRegion:        "eu-west-1",
+			expectedSTSEndpoint:   "https://vpce-0123456789abcdef0-abcdefgh.sts.eu-west-1.vpce.amazonaws.com/",
+			expectedURL:           "https://vpce-0123456789abcdef0-abcdefgh.sts.eu-west-1.vpce.amazonaws.com/",
+			expectedToken:         "self-generated-token",
+			expectedTokenAudience: "sts.amazonaws.com",
+			expectedServerID:      "vault.example.com",
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			fakeSTSClient := &fakeSTS{}
@@ -227,6 +265,7 @@ func TestAWSIAMAuth_AuthRequest(t *testing.T) {
 
 			// STS AssumeRoleWithWebIdentity.
 			require.Equal(t, tc.expectedRegion, fakeSTSClient.region)
+			require.Equal(t, tc.expectedSTSEndpoint, fakeSTSClient.endpoint)
 			require.Equal(t, testRoleARN, aws.ToString(fakeSTSClient.input.RoleArn))
 			require.Equal(t, tc.expectedToken, aws.ToString(fakeSTSClient.input.WebIdentityToken))
 			require.Equal(t, "vault-csi-provider-"+testPodUID, aws.ToString(fakeSTSClient.input.RoleSessionName))
@@ -251,6 +290,21 @@ func TestAWSIAMAuth_AuthRequest(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAWSIAMAuth_AuthRequest_EmptyRoleOmitted checks that an empty Vault role
+// is left out of the login body instead of being sent as "".
+func TestAWSIAMAuth_AuthRequest_EmptyRoleOmitted(t *testing.T) {
+	var tokenRequests []*authenticationv1.TokenRequest
+	a := newTestAWSIAMAuth(t, config.Parameters{
+		VaultAuthType: config.AuthTypeAWS,
+		PodInfo:       testPodInfo(),
+	}, &fakeSTS{}, &tokenRequests, testServiceAccount(map[string]string{awsRoleARNAnnotation: testRoleARN}))
+
+	_, body, err := a.AuthRequest(context.Background())
+	require.NoError(t, err)
+	require.NotContains(t, body, "role")
+	require.Len(t, body, 4)
 }
 
 func TestAWSIAMAuth_AuthRequest_Errors(t *testing.T) {
@@ -315,9 +369,11 @@ func TestGenerateIAMLoginData_VaultRoundTrip(t *testing.T) {
 	creds := aws.Credentials{AccessKeyID: "AKIAEXAMPLE", SecretAccessKey: "secret", SessionToken: "session-token"}
 	for name, tc := range map[string]struct {
 		region string
+		// stsEndpoint is the provider's auth.aws.stsEndpoint setting.
+		stsEndpoint string
 		// vaultSTSEndpoint is the endpoint Vault forwards the request to:
 		// Vault's default, or the sts_endpoint configured on
-		// auth/aws/config/client to match the region.
+		// auth/aws/config/client to match the region and endpoint.
 		vaultSTSEndpoint string
 	}{
 		"us-east-1, Vault default endpoint":                  {region: "us-east-1", vaultSTSEndpoint: "https://sts.amazonaws.com"},
@@ -325,9 +381,19 @@ func TestGenerateIAMLoginData_VaultRoundTrip(t *testing.T) {
 		"eu-west-1, configured endpoint with trailing slash": {region: "eu-west-1", vaultSTSEndpoint: "https://sts.eu-west-1.amazonaws.com/"},
 		"us-gov-west-1, configured endpoint":                 {region: "us-gov-west-1", vaultSTSEndpoint: "https://sts.us-gov-west-1.amazonaws.com"},
 		"cn-north-1, configured endpoint":                    {region: "cn-north-1", vaultSTSEndpoint: "https://sts.cn-north-1.amazonaws.com.cn"},
+		"us-east-1, custom FIPS endpoint": {
+			region:           "us-east-1",
+			stsEndpoint:      "https://sts-fips.us-east-1.amazonaws.com",
+			vaultSTSEndpoint: "https://sts-fips.us-east-1.amazonaws.com",
+		},
+		"eu-west-1, custom VPC endpoint with trailing slash": {
+			region:           "eu-west-1",
+			stsEndpoint:      "https://vpce-0123456789abcdef0-abcdefgh.sts.eu-west-1.vpce.amazonaws.com/",
+			vaultSTSEndpoint: "https://vpce-0123456789abcdef0-abcdefgh.sts.eu-west-1.vpce.amazonaws.com",
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			body, err := generateIAMLoginData(context.Background(), creds, tc.region, "vault.example.com", testSigningTime)
+			body, err := generateIAMLoginData(context.Background(), creds, tc.region, tc.stsEndpoint, "vault.example.com", testSigningTime)
 			require.NoError(t, err)
 			data := decodeLoginData(t, body)
 

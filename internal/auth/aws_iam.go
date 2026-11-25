@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -56,7 +57,7 @@ type AWSIAMAuth struct {
 	params    config.Parameters
 
 	// Overridable for tests.
-	newSTSClient func(region string) stsClient
+	newSTSClient func(region, endpoint string) stsClient
 	now          func() time.Time
 }
 
@@ -65,8 +66,8 @@ func NewAWSIAMAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params c
 		logger:    logger,
 		k8sClient: k8sClient,
 		params:    params,
-		newSTSClient: func(region string) stsClient {
-			return newAnonymousSTSClient(region)
+		newSTSClient: func(region, endpoint string) stsClient {
+			return newAnonymousSTSClient(region, endpoint)
 		},
 		now: time.Now,
 	}
@@ -77,12 +78,17 @@ func NewAWSIAMAuth(logger hclog.Logger, k8sClient kubernetes.Interface, params c
 // client is built directly from sts.Options rather than the SDK's default
 // config loader, so it never reads the provider's environment variables,
 // shared config files, web identity token, or EC2 instance metadata. This
-// ensures the provider's or node's own AWS identity is never used.
-func newAnonymousSTSClient(region string, optFns ...func(*sts.Options)) *sts.Client {
-	return sts.New(sts.Options{
+// ensures the provider's or node's own AWS identity is never used. If endpoint
+// is set, it overrides the SDK's default STS endpoint for the region.
+func newAnonymousSTSClient(region, endpoint string) *sts.Client {
+	options := sts.Options{
 		Region: region,
 		AppID:  "vault-csi-provider",
-	}, optFns...)
+	}
+	if endpoint != "" {
+		options.BaseEndpoint = aws.String(endpoint)
+	}
+	return sts.New(options)
 }
 
 // AuthRequest returns the request path and body required to authenticate
@@ -126,8 +132,10 @@ func (a *AWSIAMAuth) AuthRequest(ctx context.Context) (path string, body map[str
 		sessionName = fmt.Sprintf("%s-%s", roleSessionNamePrefix, podInfo.UID)
 	}
 
-	a.logger.Debug("assuming IAM role with web identity", "roleARN", roleARN, "region", region)
-	resp, err := a.newSTSClient(region).AssumeRoleWithWebIdentity(ctx, &sts.AssumeRoleWithWebIdentityInput{
+	stsEndpoint := a.params.VaultAuthAWS.STSEndpoint
+
+	a.logger.Debug("assuming IAM role with web identity", "roleARN", roleARN, "region", region, "stsEndpoint", stsEndpoint)
+	resp, err := a.newSTSClient(region, stsEndpoint).AssumeRoleWithWebIdentity(ctx, &sts.AssumeRoleWithWebIdentityInput{
 		RoleArn:          aws.String(roleARN),
 		RoleSessionName:  aws.String(sessionName),
 		WebIdentityToken: aws.String(token),
@@ -144,11 +152,16 @@ func (a *AWSIAMAuth) AuthRequest(ctx context.Context) (path string, body map[str
 		SecretAccessKey: aws.ToString(resp.Credentials.SecretAccessKey),
 		SessionToken:    aws.ToString(resp.Credentials.SessionToken),
 	}
-	body, err = generateIAMLoginData(ctx, creds, region, a.params.VaultAuthAWS.IAMServerIDHeaderValue, a.now())
+	body, err = generateIAMLoginData(ctx, creds, region, stsEndpoint, a.params.VaultAuthAWS.IAMServerIDHeaderValue, a.now())
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to generate AWS IAM login data: %w", err)
 	}
-	body["role"] = a.params.VaultRoleName
+	// Config validation requires a Vault role. If it is ever empty, leave the
+	// role key out rather than sending "", so Vault applies its documented
+	// default of using the IAM principal's friendly name.
+	if a.params.VaultRoleName != "" {
+		body["role"] = a.params.VaultRoleName
+	}
 
 	mountPath := a.params.VaultAuthMountPath
 	if mountPath == "" {
@@ -159,21 +172,33 @@ func (a *AWSIAMAuth) AuthRequest(ctx context.Context) (path string, body map[str
 }
 
 // generateIAMLoginData signs an sts:GetCallerIdentity request and encodes it
-// in the format expected by Vault's AWS auth "iam" login endpoint.
+// in the format expected by Vault's AWS auth "iam" login endpoint. The request
+// is always signed for region.
 //
-// For us-east-1, the request targets the global STS endpoint, which is what
-// the Vault AWS auth method expects by default. For other regions, it targets
-// the regional STS endpoint, and Vault's sts_endpoint and sts_region must be
+// If stsEndpoint is set, the request targets that endpoint, and Vault's
+// sts_endpoint and sts_region must be configured to match. Otherwise, for
+// us-east-1, the request targets the global STS endpoint, which is what the
+// Vault AWS auth method expects by default. For other regions, it targets the
+// regional STS endpoint, and Vault's sts_endpoint and sts_region must be
 // configured to match.
-func generateIAMLoginData(ctx context.Context, creds aws.Credentials, region, iamServerIDHeaderValue string, signingTime time.Time) (map[string]string, error) {
-	endpoint, err := sts.NewDefaultEndpointResolverV2().ResolveEndpoint(ctx, sts.EndpointParameters{
-		Region:            aws.String(region),
-		UseGlobalEndpoint: aws.Bool(region == defaultAWSRegion),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve STS endpoint for region %q: %w", region, err)
+func generateIAMLoginData(ctx context.Context, creds aws.Credentials, region, stsEndpoint, iamServerIDHeaderValue string, signingTime time.Time) (map[string]string, error) {
+	var stsURL url.URL
+	if stsEndpoint != "" {
+		u, err := url.Parse(stsEndpoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse STS endpoint %q: %w", stsEndpoint, err)
+		}
+		stsURL = *u
+	} else {
+		endpoint, err := sts.NewDefaultEndpointResolverV2().ResolveEndpoint(ctx, sts.EndpointParameters{
+			Region:            aws.String(region),
+			UseGlobalEndpoint: aws.Bool(region == defaultAWSRegion),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve STS endpoint for region %q: %w", region, err)
+		}
+		stsURL = endpoint.URI
 	}
-	stsURL := endpoint.URI
 	if stsURL.Path == "" {
 		stsURL.Path = "/"
 	}
