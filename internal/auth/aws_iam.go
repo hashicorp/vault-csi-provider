@@ -156,9 +156,7 @@ func (a *AWSIAMAuth) AuthRequest(ctx context.Context) (path string, body map[str
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to generate AWS IAM login data: %w", err)
 	}
-	// Config validation requires a Vault role. If it is ever empty, leave the
-	// role key out rather than sending "", so Vault applies its documented
-	// default of using the IAM principal's friendly name.
+	// Config validation requires a Vault role.
 	if a.params.VaultRoleName != "" {
 		body["role"] = a.params.VaultRoleName
 	}
