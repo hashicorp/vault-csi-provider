@@ -177,6 +177,11 @@ func TestAWSIAMAuth_NeverUsesProviderOrNodeCredentials(t *testing.T) {
 				PodInfo:       podInfo,
 			}
 			if tc.stsEndpointFromConfig {
+				// Config validation requires https for stsEndpoint. This test
+				// sets the parameters directly and uses a plain http test
+				// server, because the production STS client does not trust a
+				// test TLS certificate.
+				params.VaultAuthAWS.Region = "us-west-2"
 				params.VaultAuthAWS.STSEndpoint = stsServer.URL
 			}
 			var tokenRequests []*authenticationv1.TokenRequest

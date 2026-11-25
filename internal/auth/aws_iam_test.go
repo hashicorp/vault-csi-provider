@@ -203,11 +203,12 @@ func TestAWSIAMAuth_AuthRequest(t *testing.T) {
 			expectedToken:    "mount-request-token",
 			expectedServerID: "vault.example.com",
 		},
-		"custom STS endpoint with the default region": {
+		"custom STS endpoint in us-east-1": {
 			params: config.Parameters{
 				VaultRoleName: "vault-role",
 				VaultAuthType: config.AuthTypeAWS,
 				VaultAuthAWS: config.AWSAuth{
+					Region:      "us-east-1",
 					STSEndpoint: "https://sts-fips.us-east-1.amazonaws.com",
 				},
 				PodInfo: testPodInfo(),

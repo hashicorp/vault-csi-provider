@@ -294,15 +294,18 @@ aws:
 				},
 			},
 		},
-		"aws with an http STS endpoint and trailing slash": {
+		"aws with an STS endpoint with a trailing slash": {
 			parameters: map[string]string{
 				"roleName": "aws-role",
-				"auth":     "type: aws\naws:\n  stsEndpoint: http://localhost:4566/",
+				"auth":     "type: aws\naws:\n  region: eu-west-1\n  stsEndpoint: https://vpce-0123456789abcdef0-abcdefgh.sts.eu-west-1.vpce.amazonaws.com/",
 			},
 			expected: Parameters{
 				VaultRoleName: "aws-role",
 				VaultAuthType: AuthTypeAWS,
-				VaultAuthAWS:  AWSAuth{STSEndpoint: "http://localhost:4566/"},
+				VaultAuthAWS: AWSAuth{
+					Region:      "eu-west-1",
+					STSEndpoint: "https://vpce-0123456789abcdef0-abcdefgh.sts.eu-west-1.vpce.amazonaws.com/",
+				},
 			},
 		},
 		"aws with legacy vaultAuthMountPath": {
@@ -457,8 +460,32 @@ func TestParseConfig_Errors(t *testing.T) {
 				"objects":  objects,
 			},
 		},
+		"aws stsEndpoint with plain http": {
+			expectedErr: "invalid 'aws.stsEndpoint' in 'auth' parameter: \"http://sts.us-west-2.amazonaws.com\" must use the https scheme",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  region: us-west-2\n  stsEndpoint: http://sts.us-west-2.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint without region": {
+			expectedErr: "'aws.region' in 'auth' parameter must be set when 'aws.stsEndpoint' is set",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://sts-fips.us-west-2.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws VPC stsEndpoint without region": {
+			expectedErr: "'aws.region' in 'auth' parameter must be set when 'aws.stsEndpoint' is set",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://vpce-0123456789abcdef0-abcdefgh.sts.eu-west-1.vpce.amazonaws.com",
+				"objects":  objects,
+			},
+		},
 		"aws stsEndpoint without a scheme": {
-			expectedErr: "invalid 'aws.stsEndpoint' in 'auth' parameter: \"sts.us-west-2.amazonaws.com\" must use the https or http scheme",
+			expectedErr: "invalid 'aws.stsEndpoint' in 'auth' parameter: \"sts.us-west-2.amazonaws.com\" must use the https scheme",
 			parameters: map[string]string{
 				"roleName": "example-role",
 				"auth":     "type: aws\naws:\n  stsEndpoint: sts.us-west-2.amazonaws.com",
@@ -466,7 +493,7 @@ func TestParseConfig_Errors(t *testing.T) {
 			},
 		},
 		"aws stsEndpoint with an unsupported scheme": {
-			expectedErr: "must use the https or http scheme",
+			expectedErr: "must use the https scheme",
 			parameters: map[string]string{
 				"roleName": "example-role",
 				"auth":     "type: aws\naws:\n  stsEndpoint: ftp://sts.us-west-2.amazonaws.com",

@@ -90,7 +90,8 @@ type AWSAuth struct {
 	IAMServerIDHeaderValue string `yaml:"iamServerIDHeaderValue,omitempty"`
 	// STSEndpoint overrides the STS endpoint used for AssumeRoleWithWebIdentity
 	// and for the signed GetCallerIdentity login request, for example a FIPS or
-	// VPC interface endpoint.
+	// VPC interface endpoint. It must use https, and Region must be set to the
+	// endpoint's region.
 	STSEndpoint string `yaml:"stsEndpoint,omitempty"`
 }
 
@@ -287,22 +288,30 @@ func parseAuth(authYAML string) (Auth, error) {
 		if err := validateSTSEndpoint(auth.AWS.STSEndpoint); err != nil {
 			return Auth{}, fmt.Errorf("invalid 'aws.stsEndpoint' in 'auth' parameter: %w", err)
 		}
+		// The login request is signed for the region, so it must match the
+		// endpoint. Defaulting to us-east-1 for a regional or FIPS endpoint
+		// would only surface as an STS signature error at login.
+		if auth.AWS.Region == "" {
+			return Auth{}, errors.New("'aws.region' in 'auth' parameter must be set when 'aws.stsEndpoint' is set")
+		}
 	}
 
 	return auth, nil
 }
 
-// validateSTSEndpoint checks that endpoint is an absolute http or https URL
-// without a path, query, fragment, or user info, so that it can be used both as
-// the STS client base endpoint and as the URL of the signed login request.
+// validateSTSEndpoint checks that endpoint is an absolute https URL without a
+// path, query, fragment, or user info, so that it can be used both as the STS
+// client base endpoint and as the URL of the signed login request. Plain http
+// is rejected because the endpoint receives the service account token and
+// returns temporary AWS credentials.
 func validateSTSEndpoint(endpoint string) error {
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		return err
 	}
 	switch {
-	case u.Scheme != "https" && u.Scheme != "http":
-		return fmt.Errorf("%q must use the https or http scheme", endpoint)
+	case u.Scheme != "https":
+		return fmt.Errorf("%q must use the https scheme", endpoint)
 	case u.Host == "":
 		return fmt.Errorf("%q must include a host", endpoint)
 	case u.User != nil:

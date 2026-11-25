@@ -165,7 +165,7 @@ func TestCacheKey_SecretProviderClassAuthIsolation(t *testing.T) {
 		},
 		"aws, with and without STS endpoint": {
 			a: spc(map[string]string{"roleName": "app-role", "auth": "type: aws"}),
-			b: spc(map[string]string{"roleName": "app-role", "auth": "type: aws\naws:\n  stsEndpoint: https://sts-fips.us-east-1.amazonaws.com"}),
+			b: spc(map[string]string{"roleName": "app-role", "auth": "type: aws\naws:\n  region: us-east-1\n  stsEndpoint: https://sts-fips.us-east-1.amazonaws.com"}),
 		},
 		"kubernetes, different mount paths": {
 			a: spc(map[string]string{"roleName": "app-role", "vaultKubernetesMountPath": "kubernetes"}),
