@@ -22,18 +22,13 @@ container {
 
   triage {
     suppress {
-        vulnerabilities = [
-          // Addresses a false positive from scan (our security scanner)
-          // Fixed by Red Hat in: https://access.redhat.com/errata/RHSA-2025:20181
-          // ProdSec tracking the false positive in: https://hashicorp.atlassian.net/browse/PSP-3514
-          "CVE-2025-6020",
-          // ncurses-base - fix is present in UBI 10.1 changelog (backported)
-          "CVE-2025-69720",
-          // glibc - CVE not explicitly listed in UBI 10.1 changelog; no patched version available
-          "CVE-2025-15281",
-          "CVE-2026-4046",
-          // libcap - fix is present in UBI 10.1 changelog (backported)
-          "CVE-2026-4878",
+        // The OSV scanner flags many base UBI packages because RHEL keeps the same
+        // base package version for the life of the distro, even after backporting
+        // security fixes. Rather than enumerate every such CVE, ignore the base
+        // UBI package database.
+        paths = [
+          "usr/lib/sysimage/rpm/*",
+          "var/lib/rpm/*",
         ]
     }
   }
