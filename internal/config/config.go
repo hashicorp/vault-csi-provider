@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -62,6 +64,37 @@ func (fc FlagsConfig) TLSConfig() api.TLSConfig {
 	}
 }
 
+const (
+	AuthTypeKubernetes = "kubernetes"
+	AuthTypeAWS        = "aws"
+
+	// DefaultAWSAudience is the default audience for service account tokens
+	// exchanged with AWS STS, matching the EKS pod identity webhook default.
+	DefaultAWSAudience = "sts.amazonaws.com"
+
+	defaultKubernetesAudience = "vault"
+)
+
+// Auth is the optional `auth` parameter of a SecretProviderClass, which
+// selects and configures the Vault auth method used to log in.
+type Auth struct {
+	Type      string  `yaml:"type,omitempty"`
+	MountPath string  `yaml:"mountPath,omitempty"`
+	Role      string  `yaml:"role,omitempty"`
+	AWS       AWSAuth `yaml:"aws,omitempty"`
+}
+
+// AWSAuth holds settings that only apply to the "aws" auth type.
+type AWSAuth struct {
+	Region                 string `yaml:"region,omitempty"`
+	IAMServerIDHeaderValue string `yaml:"iamServerIDHeaderValue,omitempty"`
+	// STSEndpoint overrides the STS endpoint used for AssumeRoleWithWebIdentity
+	// and for the signed GetCallerIdentity login request, for example a FIPS or
+	// VPC interface endpoint. It must use https, and Region must be set to the
+	// endpoint's region.
+	STSEndpoint string `yaml:"stsEndpoint,omitempty"`
+}
+
 // Parameters stores the parameters specified in a mount request's `Attributes` field.
 // It consists of the parameters section from the SecretProviderClass being mounted
 // and pod metadata provided by the driver.
@@ -72,9 +105,15 @@ func (fc FlagsConfig) TLSConfig() api.TLSConfig {
 //
 // So we just deserialise by hand to avoid complexity and two passes.
 type Parameters struct {
-	VaultAddress       string
-	VaultRoleName      string
+	VaultAddress string
+	// VaultRoleName is `auth.role` if set, otherwise `roleName`.
+	VaultRoleName string
+	// VaultAuthMountPath is `auth.mountPath`, `vaultAuthMountPath` or
+	// `vaultKubernetesMountPath`, whichever is set. Empty means use the
+	// auth method's default.
 	VaultAuthMountPath string
+	VaultAuthType      string
+	VaultAuthAWS       AWSAuth
 	VaultNamespace     string
 	VaultTLSConfig     api.TLSConfig
 	Secrets            []Secret
@@ -129,8 +168,18 @@ func parseParameters(parametersStr string) (Parameters, error) {
 		return Parameters{}, err
 	}
 
+	authParams, err := parseAuth(params["auth"])
+	if err != nil {
+		return Parameters{}, err
+	}
+
 	var parameters Parameters
+	parameters.VaultAuthType = authParams.Type
+	parameters.VaultAuthAWS = authParams.AWS
 	parameters.VaultRoleName = params["roleName"]
+	if authParams.Role != "" {
+		parameters.VaultRoleName = authParams.Role
+	}
 	parameters.VaultAddress = params["vaultAddress"]
 	parameters.VaultNamespace = params["vaultNamespace"]
 	parameters.VaultTLSConfig.CACert = params["vaultCACertPath"]
@@ -143,6 +192,12 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	switch {
 	case k8sSet && authSet:
 		return Parameters{}, fmt.Errorf("cannot set both vaultKubernetesMountPath and vaultAuthMountPath")
+	case authParams.MountPath != "" && (k8sSet || authSet):
+		return Parameters{}, fmt.Errorf("cannot set 'mountPath' in the 'auth' parameter together with vaultKubernetesMountPath or vaultAuthMountPath")
+	case k8sSet && authParams.Type != AuthTypeKubernetes:
+		return Parameters{}, fmt.Errorf("vaultKubernetesMountPath can only be used with the %q auth type, use 'mountPath' in the 'auth' parameter instead", AuthTypeKubernetes)
+	case authParams.MountPath != "":
+		parameters.VaultAuthMountPath = authParams.MountPath
 	case k8sSet:
 		parameters.VaultAuthMountPath = k8sMountPath
 	case authSet:
@@ -182,7 +237,10 @@ func parseParameters(parametersStr string) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("failed to unmarshal service account tokens: %w", err)
 		}
 
-		audience := "vault"
+		audience := defaultKubernetesAudience
+		if parameters.VaultAuthType == AuthTypeAWS {
+			audience = DefaultAWSAudience
+		}
 		if parameters.Audience != "" {
 			audience = parameters.Audience
 		}
@@ -194,13 +252,91 @@ func parseParameters(parametersStr string) (Parameters, error) {
 	return parameters, nil
 }
 
+// parseAuth parses the optional `auth` parameter, which must be a single YAML
+// document. Unknown fields and additional documents are rejected so that
+// typos or partial configuration don't silently fall back to defaults.
+func parseAuth(authYAML string) (Auth, error) {
+	var auth Auth
+	if strings.TrimSpace(authYAML) != "" {
+		decoder := yaml.NewDecoder(strings.NewReader(authYAML))
+		decoder.KnownFields(true)
+		if err := decoder.Decode(&auth); err != nil && !errors.Is(err, io.EOF) {
+			return Auth{}, fmt.Errorf("failed to parse 'auth' parameter: %w", err)
+		}
+		var extraDocument yaml.Node
+		if err := decoder.Decode(&extraDocument); !errors.Is(err, io.EOF) {
+			if err != nil {
+				return Auth{}, fmt.Errorf("failed to parse 'auth' parameter: %w", err)
+			}
+			return Auth{}, errors.New("'auth' parameter must contain a single YAML document")
+		}
+	}
+
+	switch auth.Type {
+	case "":
+		auth.Type = AuthTypeKubernetes
+	case AuthTypeKubernetes, AuthTypeAWS:
+	default:
+		return Auth{}, fmt.Errorf("unsupported auth type %q in 'auth' parameter, must be one of %q or %q", auth.Type, AuthTypeKubernetes, AuthTypeAWS)
+	}
+
+	if auth.Type != AuthTypeAWS && auth.AWS != (AWSAuth{}) {
+		return Auth{}, fmt.Errorf("'aws' settings in the 'auth' parameter can only be used with the %q auth type", AuthTypeAWS)
+	}
+
+	if auth.AWS.STSEndpoint != "" {
+		if err := validateSTSEndpoint(auth.AWS.STSEndpoint); err != nil {
+			return Auth{}, fmt.Errorf("invalid 'aws.stsEndpoint' in 'auth' parameter: %w", err)
+		}
+		// The login request is signed for the region, so it must match the
+		// endpoint. Defaulting to us-east-1 for a regional or FIPS endpoint
+		// would only surface as an STS signature error at login.
+		if auth.AWS.Region == "" {
+			return Auth{}, errors.New("'aws.region' in 'auth' parameter must be set when 'aws.stsEndpoint' is set")
+		}
+	}
+
+	return auth, nil
+}
+
+// validateSTSEndpoint checks that endpoint is an absolute https URL without a
+// path, query, fragment, or user info, so that it can be used both as the STS
+// client base endpoint and as the URL of the signed login request. Plain http
+// is rejected because the endpoint receives the service account token and
+// returns temporary AWS credentials.
+func validateSTSEndpoint(endpoint string) error {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return err
+	}
+	switch {
+	case u.Scheme != "https":
+		return fmt.Errorf("%q must use the https scheme", endpoint)
+	case u.Host == "":
+		return fmt.Errorf("%q must include a host", endpoint)
+	case u.User != nil:
+		return fmt.Errorf("%q must not include user info", endpoint)
+	case u.Path != "" && u.Path != "/":
+		return fmt.Errorf("%q must not include a path", endpoint)
+	case u.RawQuery != "" || u.ForceQuery:
+		return fmt.Errorf("%q must not include a query", endpoint)
+	case u.Fragment != "":
+		return fmt.Errorf("%q must not include a fragment", endpoint)
+	}
+	return nil
+}
+
 func (c *Config) validate() error {
 	// Some basic validation checks.
 	if c.TargetPath == "" {
 		return errors.New("missing target path field")
 	}
+	// A Vault role is required for every auth type, including aws. Vault's AWS
+	// auth method would otherwise infer the role from the IAM principal's
+	// friendly name (the IAM role name for IRSA). Requiring it keeps the Vault
+	// role an explicit choice, consistent with Kubernetes auth.
 	if c.Parameters.VaultRoleName == "" {
-		return errors.New("missing 'roleName' in SecretProviderClass definition")
+		return errors.New("missing 'roleName' or 'auth.role' in SecretProviderClass definition")
 	}
 	if len(c.Parameters.Secrets) == 0 {
 		return errors.New("no secrets configured - the provider will not read any secret material")

@@ -1,3 +1,9 @@
+## Unreleased
+
+FEATURES:
+
+* Add support for Vault's AWS auth method using IAM roles for service accounts (IRSA), configured with the new optional `auth` SecretProviderClass parameter [[GH-147](https://github.com/hashicorp/vault-csi-provider/issues/147)]
+
 ## 1.7.4 (August 6, 2026)
 
 * Test with Vault 2.0.4, 1.21.9, 1.20.14, 1.19.20

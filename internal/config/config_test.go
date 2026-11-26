@@ -59,6 +59,7 @@ func TestParseParametersFromYaml(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, Parameters{
+		VaultAuthType: AuthTypeKubernetes,
 		Secrets: []Secret{
 			{
 				ObjectName: "test-certs",
@@ -92,6 +93,7 @@ func TestParseParameters(t *testing.T) {
 	expected := Parameters{
 		VaultRoleName: "example-role",
 		VaultAddress:  "http://vault:8200",
+		VaultAuthType: AuthTypeKubernetes,
 		VaultTLSConfig: api.TLSConfig{
 			Insecure: true,
 		},
@@ -133,6 +135,7 @@ func TestParseConfig(t *testing.T) {
 				Parameters: func() Parameters {
 					expected := Parameters{}
 					expected.VaultRoleName = roleName
+					expected.VaultAuthType = AuthTypeKubernetes
 					expected.VaultTLSConfig.Insecure = true
 					expected.Secrets = []Secret{
 						{"bar1", "v1/secret/foo1", "", "", nil, 0o600, ""},
@@ -171,6 +174,7 @@ func TestParseConfig(t *testing.T) {
 					VaultAddress:       "my-vault-address",
 					VaultNamespace:     "my-vault-namespace",
 					VaultAuthMountPath: "my-mount-path",
+					VaultAuthType:      AuthTypeKubernetes,
 					Secrets: []Secret{
 						{"bar1", "v1/secret/foo1", "", "", nil, 0o600, ""},
 					},
@@ -202,11 +206,163 @@ func TestParseConfig(t *testing.T) {
 	}
 }
 
+func TestParseParameters_Auth(t *testing.T) {
+	for name, tc := range map[string]struct {
+		parameters map[string]string
+		expected   Parameters
+	}{
+		"no auth block defaults to kubernetes": {
+			parameters: map[string]string{
+				"roleName":                 "k8s-role",
+				"vaultKubernetesMountPath": "custom-k8s",
+			},
+			expected: Parameters{
+				VaultRoleName:      "k8s-role",
+				VaultAuthType:      AuthTypeKubernetes,
+				VaultAuthMountPath: "custom-k8s",
+			},
+		},
+		"empty auth block defaults to kubernetes": {
+			parameters: map[string]string{
+				"roleName": "k8s-role",
+				"auth":     "# no settings\n",
+			},
+			expected: Parameters{
+				VaultRoleName: "k8s-role",
+				VaultAuthType: AuthTypeKubernetes,
+			},
+		},
+		"single auth document with explicit start and end markers": {
+			parameters: map[string]string{
+				"roleName": "aws-role",
+				"auth":     "---\ntype: aws\n...\n",
+			},
+			expected: Parameters{
+				VaultRoleName: "aws-role",
+				VaultAuthType: AuthTypeAWS,
+			},
+		},
+		"kubernetes auth block with mountPath and role": {
+			parameters: map[string]string{
+				"auth": "type: kubernetes\nmountPath: custom-k8s\nrole: k8s-role",
+			},
+			expected: Parameters{
+				VaultRoleName:      "k8s-role",
+				VaultAuthType:      AuthTypeKubernetes,
+				VaultAuthMountPath: "custom-k8s",
+			},
+		},
+		"aws inherits roleName": {
+			parameters: map[string]string{
+				"roleName": "shared-role",
+				"auth":     "type: aws",
+			},
+			expected: Parameters{
+				VaultRoleName: "shared-role",
+				VaultAuthType: AuthTypeAWS,
+			},
+		},
+		"auth.role overrides roleName": {
+			parameters: map[string]string{
+				"roleName": "k8s-role",
+				"auth":     "type: aws\nrole: aws-role",
+			},
+			expected: Parameters{
+				VaultRoleName: "aws-role",
+				VaultAuthType: AuthTypeAWS,
+			},
+		},
+		"aws with all settings": {
+			parameters: map[string]string{
+				"auth": `type: aws
+mountPath: my-aws
+role: aws-role
+aws:
+  region: us-west-2
+  iamServerIDHeaderValue: vault.example.com
+  stsEndpoint: https://sts-fips.us-west-2.amazonaws.com
+`,
+			},
+			expected: Parameters{
+				VaultRoleName:      "aws-role",
+				VaultAuthType:      AuthTypeAWS,
+				VaultAuthMountPath: "my-aws",
+				VaultAuthAWS: AWSAuth{
+					Region:                 "us-west-2",
+					IAMServerIDHeaderValue: "vault.example.com",
+					STSEndpoint:            "https://sts-fips.us-west-2.amazonaws.com",
+				},
+			},
+		},
+		"aws with an STS endpoint with a trailing slash": {
+			parameters: map[string]string{
+				"roleName": "aws-role",
+				"auth":     "type: aws\naws:\n  region: eu-west-1\n  stsEndpoint: https://vpce-0123456789abcdef0-abcdefgh.sts.eu-west-1.vpce.amazonaws.com/",
+			},
+			expected: Parameters{
+				VaultRoleName: "aws-role",
+				VaultAuthType: AuthTypeAWS,
+				VaultAuthAWS: AWSAuth{
+					Region:      "eu-west-1",
+					STSEndpoint: "https://vpce-0123456789abcdef0-abcdefgh.sts.eu-west-1.vpce.amazonaws.com/",
+				},
+			},
+		},
+		"aws with legacy vaultAuthMountPath": {
+			parameters: map[string]string{
+				"roleName":           "aws-role",
+				"auth":               "type: aws",
+				"vaultAuthMountPath": "my-aws",
+			},
+			expected: Parameters{
+				VaultRoleName:      "aws-role",
+				VaultAuthType:      AuthTypeAWS,
+				VaultAuthMountPath: "my-aws",
+			},
+		},
+		"aws uses sts.amazonaws.com token from mount request by default": {
+			parameters: map[string]string{
+				"roleName": "aws-role",
+				"auth":     "type: aws",
+				"csi.storage.k8s.io/serviceAccount.tokens": `{"vault": {"token": "vault-token"}, "sts.amazonaws.com": {"token": "sts-token"}}`,
+			},
+			expected: Parameters{
+				VaultRoleName: "aws-role",
+				VaultAuthType: AuthTypeAWS,
+				PodInfo:       PodInfo{ServiceAccountToken: "sts-token"},
+			},
+		},
+		"aws uses custom audience token from mount request": {
+			parameters: map[string]string{
+				"roleName": "aws-role",
+				"auth":     "type: aws",
+				"audience": "custom",
+				"csi.storage.k8s.io/serviceAccount.tokens": `{"custom": {"token": "custom-token"}, "sts.amazonaws.com": {"token": "sts-token"}}`,
+			},
+			expected: Parameters{
+				VaultRoleName: "aws-role",
+				VaultAuthType: AuthTypeAWS,
+				Audience:      "custom",
+				PodInfo:       PodInfo{ServiceAccountToken: "custom-token"},
+			},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			parametersStr, err := json.Marshal(tc.parameters)
+			require.NoError(t, err)
+			actual, err := parseParameters(string(parametersStr))
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
 func TestParseConfig_Errors(t *testing.T) {
 	for name, tc := range map[string]struct {
-		name       string
-		targetPath string
-		parameters map[string]string
+		name        string
+		targetPath  string
+		parameters  map[string]string
+		expectedErr string
 	}{
 		"no roleName": {
 			parameters: map[string]string{
@@ -230,12 +386,217 @@ func TestParseConfig_Errors(t *testing.T) {
 				"objects":                  objects,
 			},
 		},
+		"no roleName or auth.role": {
+			expectedErr: "missing 'roleName' or 'auth.role'",
+			parameters: map[string]string{
+				"auth":    "type: aws",
+				"objects": objects,
+			},
+		},
+		"auth.mountPath and vaultAuthMountPath specified": {
+			expectedErr: "cannot set 'mountPath' in the 'auth' parameter",
+			parameters: map[string]string{
+				"roleName":           "example-role",
+				"auth":               "mountPath: foo",
+				"vaultAuthMountPath": "bar",
+				"objects":            objects,
+			},
+		},
+		"auth.mountPath and vaultKubernetesMountPath specified": {
+			expectedErr: "cannot set 'mountPath' in the 'auth' parameter",
+			parameters: map[string]string{
+				"roleName":                 "example-role",
+				"auth":                     "mountPath: foo",
+				"vaultKubernetesMountPath": "bar",
+				"objects":                  objects,
+			},
+		},
+		"vaultKubernetesMountPath with aws auth type": {
+			expectedErr: "vaultKubernetesMountPath can only be used with the \"kubernetes\" auth type",
+			parameters: map[string]string{
+				"roleName":                 "example-role",
+				"auth":                     "type: aws",
+				"vaultKubernetesMountPath": "kubernetes",
+				"objects":                  objects,
+			},
+		},
+		"unsupported auth type": {
+			expectedErr: "unsupported auth type \"gcp\"",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: gcp",
+				"objects":  objects,
+			},
+		},
+		"unknown field in auth": {
+			expectedErr: "field mouthPath not found",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: kubernetes\nmouthPath: foo",
+				"objects":  objects,
+			},
+		},
+		"unknown field in auth.aws": {
+			expectedErr: "field awsIAMRole not found",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  awsIAMRole: foo",
+				"objects":  objects,
+			},
+		},
+		"aws settings with kubernetes auth type": {
+			expectedErr: "'aws' settings in the 'auth' parameter can only be used with the \"aws\" auth type",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "aws:\n  region: us-west-2",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with kubernetes auth type": {
+			expectedErr: "'aws' settings in the 'auth' parameter can only be used with the \"aws\" auth type",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: kubernetes\naws:\n  stsEndpoint: https://sts.us-west-2.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with plain http": {
+			expectedErr: "invalid 'aws.stsEndpoint' in 'auth' parameter: \"http://sts.us-west-2.amazonaws.com\" must use the https scheme",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  region: us-west-2\n  stsEndpoint: http://sts.us-west-2.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint without region": {
+			expectedErr: "'aws.region' in 'auth' parameter must be set when 'aws.stsEndpoint' is set",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://sts-fips.us-west-2.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws VPC stsEndpoint without region": {
+			expectedErr: "'aws.region' in 'auth' parameter must be set when 'aws.stsEndpoint' is set",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://vpce-0123456789abcdef0-abcdefgh.sts.eu-west-1.vpce.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint without a scheme": {
+			expectedErr: "invalid 'aws.stsEndpoint' in 'auth' parameter: \"sts.us-west-2.amazonaws.com\" must use the https scheme",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: sts.us-west-2.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with an unsupported scheme": {
+			expectedErr: "must use the https scheme",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: ftp://sts.us-west-2.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint without a host": {
+			expectedErr: "must include a host",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with a path": {
+			expectedErr: "must not include a path",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://sts.us-west-2.amazonaws.com/sts",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with a query": {
+			expectedErr: "must not include a query",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://sts.us-west-2.amazonaws.com/?a=b",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with a fragment": {
+			expectedErr: "must not include a fragment",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://sts.us-west-2.amazonaws.com#x",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint with user info": {
+			expectedErr: "must not include user info",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: https://user:pass@sts.us-west-2.amazonaws.com",
+				"objects":  objects,
+			},
+		},
+		"aws stsEndpoint that is not a URL": {
+			expectedErr: "invalid 'aws.stsEndpoint' in 'auth' parameter",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\naws:\n  stsEndpoint: \"https://sts.us-west-2.amazonaws.com:port\"",
+				"objects":  objects,
+			},
+		},
+		"invalid auth yaml": {
+			expectedErr: "failed to parse 'auth' parameter",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: [aws",
+				"objects":  objects,
+			},
+		},
+		"auth with empty first document and settings in a second": {
+			expectedErr: "'auth' parameter must contain a single YAML document",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "---\n---\ntype: aws",
+				"objects":  objects,
+			},
+		},
+		"auth with conflicting settings in a second document": {
+			expectedErr: "'auth' parameter must contain a single YAML document",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: kubernetes\n---\ntype: aws",
+				"objects":  objects,
+			},
+		},
+		"auth with an unknown field in a second document": {
+			expectedErr: "'auth' parameter must contain a single YAML document",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\n---\nmouthPath: aws",
+				"objects":  objects,
+			},
+		},
+		"auth with invalid yaml in a second document": {
+			expectedErr: "failed to parse 'auth' parameter",
+			parameters: map[string]string{
+				"roleName": "example-role",
+				"auth":     "type: aws\n---\ntype: [aws",
+				"objects":  objects,
+			},
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			parametersStr, err := json.Marshal(tc.parameters)
 			require.NoError(t, err)
 			_, err = Parse(string(parametersStr), "/some/path", "420")
 			require.Error(t, err, tc.name)
+			if tc.expectedErr != "" {
+				require.ErrorContains(t, err, tc.expectedErr)
+			}
 		})
 	}
 }
