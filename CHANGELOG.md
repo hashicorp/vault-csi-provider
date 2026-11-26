@@ -8,10 +8,6 @@
 
 * Build with Go v1.27.1 (from 1.26.5) ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
 
-BREAKING CHANGES:
-
-* Upgraded Go to 1.27.1 and updated CI tooling to ensure compatibility. ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
-
 BUG FIXES:
 
 * Fixed Helm test charts to use `apiVersion: v2` and updated image loading for compatibility with Docker 29. ([#587](https://github.com/hashicorp/vault-csi-provider/pull/587))
@@ -51,6 +47,7 @@ DEPENDENCY UPDATES:
 * Bump k8s.io/utils from 0.0.0-20260626114624-be93311217bd to 0.0.0-20261023123148-ca04ba58ecab ([#573](https://github.com/hashicorp/vault-csi-provider/pull/573))
 * Bump sigs.k8s.io/secrets-store-csi-driver from 1.6.1 to 1.6.2 ([#573](https://github.com/hashicorp/vault-csi-provider/pull/573))
 * Bump github.com/go-jose/go-jose/v4 from 4.1.4 to 4.1.6. ([#564](https://github.com/hashicorp/vault-csi-provider/pull/564))
+* Upgraded Go to 1.27.1 and updated CI tooling ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
 
 <!-- release-prep changes: start -->
 * Bump hashicorp/actions-docker-build from 2 to 2.2.1
