@@ -1,8 +1,76 @@
-## Unreleased
+## 1.8.0 (November 26, 2026)
+
+<!-- release-prep build/test: start -->
+* Test with Kubernetes 1.37.0, 1.36.4, 1.35.8, 1.34.11, 1.33.12 (previously 1.36.1, 1.35.5, 1.34.8, 1.33.12, 1.32.11)
+* Test with Vault 2.2.2, 1.21.14, 1.20.17, 1.19.26 (previously 2.0.4, 1.21.9, 1.20.14, 1.19.20)
+* Build with Go v1.27.4 (from 1.27.1)
+<!-- release-prep build/test: end -->
+
+* Build with Go v1.27.1 (from 1.26.5) ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
+
+BREAKING CHANGES:
+
+* Upgraded Go to 1.27.1 and updated CI tooling to ensure compatibility. ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
+
+BUG FIXES:
+
+* Fixed Helm test charts to use `apiVersion: v2` and updated image loading for compatibility with Docker 29. ([#587](https://github.com/hashicorp/vault-csi-provider/pull/587))
 
 FEATURES:
 
-* Add support for Vault's AWS auth method using IAM roles for service accounts (IRSA), configured with the new optional `auth` SecretProviderClass parameter [[GH-147](https://github.com/hashicorp/vault-csi-provider/issues/147)]
+* Add support for Vault's AWS auth method using IAM roles for service accounts (IRSA), configured with the new optional `auth` SecretProviderClass parameter [[GH-147](https://github.com/hashicorp/vault-csi-provider/issues/147)] ([#594](https://github.com/hashicorp/vault-csi-provider/pull/594))
+
+DEPENDENCY UPDATES:
+
+* Bump google.golang.org/grpc from 1.83.0 to 1.83.1 ([#533](https://github.com/hashicorp/vault-csi-provider/pull/533))
+* Bump google.golang.org/grpc from 1.83.1 to 1.83.2 ([#534](https://github.com/hashicorp/vault-csi-provider/pull/534))
+* Bump ubi10/ubi-minimal from 1785332777 to 1788941066 ([#536](https://github.com/hashicorp/vault-csi-provider/pull/536))
+* Bump ubi10/ubi-micro from 1784668691 to 1787684528 ([#532](https://github.com/hashicorp/vault-csi-provider/pull/532))
+* Bump github.com/stretchr/testify from 1.11.1 to 1.12.1 ([#537](https://github.com/hashicorp/vault-csi-provider/pull/537))
+* Bump k8s.io/api from 0.36.3 to 0.37.0 ([#537](https://github.com/hashicorp/vault-csi-provider/pull/537))
+* Bump k8s.io/apimachinery from 0.36.3 to 0.37.0 ([#537](https://github.com/hashicorp/vault-csi-provider/pull/537))
+* Bump k8s.io/client-go from 0.36.3 to 0.37.0 ([#537](https://github.com/hashicorp/vault-csi-provider/pull/537))
+* Bump k8s.io/utils from 0.0.0-20260507154919-ff6756f316d2 to 0.0.0-20260626114624-be93311217bd ([#537](https://github.com/hashicorp/vault-csi-provider/pull/537))
+* Bump sigs.k8s.io/secrets-store-csi-driver from 1.6.0 to 1.6.1 ([#538](https://github.com/hashicorp/vault-csi-provider/pull/538))
+* Bump ubi10/ubi-minimal from 1788941066 to 1789456844 ([#539](https://github.com/hashicorp/vault-csi-provider/pull/539))
+* Bump ubi10/ubi-minimal from 1789456844 to 1789645544 ([#541](https://github.com/hashicorp/vault-csi-provider/pull/541))
+* Bump alpine from 3.24.1 to 3.24.2 ([#540](https://github.com/hashicorp/vault-csi-provider/pull/540))
+* Bump github.com/hashicorp/copywrite from 0.21.0 to 0.25.3 in /tools ([#547](https://github.com/hashicorp/vault-csi-provider/pull/547))
+* Remove github.com/golangci/golangci-lint 1.64.6 in /tools ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
+* Add github.com/golangci/golangci-lint/v2 2.13.2 in /tools ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
+* Bump mvdan.cc/gofumpt from 0.7.0 to 0.12.0 in /tools ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
+* Remove github.com/golangci/golangci-lint/cmd/golangci-lint (unversioned) in tools/tools.go ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
+* Add github.com/golangci/golangci-lint/v2/cmd/golangci-lint (unversioned) in tools/tools.go ([#544](https://github.com/hashicorp/vault-csi-provider/pull/544))
+* Bump ubi10/ubi-minimal from 1789645544 to 1795197047 ([#596](https://github.com/hashicorp/vault-csi-provider/pull/596))
+* Bumps `actions/upload-artifact` from 7.0.1 to 7.0.2 to improve artifact download retries and update dependencies. ([#595](https://github.com/hashicorp/vault-csi-provider/pull/595))
+* Bump ubi10/ubi-micro from 1787684528 to 1794483900 ([#585](https://github.com/hashicorp/vault-csi-provider/pull/585))
+* Bump google.golang.org/grpc from 1.83.2 to 1.85.0 ([#573](https://github.com/hashicorp/vault-csi-provider/pull/573))
+* Bump k8s.io/api from 0.37.0 to 0.37.2 ([#573](https://github.com/hashicorp/vault-csi-provider/pull/573))
+* Bump k8s.io/apimachinery from 0.37.0 to 0.37.2 ([#573](https://github.com/hashicorp/vault-csi-provider/pull/573))
+* Bump k8s.io/client-go from 0.37.0 to 0.37.2 ([#573](https://github.com/hashicorp/vault-csi-provider/pull/573))
+* Bump k8s.io/utils from 0.0.0-20260626114624-be93311217bd to 0.0.0-20261023123148-ca04ba58ecab ([#573](https://github.com/hashicorp/vault-csi-provider/pull/573))
+* Bump sigs.k8s.io/secrets-store-csi-driver from 1.6.1 to 1.6.2 ([#573](https://github.com/hashicorp/vault-csi-provider/pull/573))
+* Bump github.com/go-jose/go-jose/v4 from 4.1.4 to 4.1.6. ([#564](https://github.com/hashicorp/vault-csi-provider/pull/564))
+
+<!-- release-prep changes: start -->
+* Bump hashicorp/actions-docker-build from 2 to 2.2.1
+* Bump hashicorp/actions-generate-metadata from 1 to 1.3.0
+* Bump kind from 0.32.0 to 0.33.0 in .github/workflows/tests.yaml
+* Bump Node.js from 19.8.1 to 26.13.1 in .github/workflows/tests.yaml
+* Bump alpine from 3.24.2 to 3.24.4
+* Bump CSI_DRIVER_VERSION from 1.6.0 to 1.6.2 in Makefile
+* Bump VAULT_HELM_VERSION from 0.34.0 to 0.34.1 in Makefile
+* Bump VAULT_VERSION from 2.0.4 to 2.2.2 in Makefile
+* Bump hashicorp/vault-csi-provider from 1.7.4 to 1.8.0 in deployment/vault-csi-provider.yaml
+* Bump hashicorp/vault-csi-provider from 1.7.4 to 1.8.0 in manifest_staging/deployment/vault-csi-provider.yaml
+* Updated dependencies
+  * github.com/aws/aws-sdk-go-v2 v1.47.4 -> v1.48.1
+  * github.com/aws/aws-sdk-go-v2/service/sts v1.51.5 -> v1.53.1
+  * k8s.io/api v0.37.2 -> v0.37.3
+  * k8s.io/apimachinery v0.37.2 -> v0.37.3
+  * k8s.io/client-go v0.37.2 -> v0.37.3
+  * github.com/golangci/golangci-lint/v2 v2.13.2 -> v2.15.0 in /tools
+<!-- release-prep changes: end -->
 
 ## 1.7.4 (August 6, 2026)
 
